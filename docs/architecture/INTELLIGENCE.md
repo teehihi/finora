@@ -7,8 +7,9 @@ Finora does not approve loans, apply on the user's behalf, or initiate payments.
 
 ## Local setup and demo
 
-1. Use Node 22 and the workspace pnpm version. Run `pnpm install`, `pnpm setup`,
-   and `pnpm dev`. Apply migrations to your existing database; do not reset it.
+1. Use Node 22 and the workspace pnpm version. Start Docker, then run
+   `pnpm install --frozen-lockfile`, `pnpm run setup`, and `pnpm dev`. Apply
+   migrations to your existing database; do not reset it.
 2. Sign in with Mailpit OTP. In Hồ sơ set monthly income to 15,000,000 ₫, living
    costs to 8,000,000 ₫ and existing debt payments to 1,000,000 ₫.
 3. In Finora AI, open Phân tích khoản vay. Try:
