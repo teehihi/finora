@@ -66,6 +66,7 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   await expect(page).toHaveURL(/\/home/);
   await page.getByRole('tab', { name: 'Khoản vay' }).click();
+  await expect(page).toHaveURL(/\/loans/);
   await page.getByRole('button', { name: 'Chi tiêu linh hoạt' }).click();
   await expect(page).toHaveURL(url);
 });

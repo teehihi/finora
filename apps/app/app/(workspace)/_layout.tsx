@@ -48,7 +48,7 @@ export default function Workspace() {
         role="tab"
         selected={on}
         label={t(key)}
-        onPress={() => router.navigate(href)}
+        onPress={() => router.replace(href)}
         style={{
           flex: rail ? undefined : 1,
           alignItems: 'center',
