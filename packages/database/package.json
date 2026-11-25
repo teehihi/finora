@@ -1,0 +1,20 @@
+{
+  "name": "@finora/database",
+  "private": true,
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "generate": "node scripts/db.mjs generate",
+    "migrate": "node scripts/db.mjs migrate deploy",
+    "studio": "node scripts/db.mjs studio",
+    "seed": "node scripts/db.mjs seed"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "prisma": "6.19.3",
+    "dotenv": "^17.2.0"
+  }
+}

@@ -1,0 +1,16 @@
+packages:
+  - apps/*
+  - packages/*
+nodeLinker: hoisted
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - prisma
+  - esbuild
+  - unrs-resolver
+overrides:
+  react: 19.1.0
+  react-dom: 19.1.0
+  react-native: 0.81.5
+  '@types/react': ~19.1.10

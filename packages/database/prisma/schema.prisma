@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String             @id
+  name          String
+  email         String             @unique
+  emailVerified Boolean            @default(false)
+  image         String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  profile       FinancialProfile?
+  locale        String             @default("vi-VN")
+  appearance    String             @default("light")
+  simulations   LoanSimulation[]
+  turns         ChatTurn[]
+  documents     UploadedDocument[]
+}
+
+model Session {
+  id        String   @id
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model FinancialProfile {
+  userId    String   @id
+  income    Decimal  @db.Decimal(15, 0)
+  debt      Decimal  @db.Decimal(15, 0)
+  expenses  Decimal  @db.Decimal(15, 0)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LoanProduct {
+  id          String           @id
+  name        String
+  nameEn      String
+  institution String
+  category    String
+  rateMin     Float
+  rateMax     Float
+  amountMin   Decimal          @db.Decimal(15, 0)
+  amountMax   Decimal          @db.Decimal(15, 0)
+  monthsMin   Int
+  monthsMax   Int
+  method      String
+  fee         Decimal?         @db.Decimal(15, 0)
+  source      String
+  simulations LoanSimulation[]
+}
+
+model LoanSimulation {
+  id              String      @id @default(uuid())
+  userId          String
+  productId       String
+  requestId       String
+  input           Json
+  result          Json
+  productSnapshot Json
+  createdAt       DateTime    @default(now())
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product         LoanProduct @relation(fields: [productId], references: [id])
+
+  @@unique([userId, requestId])
+  @@index([userId, createdAt])
+}
+
+model ChatTurn {
+  id           String   @id @default(uuid())
+  userId       String
+  requestId    String
+  prompt       String
+  answer       String
+  locale       String
+  provider     String
+  simulationId String?
+  facts        Json?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestId])
+  @@index([userId, createdAt])
+}
+
+model UploadedDocument {
+  id        String   @id
+  userId    String
+  size      Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

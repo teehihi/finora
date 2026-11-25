@@ -1,0 +1,40 @@
+{
+  "name": "@finora/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/main.ts",
+    "test": "jest --runInBand",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@finora/database": "workspace:*",
+    "@finora/contracts": "workspace:*",
+    "@finora/financial-engine": "workspace:*",
+    "@finora/i18n": "workspace:*",
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/swagger": "^11.2.0",
+    "better-auth": "1.6.35",
+    "@better-auth/expo": "1.6.35",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.0",
+    "helmet": "^8.1.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "dotenv": "^17.2.0",
+    "zod": "^4.1.12",
+    "pino": "^9.14.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "jest": "^29.7.0",
+    "@types/express": "^5.0.3",
+    "@types/jest": "^29.5.14",
+    "ts-jest": "^29.4.5"
+  }
+}

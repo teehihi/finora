@@ -1,0 +1,20 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.expo/
+.turbo/
+dist/
+coverage/
+.data/
+*.tsbuildinfo
+.DS_Store
+playwright-report/
+test-results/
+apps/app/ios/
+apps/app/android/
+.pnpm-store/
+*.log
+
+# Originals are preserved under apps/app/assets/brand.
+/Resource/

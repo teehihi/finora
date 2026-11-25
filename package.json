@@ -1,0 +1,45 @@
+{
+  "name": "finora",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22.20 <23"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "env:init": "node scripts/setup.mjs --env-only",
+    "infra:up": "docker compose up -d --wait postgres",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs -f postgres",
+    "infra:status": "docker compose ps",
+    "db:generate": "pnpm --filter @finora/database generate",
+    "db:migrate": "pnpm --filter @finora/database migrate",
+    "db:seed": "pnpm --filter @finora/database seed",
+    "db:studio": "pnpm --filter @finora/database studio",
+    "db:reset:local": "node scripts/reset.mjs",
+    "dev": "turbo run dev",
+    "dev:app": "turbo run dev --filter=@finora/app",
+    "dev:api": "turbo run dev --filter=@finora/api",
+    "build": "turbo run build",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "~5.9.2",
+    "prettier": "^3.6.2",
+    "eslint": "^9.39.0",
+    "typescript-eslint": "^8.46.0",
+    "@eslint/js": "^9.39.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^22.18.0",
+    "vitest": "^3.2.6",
+    "dotenv": "^17.2.0"
+  }
+}

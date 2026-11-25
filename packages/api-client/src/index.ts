@@ -1,0 +1,86 @@
+import type {
+  AccountData,
+  Product,
+  LoanInput,
+  Estimate,
+  Saved,
+  Profile,
+  Preferences,
+  ChatTurn,
+  ChatRequest,
+} from '@finora/contracts';
+export interface Readiness {
+  monthlyBudget: number;
+  debtToIncome: number;
+  target: number;
+}
+export class ApiError extends Error {
+  constructor(public status: number) {
+    super('Finora API ' + status);
+  }
+}
+export function createApi(
+  base: string,
+  headers: () => Record<string, string>,
+  transport: typeof fetch = fetch,
+) {
+  async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+    const r = await transport(base + '/api/' + path, {
+      method,
+      credentials: 'include',
+      headers: { ...headers(), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!r.ok) throw new ApiError(r.status);
+    return r.json() as Promise<T>;
+  }
+  return {
+    account: () => request<AccountData & { readiness: Readiness | null }>('account'),
+    profile: (p: Profile) => request<Profile>('profile', 'PUT', p),
+    preferences: (p: Preferences) => request<Preferences>('preferences', 'PUT', p),
+    catalog: () => request<Product[]>('catalog'),
+    product: (id: string) => request<Product>('catalog/' + encodeURIComponent(id)),
+    preview: (productId: string, input: LoanInput) =>
+      request<Estimate>('simulations/preview', 'POST', { productId, input }),
+    save: (productId: string, input: LoanInput, requestId: string) =>
+      request<Saved>('simulations', 'POST', { productId, input, requestId }),
+    saved: () => request<Saved[]>('simulations'),
+    detail: (id: string) => request<Saved>('simulations/' + encodeURIComponent(id)),
+    clearHistory: () => request<{ removed: number }>('assistant/history', 'DELETE'),
+    history: () => request<ChatTurn[]>('assistant/history'),
+    async stream(input: ChatRequest, signal: AbortSignal, onDelta: (text: string) => void) {
+      const r = await transport(base + '/api/assistant/stream', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { ...headers(), 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        body: JSON.stringify(input),
+        signal,
+      });
+      if (!r.ok || !r.body) throw new ApiError(r.status);
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '',
+        finished = false;
+      try {
+        for (;;) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          let end;
+          while ((end = buffer.indexOf('\n\n')) >= 0) {
+            const line = buffer.slice(0, end);
+            buffer = buffer.slice(end + 2);
+            if (!line.startsWith('data: ')) continue;
+            const event = JSON.parse(line.slice(6));
+            if (event.type === 'error') throw new Error('Stream failed');
+            if (event.type === 'delta') onDelta(event.text);
+            if (event.type === 'done') finished = true;
+          }
+        }
+        if (!finished) throw new Error('Incomplete stream');
+      } finally {
+        reader.releaseLock();
+      }
+    },
+  };
+}

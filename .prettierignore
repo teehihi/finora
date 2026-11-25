@@ -1,0 +1,13 @@
+node_modules
+dist
+pnpm-lock.yaml
+.turbo
+.expo
+.env*
+*.sql
+*.prisma
+apps/api/.data
+apps/app/ios
+apps/app/android
+test-results
+playwright-report
