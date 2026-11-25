@@ -129,7 +129,7 @@ export function Page({
         alignItems: 'center',
         paddingHorizontal: width >= 1024 ? 36 : 18,
         paddingTop: width >= 768 ? 32 : 20,
-        paddingBottom: 40,
+        paddingBottom: width < 768 ? 112 : 40,
       }}
     >
       <View style={{ width: '100%', maxWidth: 1200, gap: 22 }}>

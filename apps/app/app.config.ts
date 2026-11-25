@@ -5,7 +5,7 @@ const config: ExpoConfig = {
   scheme: 'finora',
   version: '0.1.0',
   orientation: 'default',
-  icon: './assets/brand/icon.png',
+  icon: '../../Resource/appIcon.png',
   userInterfaceStyle: 'automatic',
   ios: { bundleIdentifier: 'dev.finora.app', supportsTablet: true },
   android: { package: 'dev.finora.app' },

@@ -15,3 +15,5 @@ Kiểm tra trên macOS với Node 22.20.0, pnpm 10.32.1 và Docker Compose 2.40.
 | Android           | Sau khi nâng cấp, JavaScript bundle được export bằng Expo SDK 58. Kiểm tra runtime Expo Go trước đây dùng SDK 54 trên Android Emulator API 36.1; chưa lặp lại luồng emulator với SDK 58.              |
 
 Các kiểm tra trên simulator/emulator dùng Expo Go. Chưa chạy thiết bị vật lý, build ký phân phối iOS/Android hoặc kiểm tra bằng VoiceOver/TalkBack với người dùng. Các dịch vụ cloud, tài khoản ngân hàng thực, email delivery và inference Bedrock/Gemini/OpenAI nằm ngoài đợt kiểm tra local.
+
+Sau khi thêm Liquid Glass của Callstack, JS bundle web/iOS/Android export và workspace build qua được. TypeScript, Expo dependency check, format check và diff check cũng qua được. Native iOS dev build đã bắt đầu trên simulator iOS 26 nhưng bị dừng trước khi hoàn tất biên dịch theo yêu cầu; native iOS/Android chưa có kết quả build xác nhận. Expo Go không chứa module Liquid Glass; iOS cần development build với Xcode 26 trở lên.

@@ -1,7 +1,9 @@
 import { dark } from '@finora/design-tokens';
+import { useRef, type ComponentRef } from 'react';
 import { View, useWindowDimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { Stack, Redirect, router, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BlurTargetView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import {
   LayoutDashboard,
@@ -13,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import { useDesign, Text, Action, Avatar, Divider, LoadingState, ErrorState } from '@finora/ui';
 import { Logo } from '../../src/components/layout';
+import PlatformGlassSurface from '../../src/components/PlatformGlassSurface';
 import { auth } from '../../src/services/client';
 import { date } from '@finora/i18n';
 const links = [
@@ -23,6 +26,7 @@ const links = [
   ['profile', '/profile', UserRound],
 ] as const;
 export default function Workspace() {
+  const blurTarget = useRef<ComponentRef<typeof View> | null>(null);
   const { width } = useWindowDimensions();
   const path = usePathname();
   const { data, isPending, error, refetch } = auth.useSession();
@@ -82,79 +86,90 @@ export default function Workspace() {
       <StatusBar style={c === dark ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1, flexDirection: rail ? 'row' : 'column' }}
+        style={{ flex: 1 }}
       >
-        {rail ? (
-          <View
-            style={{
-              width: full ? 214 : 84,
-              backgroundColor: c.surface,
-              paddingHorizontal: full ? 16 : 6,
-              paddingVertical: 22,
-              gap: 20,
-              borderRightWidth: 1,
-              borderColor: c.border,
-            }}
-          >
-            <Logo small={!full} />
-            <Divider />
-            <View style={{ gap: 6 }}>{nav}</View>
-            <View style={{ flex: 1 }} />
-            {full ? (
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <ShieldCheck size={16} color={c.muted} />
-                <Text small muted>
-                  {t('privacyStatus')}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View
-            style={{
-              paddingHorizontal: rail ? 32 : 18,
-              height: rail ? 68 : 56,
-              borderBottomWidth: 1,
-              borderColor: c.border,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            {rail ? <Text muted>{t('workspace')}</Text> : <Logo small />}
-            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <BlurTargetView
+          ref={blurTarget}
+          style={{ flex: 1, flexDirection: rail ? 'row' : 'column' }}
+        >
+          {rail ? (
+            <View
+              style={{
+                width: full ? 214 : 84,
+                backgroundColor: c.surface,
+                paddingHorizontal: full ? 16 : 6,
+                paddingVertical: 22,
+                gap: 20,
+                borderRightWidth: 1,
+                borderColor: c.border,
+              }}
+            >
+              <Logo small={!full} />
+              <Divider />
+              <View style={{ gap: 6 }}>{nav}</View>
+              <View style={{ flex: 1 }} />
               {full ? (
-                <Text small muted>
-                  {date(new Date(), locale)}
-                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                  <ShieldCheck size={16} color={c.muted} />
+                  <Text small muted>
+                    {t('privacyStatus')}
+                  </Text>
+                </View>
               ) : null}
-              <Action label={t('profile')} onPress={() => router.navigate('/profile')}>
-                <Avatar name={data.user.name} />
-              </Action>
             </View>
+          ) : null}
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <View
+              style={{
+                paddingHorizontal: rail ? 32 : 18,
+                height: rail ? 68 : 56,
+                borderBottomWidth: 1,
+                borderColor: c.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              {rail ? <Text muted>{t('workspace')}</Text> : <Logo small />}
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                {full ? (
+                  <Text small muted>
+                    {date(new Date(), locale)}
+                  </Text>
+                ) : null}
+                <Action label={t('profile')} onPress={() => router.navigate('/profile')}>
+                  <Avatar name={data.user.name} />
+                </Action>
+              </View>
+            </View>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'none',
+                contentStyle: { backgroundColor: c.background },
+              }}
+            />
           </View>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'none',
-              contentStyle: { backgroundColor: c.background },
-            }}
-          />
-        </View>
+        </BlurTargetView>
         {!rail ? (
-          <View
+          <PlatformGlassSurface
+            isDark={c === dark}
+            blurTarget={blurTarget}
+            surfaceColor={c.surface}
+            borderColor={c.border}
             style={{
-              flexDirection: 'row',
-              backgroundColor: c.surface,
-              borderTopWidth: 1,
-              borderColor: c.border,
-              paddingVertical: 4,
+              position: 'absolute',
+              left: 12,
+              right: 12,
+              bottom: 8,
+              minHeight: 72,
+              borderRadius: 26,
               paddingHorizontal: 4,
+              paddingVertical: 5,
             }}
           >
-            {nav}
-          </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 60 }}>{nav}</View>
+          </PlatformGlassSurface>
         ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
