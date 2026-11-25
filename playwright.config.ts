@@ -9,6 +9,9 @@ export default defineConfig({
     baseURL: 'http://localhost:8081',
     viewport: { width: 1440, height: 960 },
     channel: process.env.FINORA_BROWSER_CHANNEL || undefined,
+    launchOptions: process.env.FINORA_CHROMIUM
+      ? { executablePath: process.env.FINORA_CHROMIUM }
+      : undefined,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

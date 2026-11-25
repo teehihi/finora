@@ -9,9 +9,9 @@
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "env:init": "node scripts/setup.mjs --env-only",
-    "infra:up": "docker compose up -d --wait postgres",
+    "infra:up": "docker compose up -d --wait postgres mailpit",
     "infra:down": "docker compose down",
-    "infra:logs": "docker compose logs -f postgres",
+    "infra:logs": "docker compose logs -f postgres mailpit",
     "infra:status": "docker compose ps",
     "db:generate": "pnpm --filter @finora/database generate",
     "db:migrate": "pnpm --filter @finora/database migrate",

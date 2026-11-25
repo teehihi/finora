@@ -48,9 +48,8 @@ export function Text({
       accessibilityRole={role}
       style={[
         {
-          fontFamily: bold ? 'GeistMedium' : 'Geist',
-          fontSize: small ? 13 : 16,
-          lineHeight: small ? 20 : 24,
+          fontFamily: bold ? tokens.font.medium : tokens.font.body,
+          ...(small ? tokens.type.caption : tokens.type.body),
           color: muted ? c.muted : c.foreground,
           flexShrink: 1,
         },
@@ -78,7 +77,7 @@ export function Heading({
         {
           fontFamily: locale === 'vi-VN' ? tokens.font.serifVi : tokens.font.serifEn,
           fontSize: size,
-          lineHeight: Math.ceil(size * 1.26),
+          lineHeight: Math.ceil(size * (size >= 32 ? 1.18 : 1.24)),
           color: colors.foreground,
           letterSpacing: -size * 0.034,
         },
@@ -87,6 +86,80 @@ export function Heading({
     >
       {children}
     </RNText>
+  );
+}
+export function Eyebrow({
+  children,
+  tone = 'muted',
+  style,
+}: {
+  children: ReactNode;
+  tone?: 'muted' | 'forest' | 'onForest';
+  style?: TextStyle;
+}) {
+  const { colors: c } = useDesign();
+  return (
+    <Text
+      small
+      bold
+      style={{
+        ...tokens.type.label,
+        color: tone === 'onForest' ? c.onForestMuted : tone === 'forest' ? c.primary : c.muted,
+        textTransform: 'uppercase',
+        ...style,
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
+export function SectionHeader({
+  title,
+  description,
+  eyebrow,
+  accessory,
+}: {
+  title: string;
+  description?: string;
+  eyebrow?: string;
+  accessory?: ReactNode;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+      <View style={{ flexGrow: 1, flexShrink: 1, gap: 4 }}>
+        {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+        <Heading size={26}>{title}</Heading>
+        {description ? <Text muted>{description}</Text> : null}
+      </View>
+      {accessory}
+    </View>
+  );
+}
+export function Surface({
+  children,
+  tone = 'paper',
+  style,
+}: {
+  children: ReactNode;
+  tone?: 'paper' | 'grouped' | 'forest';
+  style?: ViewStyle;
+}) {
+  const { colors: c } = useDesign();
+  return (
+    <View
+      style={[
+        {
+          backgroundColor:
+            tone === 'forest' ? c.forest : tone === 'grouped' ? c.elevated : c.surface,
+          borderRadius: tone === 'forest' ? tokens.radius.feature : tokens.radius.card,
+          padding: 20,
+          gap: 12,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
   );
 }
 export function Action({
@@ -129,7 +202,7 @@ export function Action({
       onPressOut={() => press(false)}
       onPress={onPress}
       style={[
-        { minHeight: 44, justifyContent: 'center', borderRadius: 8 },
+        { minHeight: 44, justifyContent: 'center', borderRadius: tokens.radius.small },
         style,
         { opacity: disabled ? 0.5 : pressed ? 0.74 : hover ? 0.88 : 1 },
         focused && { outlineColor: colors.focus, outlineWidth: 2, outlineStyle: 'solid' },
@@ -144,13 +217,15 @@ export function Button({
   onPress,
   variant = 'primary',
   icon,
+  leading,
   disabled = false,
   loading = false,
 }: {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'soft' | 'outline' | 'onForest';
+  variant?: 'primary' | 'soft' | 'outline' | 'onForest' | 'text';
   icon?: ReactNode;
+  leading?: ReactNode;
   disabled?: boolean;
   loading?: boolean;
 }) {
@@ -163,14 +238,14 @@ export function Button({
       disabled={disabled || loading}
       style={{
         minHeight: 48,
-        borderRadius: 12,
+        borderRadius: tokens.radius.control,
         alignItems: 'center',
         flexDirection: 'row',
         gap: 9,
-        paddingHorizontal: 20,
+        paddingHorizontal: variant === 'text' ? 0 : 18,
         paddingVertical: 10,
         borderWidth: variant === 'outline' ? 1 : 0,
-        borderColor: c.border,
+        borderColor: c.borderStrong,
         backgroundColor:
           variant === 'primary'
             ? c.primary
@@ -182,6 +257,7 @@ export function Button({
       }}
     >
       {loading ? <ActivityIndicator color={fg} /> : null}
+      {leading}
       <Text bold style={{ color: fg, fontSize: 15, textAlign: 'center' }}>
         {label}
       </Text>
@@ -219,6 +295,7 @@ export function Field({
       </Text>
       <RNInput
         accessibilityLabel={label}
+        accessibilityHint={error ?? hint}
         placeholderTextColor={c.muted}
         underlineColorAndroid="transparent"
         {...props}
@@ -236,11 +313,11 @@ export function Field({
             paddingVertical: 12,
             minHeight: 48,
             borderWidth: 1,
-            borderColor: error ? c.error : focus ? c.focus : c.border,
+            borderColor: error ? c.error : focus ? c.focus : c.borderStrong,
             color: c.foreground,
             backgroundColor: c.input,
-            borderRadius: 12,
-            fontFamily: 'Geist',
+            borderRadius: tokens.radius.control,
+            fontFamily: tokens.font.body,
             fontSize: 16,
           },
           props.style,
@@ -274,7 +351,7 @@ export function Card({ children, style }: { children: ReactNode; style?: ViewSty
           backgroundColor: c.surface,
           borderWidth: 1,
           borderColor: c.border,
-          borderRadius: 16,
+          borderRadius: tokens.radius.card,
           padding: 20,
           gap: 12,
         },
@@ -504,8 +581,8 @@ export function SearchInput({
         alignItems: 'center',
         gap: 10,
         borderWidth: 1,
-        borderColor: c.border,
-        borderRadius: 12,
+        borderColor: c.borderStrong,
+        borderRadius: tokens.radius.control,
         paddingHorizontal: 12,
         backgroundColor: c.input,
       }}
@@ -522,7 +599,7 @@ export function SearchInput({
           minWidth: 0,
           minHeight: 48,
           color: c.foreground,
-          fontFamily: 'Geist',
+          fontFamily: tokens.font.body,
           fontSize: 15,
         }}
       />
@@ -586,21 +663,34 @@ export function EmptyState({
   body?: string;
   action?: ReactNode;
 }) {
+  const { colors: c } = useDesign();
   return (
-    <Card>
+    <View
+      style={{
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: c.border,
+        paddingVertical: 21,
+        gap: 8,
+      }}
+    >
       <Heading size={23}>{title}</Heading>
       {body ? <Text muted>{body}</Text> : null}
-      {action}
-    </Card>
+      {action ? <View style={{ alignSelf: 'flex-start' }}>{action}</View> : null}
+    </View>
   );
 }
 export function ErrorState({ retry }: { retry: () => void }) {
-  const { t } = useDesign();
+  const { t, colors: c } = useDesign();
   return (
-    <Card>
-      <Text role="alert">{t('error')}</Text>
-      <Button label={t('retry')} onPress={retry} variant="outline" />
-    </Card>
+    <View style={{ borderLeftWidth: 2, borderColor: c.error, padding: 16, gap: 10 }}>
+      <Text role="alert" style={{ color: c.error }}>
+        {t('error')}
+      </Text>
+      <View style={{ alignSelf: 'flex-start' }}>
+        <Button label={t('retry')} onPress={retry} variant="outline" />
+      </View>
+    </View>
   );
 }
 export function Toast({ children }: { children: ReactNode }) {

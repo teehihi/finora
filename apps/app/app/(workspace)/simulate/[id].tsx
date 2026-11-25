@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { requestId } from '../../../src/services/request-id';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { loanSchema, type Product, type LoanInput, type Estimate } from '@finora/contracts';
 import { percent } from '@finora/i18n';
-import { Text, Card, Button, Field, Badge, SourceAttribution, useDesign } from '@finora/ui';
+import { Text, Heading, Button, Field, useDesign } from '@finora/ui';
 import { Data, Page, Back, Columns } from '../../../src/components/layout';
 import { Breakdown } from '../../../src/features/breakdown';
+import { LoanProductTerms } from '../../../src/features/catalog';
 import { api } from '../../../src/services/client';
-import { queryClient } from '../../../src/providers/AppProviders';
+import { queryClient, useAccount } from '../../../src/providers/AppProviders';
 function nextDue() {
   const now = new Date();
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -23,7 +24,13 @@ function nextDue() {
   return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
 }
 function Simulator({ p }: { p: Product }) {
-  const { t, money, locale } = useDesign();
+  const { t, money, locale, colors: c } = useDesign();
+  const { width } = useWindowDimensions();
+  const desktop = width >= 1024;
+  const account = useAccount();
+  const budget = account.data?.readiness?.monthlyBudget;
+  const local = (vi: string, en: string) => (locale === 'vi-VN' ? vi : en);
+  const [reference, pin] = useState<{ input: LoanInput; result: Estimate } | null>(null);
   const [invalid, mark] = useState(false);
   const [preview, setPreview] = useState<{
     input: LoanInput;
@@ -70,56 +77,114 @@ function Simulator({ p }: { p: Product }) {
     mark(!ok);
     if (ok) calc.mutate(r.data);
   });
+  const inputField = (k: 'principal' | 'annualRate' | 'months' | 'firstDue') => (
+    <Controller
+      key={k}
+      name={k}
+      control={form.control}
+      render={({ field }) => (
+        <Field
+          label={t(
+            (
+              {
+                principal: 'amount',
+                annualRate: 'yearRate',
+                months: 'term',
+                firstDue: 'firstDue',
+              } as const
+            )[k],
+          )}
+          value={field.value}
+          inputMode={k === 'firstDue' ? undefined : k === 'annualRate' ? 'decimal' : 'numeric'}
+          editable={!calc.isPending && !save.isPending}
+          onChangeText={(s) => {
+            const group = locale === 'vi-VN' ? /\./g : /,/g;
+            const compact = k === 'principal' ? s.replace(/\s/g, '') : s;
+            const grouped = locale === 'vi-VN' ? /^\d{1,3}(?:\.\d{3})+$/ : /^\d{1,3}(?:,\d{3})+$/;
+            field.onChange(
+              k === 'principal' && grouped.test(compact) ? compact.replace(group, '') : compact,
+            );
+            setPreview(null);
+            mark(false);
+          }}
+          keyboardType={k === 'firstDue' ? 'default' : 'decimal-pad'}
+          hint={
+            k === 'principal'
+              ? (/^\d{1,15}$/.test(field.value) ? money(Number(field.value)) + ' · ' : '') +
+                money(p.amountMin) +
+                ' – ' +
+                money(p.amountMax)
+              : k === 'annualRate'
+                ? percent(p.rateMin, locale) + ' – ' + percent(p.rateMax, locale)
+                : k === 'months'
+                  ? p.monthsMin + '–' + p.monthsMax + ' ' + t('months')
+                  : undefined
+          }
+        />
+      )}
+    />
+  );
+  const comparison = reference ? (
+    <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 16, gap: 10 }}>
+      <Heading size={25}>{local('Mốc so sánh', 'Comparison baseline')}</Heading>
+      <Text>
+        {money(reference.input.principal)} · {reference.input.months} {t('months')} ·{' '}
+        {percent(reference.input.annualRate, locale)}
+      </Text>
+      <Text muted>
+        {t('firstPayment')}: {money(reference.result.firstPayment)}
+      </Text>
+      {preview ? (
+        <Text bold>
+          {local('Chênh lệch kỳ đầu', 'Difference in first payment')}:{' '}
+          {preview.result.firstPayment > reference.result.firstPayment ? '+' : ''}
+          {money(preview.result.firstPayment - reference.result.firstPayment)}
+        </Text>
+      ) : (
+        <Text muted>
+          {local(
+            'Đổi giả định rồi tính lịch mới để so sánh.',
+            'Change your assumptions and calculate again to compare.',
+          )}
+        </Text>
+      )}
+      <Button
+        variant="outline"
+        label={local('Bỏ mốc', 'Clear baseline')}
+        onPress={() => pin(null)}
+      />
+    </View>
+  ) : null;
   return (
     <Page
       title={locale === 'vi-VN' ? p.name : p.nameEn}
-      description={p.institution}
+      description={p.institution + ' · ' + t('sample')}
       top={<Back to={() => router.navigate('/explore')} />}
     >
-      <Columns>
-        <View style={{ flex: 1, gap: 12 }}>
-          <Card>
-            <Badge>{t('sample')}</Badge>
-            <Text>{t(p.method)}</Text>
-            {(['principal', 'annualRate', 'months', 'firstDue'] as const).map((k) => (
-              <Controller
-                key={k}
-                name={k}
-                control={form.control}
-                render={({ field }) => (
-                  <Field
-                    label={t(
-                      (
-                        {
-                          principal: 'amount',
-                          annualRate: 'yearRate',
-                          months: 'term',
-                          firstDue: 'firstDue',
-                        } as const
-                      )[k],
-                    )}
-                    value={field.value}
-                    editable={!calc.isPending && !save.isPending}
-                    onChangeText={(s) => {
-                      field.onChange(s);
-                      setPreview(null);
-                      mark(false);
-                    }}
-                    keyboardType={k === 'firstDue' ? 'default' : 'decimal-pad'}
-                    hint={
-                      k === 'principal'
-                        ? money(p.amountMin) + ' – ' + money(p.amountMax)
-                        : k === 'annualRate'
-                          ? percent(p.rateMin, locale) + ' – ' + percent(p.rateMax, locale)
-                          : k === 'months'
-                            ? p.monthsMin + '–' + p.monthsMax + ' ' + t('months')
-                            : undefined
-                    }
-                  />
-                )}
-              />
-            ))}
-            <SourceAttribution source={p.source} />
+      <Columns style={{ gap: desktop ? 32 : 20, alignItems: 'stretch' }}>
+        <View style={{ flex: desktop ? 1 : undefined, minWidth: 0, gap: 22 }}>
+          <View
+            style={{
+              backgroundColor: c.surface,
+              borderTopWidth: 2,
+              borderColor: c.accent,
+              padding: desktop ? 26 : 18,
+              gap: 15,
+            }}
+          >
+            <Text small bold style={{ letterSpacing: 1.2, color: c.muted }}>
+              {local('01 / GIẢ ĐỊNH', '01 / ASSUMPTIONS')}
+            </Text>
+            <Heading size={27}>{local('Lập phương án', 'Set up your scenario')}</Heading>
+            <Text small muted>
+              {t('method')}: {t(p.method)}
+            </Text>
+            {inputField('principal')}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>{inputField('annualRate')}</View>
+              <View style={{ flex: 1, minWidth: 0 }}>{inputField('months')}</View>
+            </View>
+            {inputField('firstDue')}
             <Text small muted>
               {t('planHint')}
             </Text>
@@ -132,12 +197,14 @@ function Simulator({ p }: { p: Product }) {
               loading={calc.isPending}
               disabled={save.isPending}
             />
-          </Card>
+          </View>
+          {desktop ? <LoanProductTerms p={p} /> : null}
         </View>
-        {preview ? (
-          <View style={{ flex: 1.2 }}>
+        <View style={{ flex: desktop ? 1.2 : undefined, minWidth: 0, gap: 18 }}>
+          {preview ? (
             <Breakdown
               {...preview}
+              budget={budget}
               actions={
                 <>
                   <Button
@@ -146,17 +213,49 @@ function Simulator({ p }: { p: Product }) {
                     loading={save.isPending}
                   />
                   {save.isError ? <Text role="alert">{t('error')}</Text> : null}
+                  {comparison}
+                  {!reference ? (
+                    <Button
+                      variant="outline"
+                      label={local('Giữ làm mốc so sánh', 'Keep as comparison baseline')}
+                      onPress={() => pin(preview)}
+                    />
+                  ) : null}
                 </>
               }
             />
-          </View>
-        ) : null}
+          ) : (
+            <View
+              style={{
+                backgroundColor: c.secondary,
+                borderRadius: 18,
+                padding: desktop ? 28 : 21,
+                gap: 10,
+              }}
+            >
+              <Text small bold style={{ letterSpacing: 1.2, color: c.muted }}>
+                {local('02 / KẾT QUẢ', '02 / RESULTS')}
+              </Text>
+              <Heading size={27}>
+                {local('Xem từng kỳ trước khi vay', 'See each payment before borrowing')}
+              </Heading>
+              <Text muted>
+                {local(
+                  'Tính lịch để xem kỳ đầu, gốc, lãi và các khoản phí đã biết.',
+                  'Calculate a schedule to see the first payment, principal, interest and known fees.',
+                )}
+              </Text>
+            </View>
+          )}
+          {!preview ? comparison : null}
+          {!desktop ? <LoanProductTerms p={p} /> : null}
+        </View>
       </Columns>
     </Page>
   );
 }
 export default function SimulateScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const q = useQuery({ queryKey: ['product', id], queryFn: () => api.product(id) });
+  const q = useQuery({ queryKey: ['product', id], queryFn: () => api.product(id), enabled: !!id });
   return <Data q={q}>{(p) => <Simulator key={p.id} p={p} />}</Data>;
 }

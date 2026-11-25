@@ -1,5 +1,5 @@
 import logo from '../../assets/brand/lockup.png';
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import {
   Image,
   View,
@@ -12,7 +12,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, ArrowRight, Globe2 } from 'lucide-react-native';
-import { Heading, Text, useDesign, Action, Button, LoadingState, ErrorState } from '@finora/ui';
+import {
+  Heading,
+  Text,
+  useDesign,
+  Action,
+  Button,
+  LoadingState,
+  ErrorState,
+  Eyebrow,
+} from '@finora/ui';
+import { tokens } from '@finora/design-tokens';
 import { usePrefs } from '../providers/AppProviders';
 export function Logo({ small = false }: { small?: boolean }) {
   const { colors: c } = useDesign();
@@ -21,15 +31,15 @@ export function Logo({ small = false }: { small?: boolean }) {
       style={{
         alignSelf: 'flex-start',
         backgroundColor: c.logoPlate,
-        padding: 3,
-        borderRadius: 8,
+        paddingHorizontal: 4,
+        borderRadius: tokens.radius.small,
       }}
     >
       <Image
         source={logo}
         accessibilityLabel="Finora"
         resizeMode="contain"
-        style={{ width: small ? 66 : 94, height: small ? 34 : 48 }}
+        style={{ width: small ? 72 : 96, height: small ? 37 : 49 }}
       />
     </View>
   );
@@ -70,13 +80,13 @@ export function PublicPage({
           contentContainerStyle={{
             alignItems: 'center',
             flexGrow: 1,
-            paddingHorizontal: width >= 768 ? 40 : 20,
+            paddingHorizontal: width >= 768 ? tokens.layout.tabletGutter : tokens.layout.gutter,
           }}
         >
-          <View style={{ width: '100%', maxWidth: 1240, flexGrow: 1 }}>
+          <View style={{ width: '100%', maxWidth: tokens.breakpoints.content, flexGrow: 1 }}>
             <View
               style={{
-                minHeight: width >= 768 ? 92 : 70,
+                minHeight: width >= 768 ? 82 : 64,
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -90,8 +100,12 @@ export function PublicPage({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Language />
                 {auth ? (
-                  <Action label={t('back')} onPress={() => router.replace('/')}>
-                    <ArrowLeft size={22} color={c.primary} />
+                  <Action
+                    label={t('back')}
+                    onPress={() => router.replace('/')}
+                    style={{ minWidth: 44, alignItems: 'center' }}
+                  >
+                    <ArrowLeft size={20} color={c.primary} />
                   </Action>
                 ) : (
                   <Button
@@ -109,34 +123,55 @@ export function PublicPage({
     </SafeAreaView>
   );
 }
+export const WorkspaceDockInsetContext = createContext(0);
+export const useWorkspaceDockInset = () => useContext(WorkspaceDockInsetContext);
+
 export function Page({
   children,
   title,
   description,
   top,
+  eyebrow,
+  maxWidth = tokens.breakpoints.content,
+  style,
 }: {
   children: React.ReactNode;
   title: string;
   description?: string;
   top?: React.ReactNode;
+  eyebrow?: string;
+  maxWidth?: number;
+  style?: ViewStyle;
 }) {
   const { width } = useWindowDimensions();
+  const dockInset = useWorkspaceDockInset();
+  const tablet = width >= tokens.breakpoints.rail;
+  const desktop = width >= tokens.breakpoints.desktop;
   return (
     <ScrollView
       style={{ flex: 1 }}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         alignItems: 'center',
-        paddingHorizontal: width >= 1024 ? 36 : 18,
-        paddingTop: width >= 768 ? 32 : 20,
-        paddingBottom: width < 768 ? 112 : 40,
+        paddingHorizontal: desktop
+          ? tokens.layout.desktopGutter
+          : tablet
+            ? tokens.layout.tabletGutter
+            : tokens.layout.gutter,
+        paddingTop: tablet ? 36 : 23,
+        paddingBottom: dockInset + 28,
       }}
     >
-      <View style={{ width: '100%', maxWidth: 1200, gap: 22 }}>
+      <View style={[{ width: '100%', maxWidth, gap: tablet ? 30 : 22 }, style]}>
         {top}
         <View style={{ gap: 6 }}>
-          <Heading size={width >= 1024 ? 42 : 32}>{title}</Heading>
-          {description ? <Text muted>{description}</Text> : null}
+          {eyebrow ? <Eyebrow tone="forest">{eyebrow}</Eyebrow> : null}
+          <Heading size={desktop ? 49 : 36}>{title}</Heading>
+          {description ? (
+            <Text muted style={{ maxWidth: tokens.layout.reading }}>
+              {description}
+            </Text>
+          ) : null}
         </View>
         {children}
       </View>

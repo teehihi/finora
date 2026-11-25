@@ -17,3 +17,13 @@ Kiểm tra trên macOS với Node 22.20.0, pnpm 10.32.1 và Docker Compose 2.40.
 Các kiểm tra trên simulator/emulator dùng Expo Go. Chưa chạy thiết bị vật lý, build ký phân phối iOS/Android hoặc kiểm tra bằng VoiceOver/TalkBack với người dùng. Các dịch vụ cloud, tài khoản ngân hàng thực, email delivery và inference Bedrock/Gemini/OpenAI nằm ngoài đợt kiểm tra local.
 
 Sau khi thêm Liquid Glass của Callstack, JS bundle web/iOS/Android export và workspace build qua được. TypeScript, Expo dependency check, format check và diff check cũng qua được. Native iOS dev build đã bắt đầu trên simulator iOS 26 nhưng bị dừng trước khi hoàn tất biên dịch theo yêu cầu; native iOS/Android chưa có kết quả build xác nhận. Expo Go không chứa module Liquid Glass; iOS cần development build với Xcode 26 trở lên.
+
+## Product Experience 2.0 · local verification
+
+- Baseline `4525f41` verified from a separate working tree. See the [visual audit](design-system/VISUAL_AUDIT.md) for actual before/after browser captures, seven release viewports and dedicated visual iteration notes.
+- Node 22.22.0, pnpm 10.32.1, Chromium 158, isolated PostgreSQL 17.12 and Mailpit 1.34.0. Docker was not available in this executor, so the same real local services ran as local binaries on disposable databases; the Compose definitions were not exercised here. No user database was reset.
+- Frozen install, workspace lint and type checks, NestJS build and Expo web export passed. Current unit suite: 17 financial engine tests, 6 API tests, 5 app tests.
+- Actual OTP mails arrived in Mailpit as branded HTML and plain text. Verified incorrect/expired/reused codes, attempt/resend limits, protected and cross-account access, same user ID on OTP, legacy password preservation through authenticated email verification, session restore and sign-out.
+- Google is configuration-gated and authorization URL/cancellation were tested with dummy local configuration. No external Google token exchange, Apple login, simulator/device session test, signed iOS/Android build or live AI inference was performed. The existing mock AI remains explicitly labeled. Known provider terms are synthetic in this phase; unsupported actual repayment tracking remains an honest empty state.
+- Playwright: 8/8 passed against the production-style local web export. The full browser flows exercise password and Mailpit OTP, UI comparison/filtering, protected links and settings, deterministic simulation and save, AI SSE/attachment/history, and account isolation.
+- Expo SDK 58 generated iOS and Android JavaScript/Hermes bundles. This confirms bundle generation only, not a signed build or native runtime verification.
