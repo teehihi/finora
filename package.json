@@ -21,6 +21,7 @@
     "dev": "turbo run dev",
     "dev:app": "turbo run dev --filter=@finora/app",
     "dev:api": "turbo run dev --filter=@finora/api",
+    "expo:lan": "node scripts/expo-lan.mjs",
     "build": "turbo run build",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",

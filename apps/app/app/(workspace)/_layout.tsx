@@ -1,7 +1,15 @@
 import { dark } from '@finora/design-tokens';
-import { useRef, type ComponentRef } from 'react';
-import { View, useWindowDimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
+import {
+  Animated,
+  PanResponder,
+  View,
+  useWindowDimensions,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { Stack, Redirect, router, usePathname } from 'expo-router';
+import { LiquidGlassView } from '@callstack/liquid-glass';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurTargetView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
@@ -27,12 +35,85 @@ const links = [
 ] as const;
 export default function Workspace() {
   const blurTarget = useRef<ComponentRef<typeof View> | null>(null);
+  const [navWidth, setNavWidth] = useState(0);
+  const navWidthRef = useRef(0);
+  const selectedIndex = useRef(0);
+  const isDragging = useRef(false);
+  const indicatorX = useRef(new Animated.Value(0)).current;
   const { width } = useWindowDimensions();
   const path = usePathname();
   const { data, isPending, error, refetch } = auth.useSession();
   const { t, colors: c, locale } = useDesign();
   const rail = width >= 768,
     full = width >= 1024;
+  const activeIndex = Math.max(
+    0,
+    links.findIndex(
+      ([key, href]) =>
+        path === href ||
+        (key === 'explore' && path.startsWith('/simulate')) ||
+        (key === 'loans' && path.startsWith('/saved')),
+    ),
+  );
+  selectedIndex.current = activeIndex;
+  useEffect(() => {
+    if (isDragging.current || navWidth === 0) return;
+    Animated.spring(indicatorX, {
+      toValue: (navWidth / links.length) * activeIndex,
+      damping: 20,
+      stiffness: 240,
+      mass: 0.72,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, indicatorX, navWidth]);
+  const navPan = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (event, gesture) => {
+          const itemWidth = navWidthRef.current / links.length;
+          const startedOnActiveItem =
+            itemWidth > 0 &&
+            Math.floor(event.nativeEvent.locationX / itemWidth) === selectedIndex.current;
+          return (
+            startedOnActiveItem &&
+            Math.abs(gesture.dx) > 7 &&
+            Math.abs(gesture.dx) > Math.abs(gesture.dy)
+          );
+        },
+        onPanResponderGrant: () => {
+          isDragging.current = true;
+          indicatorX.stopAnimation();
+        },
+        onPanResponderMove: (_, gesture) => {
+          const itemWidth = navWidthRef.current / links.length;
+          const x = Math.max(
+            0,
+            Math.min(
+              navWidthRef.current - itemWidth,
+              selectedIndex.current * itemWidth + gesture.dx,
+            ),
+          );
+          indicatorX.setValue(x);
+        },
+        onPanResponderRelease: (_, gesture) => {
+          const itemWidth = navWidthRef.current / links.length;
+          const next = Math.max(
+            0,
+            Math.min(
+              links.length - 1,
+              Math.round((selectedIndex.current * itemWidth + gesture.dx) / itemWidth),
+            ),
+          );
+          isDragging.current = false;
+          router.replace(links[next][1]);
+        },
+        onPanResponderTerminate: () => {
+          isDragging.current = false;
+          router.replace(links[selectedIndex.current][1]);
+        },
+      }),
+    [indicatorX],
+  );
   if (isPending) return <LoadingState />;
   if (error) return <ErrorState retry={() => refetch()} />;
   if (!data) return <Redirect href="/auth" />;
@@ -57,8 +138,8 @@ export default function Workspace() {
           paddingHorizontal: rail ? 10 : 0,
           flexDirection: full ? 'row' : 'column',
           justifyContent: full ? 'flex-start' : 'center',
-          backgroundColor: on ? c.secondary : 'transparent',
-          borderRadius: 12,
+          backgroundColor: 'transparent',
+          borderRadius: 18,
         }}
       >
         <View style={ai ? { backgroundColor: c.primary, borderRadius: 10, padding: 4 } : undefined}>
@@ -168,7 +249,44 @@ export default function Workspace() {
               paddingVertical: 5,
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 60 }}>{nav}</View>
+            <View
+              onLayout={(event) => {
+                const measured = event.nativeEvent.layout.width;
+                navWidthRef.current = measured;
+                setNavWidth(measured);
+              }}
+              {...navPan.panHandlers}
+              style={{ flexDirection: 'row', alignItems: 'center', minHeight: 60 }}
+            >
+              {navWidth > 0 ? (
+                <Animated.View
+                  pointerEvents="none"
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 3,
+                    bottom: 3,
+                    width: navWidth / links.length,
+                    transform: [{ translateX: indicatorX }],
+                  }}
+                >
+                  <LiquidGlassView
+                    effect="regular"
+                    interactive
+                    colorScheme={c === dark ? 'dark' : 'light'}
+                    tintColor={c === dark ? 'rgba(196, 239, 219, 0.16)' : 'rgba(255,255,255,0.36)'}
+                    style={{
+                      flex: 1,
+                      marginHorizontal: 3,
+                      borderRadius: 18,
+                      borderWidth: 1,
+                      borderColor: c === dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.68)',
+                    }}
+                  />
+                </Animated.View>
+              ) : null}
+              {nav}
+            </View>
           </PlatformGlassSurface>
         ) : null}
       </KeyboardAvoidingView>
