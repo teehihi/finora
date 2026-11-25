@@ -28,16 +28,16 @@ Mở [Expo Web](http://localhost:8081), [tình trạng API](http://localhost:300
 
 ### Cấu hình mạng
 
-| Thiết bị                               | Máy chủ API                   | Cách chạy                                          |
-| -------------------------------------- | ----------------------------- | -------------------------------------------------- |
-| Web trên máy phát triển                | Hostname của trang, cổng 3000 | Mở localhost:8081                                  |
-| iOS Simulator                          | http://localhost:3000         | Expo Go tương thích SDK 54, mở project trong Metro |
-| Android Emulator                       | http://10.0.2.2:3000          | Expo Go SDK 54, dùng Metro qua 10.0.2.2:8081       |
-| Điện thoại thật, web di động qua Wi-Fi | http://IP_LAN_CỦA_MÁY:3000    | Chuẩn bị LAN theo hướng dẫn bên dưới               |
+| Thiết bị                           | Máy chủ API                   | Cách chạy                                            |
+| ---------------------------------- | ----------------------------- | ---------------------------------------------------- |
+| Web trên máy phát triển            | Hostname của trang, cổng 3000 | Mở localhost:8081                                    |
+| iOS Simulator                      | http://localhost:3000         | Expo Go SDK 58, mở project trong Metro               |
+| Android Emulator                   | http://10.0.2.2:3000          | Expo Go SDK 58, dùng Metro qua 10.0.2.2:8081         |
+| Điện thoại thật (Expo Go hoặc web) | http://IP_LAN_CỦA_MÁY:3000    | Cùng Wi-Fi, mở QR của Metro và chuẩn bị LAN bên dưới |
 
 Cấu hình API trong `apps/api/.env`, PostgreSQL trong `.env`, địa chỉ công khai cho Expo trong `apps/app/.env`. Khi đổi cổng hoặc thông tin PostgreSQL, đồng bộ `DATABASE_URL` với Compose. Đổi biến khi volume đã có dữ liệu cũng cần cập nhật role trong database hiện có.
 
-Với điện thoại trong mạng Wi-Fi tin cậy, đặt `HOST=0.0.0.0`, `BETTER_AUTH_URL=http://IP_LAN_CỦA_MÁY:3000`, thêm chính xác `http://IP_LAN_CỦA_MÁY:8081` vào `WEB_ORIGINS` (phân tách bằng dấu phẩy) và đặt `EXPO_PUBLIC_API_URL=http://IP_LAN_CỦA_MÁY:3000`. Khởi động lại hai tiến trình. Trên web, dùng cùng hostname cho web và API để trình duyệt gửi cookie same-site. Chỉ mở cổng 3000 và 8081 trên mạng tin cậy. Cổng cơ sở dữ liệu luôn bind vào loopback.
+Với điện thoại trong mạng Wi-Fi tin cậy, đặt `HOST=0.0.0.0`, `BETTER_AUTH_URL=http://IP_LAN_CỦA_MÁY:3000`, thêm chính xác `http://IP_LAN_CỦA_MÁY:8081` vào `WEB_ORIGINS` (phân tách bằng dấu phẩy) và đặt `EXPO_PUBLIC_API_URL=http://IP_LAN_CỦA_MÁY:3000`. Khởi động lại `pnpm dev`, mở Expo Go SDK 58 trên iPhone/Android và quét QR Metro. Dùng địa chỉ LAN của máy cho API; `localhost` trên điện thoại trỏ về chính điện thoại. Trên web, dùng cùng hostname cho web và API để trình duyệt gửi cookie same-site. Chỉ mở cổng 3000 và 8081 trên mạng tin cậy. Cổng cơ sở dữ liệu luôn bind vào loopback.
 
 Native dùng Expo SecureStore và plugin Expo của Better Auth, web dùng cookie HTTP-only. Expo Go phải cùng SDK. Bản native standalone sử dụng scheme `finora://`. Trong một development build, iOS có thể yêu cầu quyền mạng cục bộ và Android có thể yêu cầu cấu hình HTTP debug cho host phát triển cụ thể. Bản phân phối dùng HTTPS. [Hướng dẫn Expo Go theo SDK](https://expo.dev/go)
 

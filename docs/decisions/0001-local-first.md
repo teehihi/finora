@@ -2,7 +2,7 @@
 
 **Đã chọn** một modular monolith và một ứng dụng Expo dùng chung. PostgreSQL 17 chạy trong Compose để setup giống nhau giữa máy phát triển và CI. Expo và NestJS chạy trên host để dùng hot reload, simulator và trình gỡ lỗi.
 
-Expo SDK 54 khóa React 19.1.0, React Native 0.81.5 và bộ phiên bản native do Expo công bố. Node 22.20 hiện có đáp ứng toolchain này. Workspace dùng hoisted linker. Prisma 6.19 dùng luồng schema/client/migrations ổn định trên PostgreSQL chuẩn. Better Auth và plugin Expo khóa cùng phiên bản. [Expo monorepos](https://docs.expo.dev/guides/monorepos/) · [Better Auth Expo](https://better-auth.com/docs/integrations/expo) · [SVG trên Expo](https://docs.expo.dev/versions/latest/sdk/svg/)
+Expo SDK 58 khóa React 19.3.0, React Native 0.88.1 và bộ phiên bản native do Expo công bố, tương thích Expo Go SDK 58 trên iPhone. Node 22.20 hiện có đáp ứng toolchain này. Workspace dùng hoisted linker. Prisma 6.19 dùng luồng schema/client/migrations ổn định trên PostgreSQL chuẩn. Better Auth và plugin Expo khóa cùng phiên bản. [Expo SDK 58](https://docs.expo.dev/versions/v58.0.0/) · [Expo monorepos](https://docs.expo.dev/guides/monorepos/) · [Better Auth Expo](https://better-auth.com/docs/integrations/expo) · [SVG trên Expo](https://docs.expo.dev/versions/latest/sdk/svg/)
 
 **Đánh đổi.** Shared domain packages biên dịch ra JS và declarations trước khi chạy app. Turbo đảm bảo thứ tự. Sau khi sửa package domain trong một dev session, build lại package và phụ thuộc tương ứng. React Native UI dùng mã nguồn trực tiếp để Metro cập nhật khi sửa.
 

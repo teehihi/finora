@@ -102,7 +102,7 @@ export default function Auth() {
                   keyboardType={key === 'email' ? 'email-address' : 'default'}
                   hint={signup && key === 'password' ? t('pwdHint') : undefined}
                   error={fieldState.invalid ? t('invalid') : undefined}
-                  onSubmitEditing={key === 'password' ? submit : undefined}
+                  onSubmitEditing={key === 'password' ? () => submit() : undefined}
                 />
               )}
             />

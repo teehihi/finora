@@ -3,23 +3,23 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { Button, Field, FinancialAmount, DesignContext } from '@finora/ui';
 import { light } from '@finora/design-tokens';
 describe('Finora controls', () => {
-  it('labels actions and prevents duplicate presses while loading', () => {
+  it('labels actions and prevents duplicate presses while loading', async () => {
     const press = jest.fn();
-    const screen = render(<Button label="Save" onPress={press} />);
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+    const screen = await render(<Button label="Save" onPress={press} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
     expect(press).toHaveBeenCalledTimes(1);
-    screen.rerender(<Button label="Save" onPress={press} loading />);
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+    await screen.rerender(<Button label="Save" onPress={press} loading />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
     expect(press).toHaveBeenCalledTimes(1);
   });
-  it('exposes labelled numeric input', () => {
+  it('exposes labelled numeric input', async () => {
     const change = jest.fn();
-    const screen = render(<Field label="Thu nhập" onChangeText={change} />);
-    fireEvent.changeText(screen.getByLabelText('Thu nhập'), '3000');
+    const screen = await render(<Field label="Thu nhập" onChangeText={change} />);
+    await fireEvent.changeText(screen.getByLabelText('Thu nhập'), '3000');
     expect(change).toHaveBeenCalledWith('3000');
   });
-  it('renders whole dong in Vietnamese', () => {
-    const s = render(
+  it('renders whole dong in Vietnamese', async () => {
+    const s = await render(
       <DesignContext.Provider value={{ colors: light, locale: 'vi-VN' }}>
         <FinancialAmount value={1234567} />
       </DesignContext.Provider>,
