@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { View, useWindowDimensions } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -18,6 +19,7 @@ import { numeric, percent } from '@finora/i18n';
 import { api } from '../../src/services/client';
 import { Page, Data } from '../../src/components/layout';
 import { LoanProductCard, ProductComparison } from '../../src/features/catalog';
+import { PublicCatalogView } from '../../src/features/public-catalog';
 import {
   categories,
   filterProducts,
@@ -26,6 +28,29 @@ import {
 } from '../../src/features/catalog-model';
 
 export default function Explore() {
+  const { t } = useDesign();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const mode = params.mode === 'sample' ? 'sample' : 'public';
+  return (
+    <Page
+      title={t('catalog')}
+      description={t(mode === 'public' ? 'publicCatalogIntro' : 'catalogIntro')}
+      eyebrow={t('explore')}
+    >
+      <Choices
+        value={mode}
+        onChange={(value) => router.setParams({ mode: value })}
+        options={[
+          { value: 'public', label: t('publicCatalog') },
+          { value: 'sample', label: t('sampleCatalogMode') },
+        ]}
+      />
+      {mode === 'public' ? <PublicCatalogView /> : <SampleCatalogView />}
+    </Page>
+  );
+}
+
+function SampleCatalogView() {
   const { t, colors: c, locale } = useDesign();
   const { width } = useWindowDimensions();
   const desktop = width >= 1024;
@@ -90,7 +115,7 @@ export default function Explore() {
   );
 
   return (
-    <Page title={t('catalog')} description={t('catalogIntro')} eyebrow={t('explore')}>
+    <>
       <View
         style={{
           flexDirection: 'row',
@@ -229,6 +254,6 @@ export default function Explore() {
           {t('noLoanApproval')}
         </Text>
       </ComparisonOverlay>
-    </Page>
+    </>
   );
 }

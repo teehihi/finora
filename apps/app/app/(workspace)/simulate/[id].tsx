@@ -159,7 +159,7 @@ function Simulator({ p }: { p: Product }) {
     <Page
       title={locale === 'vi-VN' ? p.name : p.nameEn}
       description={p.institution + ' · ' + t('sample')}
-      top={<Back to={() => router.navigate('/explore')} />}
+      top={<Back to={() => router.navigate('/explore?mode=sample')} />}
     >
       <Columns style={{ gap: desktop ? 32 : 20, alignItems: 'stretch' }}>
         <View style={{ flex: desktop ? 1 : undefined, minWidth: 0, gap: 22 }}>

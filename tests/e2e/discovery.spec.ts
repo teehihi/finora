@@ -14,7 +14,7 @@ test('sample loan discovery keeps terms comparable and separates estimates from 
   expect(account.ok(), await account.text()).toBeTruthy();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/explore');
+  await page.goto('/explore?mode=sample');
   await expect(page.getByText(/không phải báo giá/)).toBeVisible();
   const search = page.getByLabel('Tìm sản phẩm hoặc tổ chức');
   await search.fill('dong hanh hoc tap');
@@ -59,7 +59,7 @@ test('sample loan discovery keeps terms comparable and separates estimates from 
   await expect(page.getByRole('heading', { name: 'Chi tiêu linh hoạt' })).toHaveCount(0);
 
   await page.getByRole('tab', { name: 'Khoản vay', exact: true }).click();
-  await expect(page.getByText('Bạn chưa theo dõi khoản vay thực tế nào.')).toBeVisible();
+  await expect(page.getByText(/Các bản mô phỏng không tự trở thành khoản vay/)).toBeVisible();
   await expect(page.getByText('Chưa có bản mô phỏng', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Xem sản phẩm mẫu' })).toBeVisible();
 });

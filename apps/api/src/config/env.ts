@@ -33,7 +33,18 @@ const schema = z
           }
         }),
       ),
-    AI_PROVIDER: z.literal('mock'),
+    AI_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
+    OPENAI_API_KEY: z.string().trim().optional(),
+    OPENAI_MODEL: z
+      .string()
+      .trim()
+      .regex(/^[\w.:-]{1,160}$/)
+      .default('gpt-5.4-mini'),
+    OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(12000),
+    OPENAI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(16).max(4096).default(450),
+    FINORA_AI_TIMEOUT_MS: z.coerce.number().int().min(5000).max(60000).default(24000),
+    FINORA_AI_MAX_ROUNDS: z.coerce.number().int().min(1).max(4).default(2),
+    FINORA_AI_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).max(60).default(12),
     STORAGE_PROVIDER: z.literal('local'),
     LOCAL_STORAGE_PATH: z.string().min(1),
   })
@@ -55,6 +66,8 @@ const schema = z
     ) {
       issue('GOOGLE_CLIENT_ID', 'Set a Web application client ID and its matching server secret.');
     }
+    if (config.AI_PROVIDER === 'openai' && !config.OPENAI_API_KEY)
+      issue('OPENAI_API_KEY', 'A server-only API key is required when AI_PROVIDER is openai.');
     const apple = [
       config.APPLE_CLIENT_ID,
       config.APPLE_CLIENT_SECRET,

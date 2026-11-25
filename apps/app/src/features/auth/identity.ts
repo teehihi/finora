@@ -31,7 +31,9 @@ export function useIdentityOptions() {
 export const allowedAuthReturn = (value: unknown): string =>
   typeof value === 'string' &&
   value === value.trim() &&
-  /^\/(?:home|explore|assistant|loans|profile|(?:saved|simulate)\/[A-Za-z0-9_-]{1,80})$/.test(value)
+  /^\/(?:home|explore|assistant|intelligence|documents|repayments|loans|profile|(?:saved|simulate|documents)\/[A-Za-z0-9_-]{1,80})$/.test(
+    value,
+  )
     ? value
     : '/home';
 

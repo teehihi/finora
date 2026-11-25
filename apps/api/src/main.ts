@@ -6,12 +6,16 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
-import { toNodeHandler } from 'better-auth/node';
+import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { env } from './config/env.js';
 import { db } from './infrastructure/db.js';
 import { auth, authProviders, isApplePrepared, SessionGuard } from './modules/auth.js';
 import { PlanningController, PlanningService } from './modules/planning.js';
 import { AssistantController, AI_PROVIDER, MockProvider } from './modules/assistant.js';
+import { IntelligenceController } from './modules/intelligence.js';
+import { CatalogIntelligenceController } from './modules/catalog-intelligence.js';
+import { DocumentIntelligenceController } from './modules/document-intelligence.js';
+import { RepaymentIntelligenceController } from './modules/repayment-intelligence.js';
 import { DocumentsController, LocalStorageProvider, STORAGE } from './infrastructure/storage.js';
 import { SafeErrors, requestLog, logger } from './common/http.js';
 
@@ -29,7 +33,15 @@ class Health {
 @Module({ controllers: [Health] })
 class HealthModule {}
 @Module({
-  controllers: [PlanningController, AssistantController, DocumentsController],
+  controllers: [
+    PlanningController,
+    AssistantController,
+    DocumentsController,
+    IntelligenceController,
+    CatalogIntelligenceController,
+    DocumentIntelligenceController,
+    RepaymentIntelligenceController,
+  ],
   providers: [
     SessionGuard,
     PlanningService,
@@ -85,6 +97,25 @@ async function main() {
     express.json({ limit: '24kb' }),
   );
   server.use('/api/documents', express.raw({ type: 'text/plain', limit: '64kb' }));
+  server.use('/api/document-analysis', (req, res, next) => {
+    if (req.method !== 'POST' || !req.is(['application/pdf', 'image/jpeg', 'image/png']))
+      return next();
+    void auth.api
+      .getSession({ headers: fromNodeHeaders(req.headers) })
+      .then((found) => {
+        if (found) next();
+        else res.sendStatus(401);
+      })
+      .catch(next);
+  });
+  server.use(
+    '/api/document-analysis',
+    express.raw({
+      type: ['application/pdf', 'image/jpeg', 'image/png'],
+      limit: '5mb',
+      inflate: false,
+    }),
+  );
   server.use(
     (
       err: Error & { status?: number },

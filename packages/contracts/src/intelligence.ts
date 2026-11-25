@@ -1,0 +1,115 @@
+import { z } from 'zod';
+
+const outputMoney = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const signedMoney = z.number().int().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER);
+const id = z.string().min(1).max(100);
+const method = z.enum(['flat', 'equalPrincipal', 'annuity']);
+const text = z.string().min(1).max(600);
+const url = z.url({ protocol: /^https$/ });
+
+export const intelligenceRequestSchema = z
+  .object({
+    prompt: z.string().trim().min(1).max(1200),
+    locale: z.enum(['vi-VN', 'en-US']),
+    requestId: z.uuid(),
+    simulationId: z.uuid().optional(),
+    externalConsent: z.boolean().optional(),
+  })
+  .strict();
+
+export const intelligenceScenarioSchema = z
+  .object({
+    kind: z.literal('scenario'),
+    principal: outputMoney.positive(),
+    months: z.number().int().min(1).max(360),
+    firstDue: z.iso.date(),
+    annualRate: z.number().min(0).max(100),
+    method,
+    fee: outputMoney.nullable(),
+    firstPayment: outputMoney,
+    peakPayment: outputMoney,
+    repayment: outputMoney,
+    total: outputMoney.nullable(),
+    remainingCash: signedMoney.nullable(),
+    stressRemainingCash: signedMoney.nullable(),
+    source: z.enum(['user_assumptions', 'saved_simulation']),
+    simulationId: z.uuid().optional(),
+  })
+  .strict();
+
+export const intelligenceBlockSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('affordability'),
+      income: outputMoney,
+      expenses: outputMoney,
+      debt: outputMoney,
+      cashFlow: signedMoney,
+      monthlyCapacity: outputMoney,
+      emergencyMonths: z.number().nonnegative().nullable().optional(),
+      debtRatio: z.number().nonnegative().nullable(),
+      basis: z.enum(['profile', 'user']),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('offers'),
+      items: z
+        .array(
+          z
+            .object({
+              id,
+              institution: text,
+              name: text,
+              amountMin: outputMoney.nullable(),
+              amountMax: outputMoney.nullable(),
+              monthsMin: z.number().int().nonnegative().nullable(),
+              monthsMax: z.number().int().nonnegative().nullable(),
+              rateLabel: text.nullable(),
+              sourceUrl: url.nullable(),
+            })
+            .strict(),
+        )
+        .max(5),
+    })
+    .strict(),
+  intelligenceScenarioSchema,
+  z.object({ kind: z.literal('missing'), fields: z.array(id).max(9), message: text }).strict(),
+  z.object({ kind: z.literal('notice'), message: text }).strict(),
+]);
+
+export const intelligenceBlocksSchema = z.array(intelligenceBlockSchema).max(12);
+export const intelligenceTurnSchema = z
+  .object({
+    id: z.uuid(),
+    prompt: z.string().max(1200),
+    answer: z.string().max(7000),
+    provider: z.enum(['mock', 'openai']),
+    createdAt: z.iso.datetime({ offset: true }),
+    blocks: intelligenceBlocksSchema,
+    simulationId: z.uuid().nullable(),
+  })
+  .strict();
+export const intelligenceHistorySchema = z.array(intelligenceTurnSchema).max(50);
+export const intelligenceEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('meta'), provider: z.enum(['mock', 'openai']) }).strict(),
+  z.object({ type: z.literal('delta'), text: z.string().max(7000) }).strict(),
+  z.object({ type: z.literal('structured'), blocks: intelligenceBlocksSchema }).strict(),
+  z.object({ type: z.literal('done'), turnId: z.uuid().optional() }).strict(),
+  z.object({ type: z.literal('error') }).strict(),
+]);
+
+export const saveIntelligenceScenarioSchema = z
+  .object({
+    turnId: z.uuid(),
+    blockIndex: z.number().int().min(0).max(11),
+    requestId: z.uuid(),
+    confirmed: z.literal(true),
+  })
+  .strict();
+
+export type IntelligenceRequest = z.infer<typeof intelligenceRequestSchema>;
+export type IntelligenceBlock = z.infer<typeof intelligenceBlockSchema>;
+export type IntelligenceScenario = z.infer<typeof intelligenceScenarioSchema>;
+export type IntelligenceTurn = z.infer<typeof intelligenceTurnSchema>;
+export type IntelligenceEvent = z.infer<typeof intelligenceEventSchema>;

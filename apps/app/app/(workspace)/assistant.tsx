@@ -189,6 +189,24 @@ function AssistantWorkspace({ uid, simulationId }: { uid: string; simulationId?:
             </Text>
           </View>
         </View>
+        <Action
+          label={t('intelligenceOpen')}
+          onPress={() => router.push('/intelligence')}
+          style={{
+            gap: 8,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 3,
+            borderBottomWidth: 1,
+            borderColor: c.border,
+            borderRadius: 0,
+          }}
+        >
+          <Text small bold style={{ flex: 1, color: c.primary }}>
+            {t('intelligenceOpen')}
+          </Text>
+          <ArrowRight size={15} color={c.primary} />
+        </Action>
         <ScrollView
           ref={feed}
           style={{ flex: 1, minHeight: 0 }}

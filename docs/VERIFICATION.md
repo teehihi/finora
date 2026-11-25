@@ -27,3 +27,23 @@ Sau khi thêm Liquid Glass của Callstack, JS bundle web/iOS/Android export và
 - Google is configuration-gated and authorization URL/cancellation were tested with dummy local configuration. No external Google token exchange, Apple login, simulator/device session test, signed iOS/Android build or live AI inference was performed. The existing mock AI remains explicitly labeled. Known provider terms are synthetic in this phase; unsupported actual repayment tracking remains an honest empty state.
 - Playwright: 8/8 passed against the production-style local web export. The full browser flows exercise password and Mailpit OTP, UI comparison/filtering, protected links and settings, deterministic simulation and save, AI SSE/attachment/history, and account isolation.
 - Expo SDK 58 generated iOS and Android JavaScript/Hermes bundles. This confirms bundle generation only, not a signed build or native runtime verification.
+
+## Intelligence 3.0 · local verification
+
+- Migration test against the disposable V2 QA database applied three additive
+  migrations while retaining all 16 synthetic user rows and 5 saved simulation
+  rows. No user database was reset.
+- 63 unit tests passed: 17 financial engine, 39 API (including 15 mocked OpenAI
+  transport tests), and 7 app tests. The 33 Vietnamese evaluation fixtures were
+  checked for unique IDs and valid JSON; they are not 33 live-provider passes.
+- NestJS compiled; Expo exported the web build and iOS/Android JavaScript bundles.
+  Native device runtime, signed builds, live OAuth, and live external model
+  inference were not verified. No deployment or live financial transactions.
+- All 13 Chromium Playwright E2Es passed on the final release export. They covered the reviewed lender catalog, the original sample simulator,
+  Analysis Desk follow-up and comparison, user-confirmed scenario saving, private
+  PDF review and owner-only deletion, and explicit repayment tracking/undo.
+  Poppler read a real synthetic PDF; local Tesseract extracted synthetic JPEG and
+  PNG fixtures. Vietnamese scanned-document OCR was not verified.
+- Local browser evidence: [analysis desk](design-system/INTELLIGENCE_WORKSPACE.md),
+  [published loan comparison](architecture/LOAN_CATALOG.md), [private documents](architecture/DOCUMENT_INTELLIGENCE.md),
+  and [repayment tracking](architecture/REPAYMENT_TRACKING.md).

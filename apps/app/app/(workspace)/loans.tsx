@@ -1,11 +1,12 @@
 import { View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, CalendarDays, Feather } from 'lucide-react-native';
+import { ArrowUpRight, Feather } from 'lucide-react-native';
 import { Action, Heading, Text, Button, useDesign } from '@finora/ui';
 import { date, numeric } from '@finora/i18n';
 import { api, auth } from '../../src/services/client';
 import { Page, Data } from '../../src/components/layout';
+import { RepaymentsSummary } from '../../src/features/repayments';
 
 export default function Loans() {
   const { t, colors: c, locale, money } = useDesign();
@@ -25,25 +26,9 @@ export default function Loans() {
           style={{
             width: desktop ? 250 : undefined,
             alignSelf: desktop ? 'flex-start' : 'stretch',
-            gap: 10,
-            padding: 18,
-            backgroundColor: c.elevated,
-            borderRadius: 14,
           }}
         >
-          <CalendarDays size={20} color={c.primary} />
-          <Heading size={23}>{t('active')}</Heading>
-          <Text small muted>
-            {t('emptyActive')}
-          </Text>
-          <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 10, gap: 3 }}>
-            <Text small bold>
-              {t('upcoming')}
-            </Text>
-            <Text small muted>
-              {t('noActiveLedger')}
-            </Text>
-          </View>
+          <RepaymentsSummary />
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 10 }}>
           <View style={{ gap: 3 }}>
@@ -110,7 +95,7 @@ export default function Loans() {
                   <Button
                     label={t('learn')}
                     variant="outline"
-                    onPress={() => router.navigate('/explore')}
+                    onPress={() => router.navigate('/explore?mode=sample')}
                   />
                 </View>
               )
