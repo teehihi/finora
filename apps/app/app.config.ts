@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'automatic',
   ios: { bundleIdentifier: 'dev.finora.app', supportsTablet: true },
   android: { package: 'dev.finora.app' },
-  web: { bundler: 'metro', output: 'single', favicon: './assets/brand/favicon.png' },
+  web: { bundler: 'metro', output: 'single' },
   plugins: [
     'expo-router',
     'expo-secure-store',
