@@ -8,3 +8,8 @@
 - Dùng migration SQL đã commit và seed idempotent. Database reset là thao tác tương tác riêng.
 - Dùng PNG gốc theo đúng tỷ lệ. Kiểm tra dòng tiếng Việt, dark mode, focus và vùng bấm native khi sửa UI.
 - Trước khi push, chạy lint, typecheck, test, build và E2E phù hợp. Ghi rõ nền tảng nào đã chạy thực tế.
+
+- Dùng nhánh riêng và quy trình trong [CONTRIBUTING.md](CONTRIBUTING.md). Không push hay merge vào `main`, không đổi giấy phép hoặc cấu hình GitHub có tác động quyền truy cập nếu chưa có quyết định của maintainer.
+- Không chạy kiểm thử với tài khoản, OTP, hợp đồng vay hoặc database production. Dùng fixture tổng hợp, che thông tin nhạy cảm trong ảnh và log.
+- Giữ trợ lý local là mặc định; gửi nội dung sang AI bên ngoài chỉ khi người dùng đồng ý cho yêu cầu đó. Không đưa hồ sơ lưu, lịch sử hoặc tài liệu tải lên vào payload.
+- Nếu sửa UI, dùng thiết bị/nền tảng phù hợp để kiểm tra safe area, font tiếng Việt và fallback; ghi rõ phần chỉ được thử bằng web hoặc bundle.

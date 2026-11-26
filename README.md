@@ -1,8 +1,10 @@
 # Finora
 
-**Vay thông minh, trả chủ động.** Finora là sổ tay vay cá nhân dành cho người dùng Việt Nam. Bạn có thể nhập thu nhập và chi phí, thử một khoản vay minh họa, xem từng kỳ trả nợ, lưu kết quả và hỏi trợ lý về chính bản tính đó.
+**Vay thông minh, trả chủ động.** FINORA là trợ thủ khoản vay dành cho người dùng Việt Nam: so sánh chi phí, xem trước từng kỳ trả, đọc và rà soát điều khoản trong hồ sơ vay, rồi theo dõi các kỳ đến hạn.
 
-Ứng dụng dùng chung mã Expo cho iOS, Android và web. NestJS, Better Auth, bộ tính Decimal.js và PostgreSQL đều chạy trên máy phát triển. Trợ lý mặc định là mô phỏng cục bộ có nhãn rõ ràng. Bốn sản phẩm được seed là dữ liệu tổng hợp.
+FINORA dùng Expo cho iOS, Android và web; API dùng NestJS, Better Auth và PostgreSQL. Bản local mặc định dùng trợ lý mô phỏng có nhãn rõ ràng và bốn sản phẩm mẫu tổng hợp. Đây không phải dịch vụ cho vay, không nhận hồ sơ xin vay và không đưa ra quyết định tín dụng.
+
+[Chạy trên máy](#chạy-trên-máy) · [Đóng góp](CONTRIBUTING.md) · [Báo lỗi bảo mật](SECURITY.md) · [Giấy phép và tài sản](docs/maintainers/LICENSING.md)
 
 ## Chạy trên máy
 
@@ -28,12 +30,12 @@ Mở [Expo Web](http://localhost:8081), [tình trạng API](http://localhost:300
 
 ### Cấu hình mạng
 
-| Thiết bị                           | Máy chủ API                   | Cách chạy                                            |
-| ---------------------------------- | ----------------------------- | ---------------------------------------------------- |
-| Web trên máy phát triển            | Hostname của trang, cổng 3000 | Mở localhost:8081                                    |
-| iOS Simulator                      | http://localhost:3000         | Expo Go SDK 58, mở project trong Metro               |
-| Android Emulator                   | http://10.0.2.2:3000          | Expo Go SDK 58, dùng Metro qua 10.0.2.2:8081         |
-| Điện thoại thật (Expo Go hoặc web) | http://IP_LAN_CỦA_MÁY:3000    | Cùng Wi-Fi, mở QR của Metro và chuẩn bị LAN bên dưới |
+| Thiết bị                | Máy chủ API                   | Cách chạy                                    |
+| ----------------------- | ----------------------------- | -------------------------------------------- |
+| Web trên máy phát triển | Hostname của trang, cổng 3000 | Mở localhost:8081                            |
+| iOS Simulator           | http://localhost:3000         | Development build, kết nối với Metro         |
+| Android Emulator        | http://10.0.2.2:3000          | Expo Go SDK 58, dùng Metro qua 10.0.2.2:8081 |
+| Điện thoại thật         | http://IP_LAN_CỦA_MÁY:3000    | Cùng Wi-Fi; iOS cần development build        |
 
 Cấu hình API trong `apps/api/.env`, PostgreSQL trong `.env`, địa chỉ công khai cho Expo trong `apps/app/.env`. Khi đổi cổng hoặc thông tin PostgreSQL, đồng bộ `DATABASE_URL` với Compose. Đổi biến khi volume đã có dữ liệu cũng cần cập nhật role trong database hiện có.
 
@@ -71,7 +73,7 @@ Native dùng Expo SecureStore và plugin Expo của Better Auth, web dùng cooki
 - [Kiến trúc](docs/architecture/ARCHITECTURE.md) · [Cơ sở dữ liệu](docs/architecture/DATABASE.md) · [Trợ lý AI](docs/architecture/AI_ARCHITECTURE.md) · [Công thức](docs/architecture/CALCULATIONS.md).
 - [Phạm vi MVP](docs/product/MVP_SCOPE.md) · [Thương hiệu](docs/design-system/BRAND_GUIDELINES.md) · [Kết quả kiểm tra](docs/VERIFICATION.md).
 
-GitHub Actions thực hiện kiểm tra và build. Việc chuyển sang hạ tầng production được ghi trong ADR.
+[GitHub Actions](https://github.com/teehihi/finora/actions/workflows/ci.yml) chạy kiểm định dạng, lint, typecheck, unit test, build và E2E. [Hướng dẫn maintainers](docs/maintainers/GITHUB.md) ghi các trường About và cấu hình review đề xuất.
 
 ### Intelligence 3.0
 
