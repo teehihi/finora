@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="vi">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FINORA · Ba moodboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: clamp(16px, 4vw, 56px);
+      background: #f1f2eb;
+      color: #14291f;
+      font:
+        16px/1.5 system-ui,
+        sans-serif;
+    }
+    h1 {
+      font-size: clamp(28px, 5vw, 56px);
+      margin: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    article {
+      padding: 18px;
+      border-radius: 20px;
+      background: #fff;
+      border: 1px solid #becfc4;
+      min-width: 0;
+    }
+    h2 {
+      font-size: clamp(19px, 3vw, 32px);
+      line-height: 1.1;
+    }
+    .swatches {
+      display: flex;
+      gap: 6px;
+      margin: 14px 0;
+    }
+    .swatches i {
+      border: 1px solid #45645755;
+      height: 42px;
+      border-radius: 8px;
+      flex: 1;
+      background: var(--sw);
+    }
+    .sample {
+      min-height: 180px;
+      padding: 16px;
+      color: #f6fff7;
+      background: #125140;
+      border-radius: 12px;
+    }
+    .sample b {
+      font:
+        800 clamp(19px, 3vw, 36px)/1.1 system-ui,
+        sans-serif;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+    .sample small {
+      display: block;
+      margin: 4px 0 9px;
+    }
+    .tiles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+    .tiles span {
+      display: block;
+      background: #d2f775;
+      color: #122920;
+      border-radius: 8px;
+      padding: 8px;
+      font-weight: 800;
+    }
+    .tiles span:nth-child(2) {
+      background: #c5e3fc;
+    }
+    .a .sample {
+      border-radius: 22px 3px 22px 3px;
+      background: #095735;
+    }
+    .ledger div {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      border-top: 1px solid #a7d5be;
+      padding: 5px 0;
+    }
+    .c .sample {
+      border-radius: 17px 17px 4px 17px;
+      background: #1a4a50;
+      overflow: hidden;
+    }
+    .c img {
+      float: right;
+      width: 82px;
+      height: 82px;
+      object-fit: contain;
+    }
+    .c .sample aside {
+      clear: both;
+      background: #dcefed;
+      padding: 9px;
+      color: #152f30;
+      border-radius: 10px;
+    }
+    .type {
+      margin-top: 12px;
+      border-top: 1px solid #cedad1;
+      padding-top: 7px;
+    }
+    .ghost {
+      background: none;
+      border: 1px solid #b3cfbd;
+      color: inherit;
+      padding: 6px 9px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-top: 5px;
+    }
+    a {
+      color: #14523e;
+    }
+    p {
+      margin: 0.5rem 0;
+    }
+    @media (max-width: 790px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <body>
+    <header>
+      <small>FINORA / BẢNG ĐỊNH HƯỚNG</small>
+      <h1>Ba cách để ra quyết định</h1>
+      <p>Cùng một sản phẩm, ba cách tổ chức thông tin và biểu đạt khác nhau.</p>
+    </header>
+    <main class="grid">
+      <article class="a">
+        <small>A · NHỊP NHANH</small>
+        <h2>Consumer Fintech</h2>
+        <p>Cụm phím lớn, nhận diện theo hình và màu. Mở tác vụ bằng một chạm.</p>
+        <div class="swatches" aria-label="Forest, lime, sky, pale green">
+          <i style="--sw: #095735"></i><i style="--sw: #d2f775"></i><i style="--sw: #c5e3fc"></i
+          ><i style="--sw: #eff8ee"></i>
+        </div>
+        <div class="sample">
+          <small>Ngân sách tháng</small><b>3.000.000 ₫</b><small>Tìm được việc cần làm</small>
+          <div class="tiles"><span>◈ Khám phá</span><span>▦ Mô phỏng</span></div>
+        </div>
+        <div class="type">
+          <strong>System rounded feel · đậm, nhịp nhanh</strong>
+          <p>Icon theo mảng hình; nét quỹ đạo dùng ở hero, không thay cho nhãn.</p>
+        </div>
+        <a href="../high-fidelity/index.html?direction=a">Mở concept A</a>
+      </article>
+      <article class="b">
+        <small>B · TRỌNG TÂM CON SỐ</small>
+        <h2>Financial Intelligence</h2>
+        <p>Con số và ý nghĩa nằm cùng nhau. Hành động tách khỏi dữ kiện.</p>
+        <div class="swatches" aria-label="Forest, lime, warm white, graphite">
+          <i style="--sw: #125140"></i><i style="--sw: #c1eb91"></i><i style="--sw: #f6f7f1"></i
+          ><i style="--sw: #122a23"></i>
+        </div>
+        <div class="sample ledger">
+          <small>Kỳ sắp tới · 18/12</small><b>1.870.000 ₫</b><small>Khoản đang theo dõi</small>
+          <div><span>Khoản còn lại</span><strong>21,3 triệu ₫</strong></div>
+          <span class="ghost">Xem lịch trả</span>
+        </div>
+        <div class="type">
+          <strong>Geist · số cùng độ rộng</strong>
+          <p>Nét icon đồng nhất, vòng lá nguyên bản làm điểm nhấn.</p>
+        </div>
+        <a href="../high-fidelity/index.html?direction=b">Mở concept B</a>
+      </article>
+      <article class="c">
+        <small>C · HƯỚNG DẪN CÁ NHÂN</small>
+        <h2>AI Financial Companion</h2>
+        <p>Gợi ý theo ngữ cảnh trước, giải thích qua các bước hội thoại.</p>
+        <div class="swatches" aria-label="Petrol, lime, mist, slate">
+          <i style="--sw: #1a4a50"></i><i style="--sw: #d8f0a7"></i><i style="--sw: #dcefed"></i
+          ><i style="--sw: #152f30"></i>
+        </div>
+        <div class="sample">
+          <img src="../../../apps/app/assets/brand/fin-assistant.png" alt="Linh vật Fin" /><small
+            >Cùng Fin kiểm tra</small
+          ><b>Hỏi gì trước?</b>
+          <aside>“Tôi muốn biết khoảng phải trả mỗi tháng.”</aside>
+        </div>
+        <div class="type">
+          <strong>Humanist system · câu ngắn</strong>
+          <p>Sparkle và ngôn ngữ trò chuyện hỗ trợ Fin; không dùng icon thay cho thông tin.</p>
+        </div>
+        <a href="../high-fidelity/index.html?direction=c">Mở concept C</a>
+      </article>
+    </main>
+  </body>
+</html>

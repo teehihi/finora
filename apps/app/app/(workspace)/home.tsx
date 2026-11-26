@@ -37,6 +37,9 @@ export default function Home() {
   const mobile = width < 768;
   const desktop = width >= 1024;
   const name = user?.name?.trim();
+  const currentLedger = ledger.data;
+  const hasPendingPayment =
+    !!currentLedger && (currentLedger.overdue.length > 0 || !!firstUpcomingPayment(currentLedger));
 
   const payments = (
     <HomeSection
@@ -138,8 +141,9 @@ export default function Home() {
         ) : (
           <>
             <HomeCapacity account={account} desktop={false} />
+            {hasPendingPayment ? payments : null}
             <HomeTools />
-            {payments}
+            {!hasPendingPayment ? payments : null}
             <HomeFin />
             {recent}
           </>

@@ -77,7 +77,7 @@ export function PlanningSnapshot({
 
 // At most twelve equal-length buckets; maxima preserve a late larger payment.
 export function PaymentRhythm({ rows }: { rows: Estimate['schedule'] }) {
-  const { colors: c, locale } = useDesign();
+  const { colors: c, locale, money } = useDesign();
   if (rows.length < 2) return null;
   const chunk = Math.ceil(rows.length / 12);
   const bins: number[] = [];
@@ -114,7 +114,7 @@ export function PaymentRhythm({ rows }: { rows: Estimate['schedule'] }) {
             key={index}
             style={{
               flex: 1,
-              height: Math.max(3, (value / maximum) * 40),
+              height: (value / maximum) * 40,
               borderRadius: 4,
               backgroundColor: value === maximum ? c.primary : c.chartPrincipal,
               opacity: value === maximum ? 1 : 0.72,
@@ -122,12 +122,15 @@ export function PaymentRhythm({ rows }: { rows: Estimate['schedule'] }) {
           />
         ))}
       </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+      <View
+        style={{ flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}
+      >
         <Text small muted>
-          {locale === 'vi-VN' ? 'Kỳ đầu' : 'First payment'}
+          {locale === 'vi-VN' ? 'Kỳ đầu' : 'First payment'} · {money(rows[0].payment)}
         </Text>
         <Text small muted>
-          {locale === 'vi-VN' ? 'Kỳ cuối' : 'Final payment'}
+          {locale === 'vi-VN' ? 'Kỳ cuối' : 'Final payment'} ·{' '}
+          {money(rows[rows.length - 1].payment)}
         </Text>
       </View>
       {chunk > 1 ? (
@@ -136,7 +139,11 @@ export function PaymentRhythm({ rows }: { rows: Estimate['schedule'] }) {
             ? 'Mỗi cột là mức trả cao nhất trong nhóm kỳ, không gồm phí một lần.'
             : 'Each bar shows the largest payment in its group, excluding one-time fees.'}
         </Text>
-      ) : null}
+      ) : (
+        <Text small muted>
+          {locale === 'vi-VN' ? 'Chưa gồm phí một lần.' : 'Excludes one-time fees.'}
+        </Text>
+      )}
     </View>
   );
 }

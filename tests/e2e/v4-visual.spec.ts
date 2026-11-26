@@ -6,17 +6,23 @@ import { createLegacyAccount } from './legacy-fixture';
 
 const captureDirectory = process.env.FINORA_V4_CAPTURE_DIR;
 const signatureCapture = process.env.FINORA_V5_EXTRA === '1';
-const signatureWidths = signatureCapture ? [390, 430, 768, 1440] : [390, 1440];
+const designFirst = process.env.FINORA_DESIGN_FIRST === '1';
+const designWidths = [360, 390, 430, 768, 1024, 1440];
+const signatureWidths = designFirst
+  ? designWidths
+  : signatureCapture
+    ? [390, 430, 768, 1440]
+    : [390, 1440];
 const api = 'http://localhost:3000/api';
 const headers = { Origin: 'http://localhost:8081' };
-const widths = [375, 390, 430, 768, 1024, 1440];
+const widths = designFirst ? designWidths : [375, 390, 430, 768, 1024, 1440];
 
 test.skip(!captureDirectory, 'Set FINORA_V4_CAPTURE_DIR to render real app screenshots.');
 
 test('capture every major Finora route with real local fixtures', async ({ page }) => {
   test.setTimeout(240_000);
   const widthHeight = (width: number) =>
-    width <= 430 ? (width === 375 ? 812 : width === 390 ? 844 : 932) : 960;
+    width <= 430 ? (width <= 375 ? 812 : width === 390 ? 844 : 932) : 960;
   const viewport = (width: number) => page.setViewportSize({ width, height: widthHeight(width) });
   const capture = async (screen: string, width: number, theme = 'light') => {
     await viewport(width);
@@ -46,6 +52,8 @@ test('capture every major Finora route with real local fixtures', async ({ page 
         width === 390 ||
         width === 1440 ||
         screen === 'home' ||
+        (designFirst &&
+          ['auth', 'assistant', 'simulator', 'discovery', 'repayments'].includes(screen)) ||
         (signatureCapture &&
           ['home-empty', 'assistant', 'simulator', 'auth', 'discovery'].includes(screen) &&
           signatureWidths.includes(width))
@@ -176,6 +184,15 @@ test('capture every major Finora route with real local fixtures', async ({ page 
 
   await openScreen('/home', 'home');
   await viewport(390);
+  if (designFirst) {
+    const nextHeading = page.getByRole('heading', { name: 'Kỳ trả tiếp theo', exact: true });
+    const toolsHeading = page.getByRole('heading', { name: 'Công cụ vay & trả nợ', exact: true });
+    await expect(nextHeading).toBeVisible();
+    await expect(toolsHeading).toBeVisible();
+    expect((await nextHeading.boundingBox())!.y).toBeLessThan(
+      (await toolsHeading.boundingBox())!.y,
+    );
+  }
   const nextLoan = page.getByText(/^Kế hoạch sửa nhà/).first();
   await expect(nextLoan).toBeVisible();
   await nextLoan.scrollIntoViewIfNeeded();
@@ -203,7 +220,7 @@ test('capture every major Finora route with real local fixtures', async ({ page 
   await page.getByRole('button', { name: 'Lưu bản mô phỏng' }).scrollIntoViewIfNeeded();
   await capture('simulator-estimate', 390);
   if (signatureCapture) {
-    for (const width of signatureWidths.slice(1)) {
+    for (const width of signatureWidths.filter((width) => width !== 390)) {
       await viewport(width);
       await page.getByRole('heading', { name: 'Chi tiết trả nợ' }).scrollIntoViewIfNeeded();
       await capture('simulator-estimate', width);
@@ -268,6 +285,7 @@ test('capture every major Finora route with real local fixtures', async ({ page 
   await capture('settings-preferences', 390, 'dark');
   for (const [route, screen] of [
     ['home', 'home'],
+    ...(designFirst ? [['assistant', 'assistant']] : []),
     ['intelligence', 'intelligence'],
     ...(signatureCapture ? [['simulate/personal-flex', 'simulator']] : []),
     ['explore', 'discovery'],
@@ -276,6 +294,36 @@ test('capture every major Finora route with real local fixtures', async ({ page 
     await page.goto('/' + route);
     await expect(page).toHaveURL((url) => url.pathname === '/' + route);
     await page.waitForLoadState('networkidle');
-    await capture(screen, 390, 'dark');
+    for (const width of designFirst ? designWidths : [390]) {
+      if (designFirst) await noOverflow(screen + '-dark', width);
+      await capture(screen, width, 'dark');
+    }
+  }
+  if (designFirst) {
+    // Appearance persists only for the authenticated synthetic owner. Verify
+    // public auth with a fresh context whose system preference is dark.
+    const guest = await page.context().browser()!.newContext({ colorScheme: 'dark' });
+    try {
+      const auth = await guest.newPage();
+      await auth.goto('http://localhost:8081/auth');
+      await expect(auth.getByRole('button', { name: 'Tiếp tục bằng email' })).toBeVisible();
+      await expect(auth.getByLabel('Email', { exact: true })).toHaveCSS(
+        'color',
+        'rgb(242, 248, 245)',
+      );
+      for (const width of designWidths) {
+        await auth.setViewportSize({ width, height: widthHeight(width) });
+        await auth.evaluate(() => document.fonts.ready);
+        await expect
+          .poll(() => auth.evaluate(() => document.documentElement.scrollWidth - innerWidth))
+          .toBeLessThanOrEqual(0);
+        await auth.screenshot({
+          path: resolve(captureDirectory!, `auth-dark-${width}.png`),
+          animations: 'disabled',
+        });
+      }
+    } finally {
+      await guest.close();
+    }
   }
 });

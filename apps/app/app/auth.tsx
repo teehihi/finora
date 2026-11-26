@@ -306,7 +306,7 @@ export default function Auth() {
             : { gap: 20 }),
         }}
       >
-        {wide || step === 'email' ? <AuthArtwork wide={wide} /> : null}
+        {wide ? <AuthArtwork wide /> : null}
         <View
           style={{
             flex: wide ? 1 : undefined,
@@ -564,6 +564,7 @@ export default function Auth() {
             </Action>
           ) : null}
         </View>
+        {!wide && step === 'email' ? <AuthArtwork wide={false} /> : null}
       </View>
     </PublicPage>
   );

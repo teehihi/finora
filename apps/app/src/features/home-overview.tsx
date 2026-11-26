@@ -205,8 +205,8 @@ export function HomeCapacity({
 
 export function HomeTools() {
   const { locale } = useDesign();
-  const { fontScale } = useWindowDimensions();
-  const expanded = fontScale >= 1.35;
+  const { width, fontScale } = useWindowDimensions();
+  const expanded = width < 370 || fontScale >= 1.35;
   const copy = homeCopy(locale);
   const entries = [
     [copy.find, '/explore', Search, 'emerald'],
@@ -357,7 +357,7 @@ export function HomeActivityRow({
   const value = amount === undefined ? undefined : money(amount);
   return (
     <Action
-      label={[accessibleTitle ?? title, value].filter(Boolean).join(', ')}
+      label={[accessibleTitle ?? title, detail, value].filter(Boolean).join(', ')}
       onPress={onPress}
       style={{
         minHeight: featured ? 72 : 54,

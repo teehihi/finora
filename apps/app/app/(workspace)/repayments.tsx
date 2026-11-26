@@ -2,19 +2,14 @@ import { useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  CalendarClock,
-  CalendarDays,
-  ChevronRight,
-  CircleCheck,
-  CreditCard,
-} from 'lucide-react-native';
+import { CalendarClock, CalendarDays, ChevronRight, CircleCheck } from 'lucide-react-native';
 import { Action, Button, Dialog, EmptyState, Heading, Progress, Text, useDesign } from '@finora/ui';
 import { date, numeric } from '@finora/i18n';
 import type { DueRepayment, TrackedPayment, TrackedRepayment } from '@finora/contracts';
 import { Back, Data, Page } from '../../src/components/layout';
 import { SignatureIcon, SignatureSweep } from '../../src/components/signature';
 import { ledgerKey, useRepaymentLedger } from '../../src/features/repayments';
+import { firstUpcomingPayment } from '../../src/features/home-model';
 import { api } from '../../src/services/client';
 
 type RowSelection = { loanId: string; title: string; payment: TrackedPayment };
@@ -52,30 +47,71 @@ export default function Repayments() {
             save.reset();
             setSelection({ loanId, title: loan.title, payment });
           };
+          const upcoming = firstUpcomingPayment(value);
+          const urgent = value.overdue[0];
+          const focus = urgent ?? upcoming;
+          const remaining = value.loans.reduce((sum, loan) => sum + loan.remainingRepayment, 0);
           return value.loans.length ? (
             <>
+              {focus ? (
+                <View
+                  style={{
+                    backgroundColor: c.forest,
+                    borderRadius: 26,
+                    padding: 21,
+                    gap: 8,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <SignatureSweep name="finora-repayments-next" />
+                  <SignatureIcon tone={urgent ? 'amber' : 'lime'} icon={CalendarClock} size={36} />
+                  <Text small bold style={{ color: urgent ? c.signatureLime : c.onForestMuted }}>
+                    {t(urgent ? 'repaymentsLate' : 'repaymentsNextFocus')}
+                  </Text>
+                  <Heading
+                    size={width >= 1024 ? 46 : width < 370 ? 32 : 36}
+                    style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}
+                  >
+                    {money(focus.payment)}
+                  </Heading>
+                  <Text style={{ color: c.onForest }}>
+                    {date(focus.date, locale)} ·{' '}
+                    {t('repaymentsPeriod').replace('{n}', numeric(focus.period, locale))} ·{' '}
+                    {focus.title}
+                  </Text>
+                  <View style={{ alignSelf: 'flex-start' }}>
+                    <Button
+                      variant="onForest"
+                      label={t('repaymentsReviewFocus')}
+                      onPress={() => selectDue(focus)}
+                    />
+                  </View>
+                  <Text small style={{ color: c.onForestMuted }}>
+                    {t('repaymentsManualNotice')}
+                  </Text>
+                </View>
+              ) : (
+                <Text>{t('repaymentsNoAction')}</Text>
+              )}
               <View
                 style={{
-                  backgroundColor: c.forest,
-                  borderRadius: 26,
-                  padding: 21,
+                  backgroundColor: c.surface,
+                  borderRadius: 17,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  padding: 16,
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
                   gap: 8,
-                  overflow: 'hidden',
                 }}
               >
-                <SignatureSweep name="finora-repayments-summary" />
-                <SignatureIcon tone="lime" icon={CreditCard} size={36} />
-                <Text small style={{ color: c.onForestMuted }}>
+                <Text small muted>
                   {t('repaymentsRemainingTotal')}
                 </Text>
-                <Heading
-                  size={width >= 1024 ? 46 : 36}
-                  style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}
-                >
-                  {money(value.loans.reduce((sum, loan) => sum + loan.remainingRepayment, 0))}
-                </Heading>
-                <Text small style={{ color: c.onForestMuted }}>
-                  {t('repaymentsManualNotice')}
+                <Text bold style={{ fontVariant: ['tabular-nums'] }}>
+                  {money(remaining)}
                 </Text>
               </View>
               <View style={{ flexDirection: width >= 1024 ? 'row' : 'column', gap: 14 }}>

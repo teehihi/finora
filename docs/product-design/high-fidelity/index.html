@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>FINORA · Design review</title>
+    <link rel="stylesheet" href="studio.css" />
+  </head>
+  <body>
+    <header class="review">
+      <div>
+        <strong>FINORA / DESIGN STUDIO</strong><small>Đề xuất nội bộ · Dữ liệu minh họa</small>
+      </div>
+      <div class="controls">
+        <label
+          >Hướng thiết kế
+          <select id="direction">
+            <option value="b">B · Financial Intelligence</option>
+            <option value="a">A · Consumer Fintech</option>
+            <option value="c">C · AI Companion</option>
+          </select></label
+        ><label
+          >Màn hình
+          <select id="screen"></select></label
+        ><label
+          >Trạng thái
+          <select id="state">
+            <option value="ready">Mặc định</option>
+            <option value="empty">Chưa có dữ liệu</option>
+            <option value="loading">Đang tải</option>
+            <option value="error">Có lỗi</option>
+            <option value="success">Hoàn tất</option>
+          </select></label
+        ><label><input type="checkbox" id="dark" /> Giao diện tối</label>
+      </div>
+    </header>
+    <main id="stage"></main>
+    <script src="studio.js"></script>
+  </body>
+</html>

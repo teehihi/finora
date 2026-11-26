@@ -20,6 +20,7 @@ import { auth } from '../../services/client';
 import { requestId } from '../../services/request-id';
 import { saveIntelligenceScenario } from './transport';
 import { safeSource } from './model';
+import { prepareSimulationHandoff } from '../simulation-handoff';
 
 type Metric = { label: string; value: string; warning?: boolean };
 
@@ -433,6 +434,7 @@ function Block({
   followUp?: (prompt: string) => void;
 }) {
   const { t, money, locale, colors: c } = useDesign();
+  const owner = auth.useSession().data?.user.id;
   const [offersExpanded, expandOffers] = useState(false);
   const [details, setDetails] = useState(false);
   const vi = locale === 'vi-VN';
@@ -537,6 +539,24 @@ function Block({
                   ]),
             ]}
           />
+          {value.fee === null ? (
+            <Text small muted>
+              {vi
+                ? 'Chưa biết phí một lần. Tổng có phí chưa xác định.'
+                : 'One-time fees are unknown. A total with fees is not available.'}
+            </Text>
+          ) : null}
+          {owner && value.source === 'user_assumptions' ? (
+            <Button
+              label={vi ? 'Mở mô phỏng với giả định này' : 'Model with these assumptions'}
+              variant="soft"
+              onPress={() => {
+                const handoff = prepareSimulationHandoff(owner, value);
+                if (handoff)
+                  router.push({ pathname: '/simulate/[id]', params: { id: 'custom', handoff } });
+              }}
+            />
+          ) : null}
           <Action
             label={detailLabel}
             onPress={() => setDetails(!details)}
