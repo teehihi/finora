@@ -27,6 +27,12 @@ import {
   type ScenarioFields,
 } from '../../../src/features/simulation-model';
 
+import { auth } from '../../../src/services/client';
+import {
+  clearSimulationHandoff,
+  readSimulationHandoff,
+} from '../../../src/features/simulation-handoff';
+
 const fieldLabels = {
   principal: 'amount',
   annualRate: 'yearRate',
@@ -39,11 +45,13 @@ function Simulator({
   amount,
   term,
   due,
+  handoff,
 }: {
   p: Product | null;
   amount?: string;
   term?: string;
   due?: string;
+  handoff?: string;
 }) {
   const { t, money, locale, colors: c } = useDesign();
   const { width } = useWindowDimensions();
@@ -62,8 +70,15 @@ function Simulator({
     result: Estimate;
     requestId: string;
   } | null>(null);
+  const owner = auth.useSession().data?.user.id;
+  const [carried] = useState(() =>
+    !p && handoff ? readSimulationHandoff(owner, handoff) : undefined,
+  );
+  useEffect(() => {
+    if (handoff) clearSimulationHandoff(owner, handoff);
+  }, [handoff, owner]);
   const form = useForm<ScenarioFields>({
-    defaultValues: scenarioDefaults(p, { amount, months: term, firstDue: due }),
+    defaultValues: carried ?? scenarioDefaults(p, { amount, months: term, firstDue: due }),
   });
   const [changed, setChanged] = useState(false);
   const [principal, months, annualRate, firstDue, method, fee] = useWatch({
@@ -327,8 +342,24 @@ function Simulator({
               'Use terms you have confirmed. Results are estimates, not a quote.',
             )
       }
-      top={<Back to={() => router.navigate(p ? '/explore?mode=sample' : '/explore')} />}
+      top={
+        <Back
+          to={() =>
+            carried && router.canGoBack()
+              ? router.back()
+              : router.navigate(p ? '/explore?mode=sample' : '/explore')
+          }
+        />
+      }
     >
+      {carried ? (
+        <MarketNotice title={local('Giả định từ Finora AI', 'Assumptions from Finora AI')}>
+          {local(
+            'Kiểm tra điều khoản trước khi tính lại. Chưa lưu mô phỏng hay tạo khoản vay.',
+            'Review the terms before calculating. No estimate or loan has been saved.',
+          )}
+        </MarketNotice>
+      ) : null}
       <Columns style={{ gap: desktop ? 30 : 19, alignItems: desktop ? 'flex-start' : 'stretch' }}>
         <View style={{ flex: desktop ? 1 : undefined, minWidth: 0, gap: 22 }}>
           <MarketPanel style={{ padding: desktop ? 22 : 16, gap: 16, borderRadius: 24 }}>
@@ -541,18 +572,19 @@ function Simulator({
   );
 }
 export default function SimulateScreen() {
-  const { id, amount, term, due } = useLocalSearchParams<{
+  const { id, amount, term, due, handoff } = useLocalSearchParams<{
     id: string;
     amount?: string;
     term?: string;
     due?: string;
+    handoff?: string;
   }>();
   const q = useQuery({
     queryKey: ['product', id],
     queryFn: () => api.product(id),
     enabled: !!id && id !== 'custom',
   });
-  if (id === 'custom') return <Simulator key="custom" p={null} />;
+  if (id === 'custom') return <Simulator key={handoff ?? 'custom'} p={null} handoff={handoff} />;
   return (
     <Data q={q}>
       {(p) => (

@@ -18,6 +18,12 @@ const copy = {
     'Tôi xác nhận đây là khoản vay đã nhận và đã kiểm tra lịch trả nợ. Đây không phải là xác nhận từ bên cho vay.',
     'I confirm that I have taken this loan and checked the repayment schedule. This is not a confirmation from the lender.',
   ],
+  repaymentsNextFocus: ['Kỳ trả sắp tới', 'Next scheduled payment'],
+  repaymentsReviewFocus: ['Xem và ghi nhận kỳ này', 'Review and record this payment'],
+  repaymentsNoAction: [
+    'Không có kỳ chưa xác nhận trong các lịch đang theo dõi.',
+    'No unconfirmed payments in your tracked schedules.',
+  ],
   repaymentsDueNext: ['Cần chuẩn bị trong 30 ngày', 'Due in the next 30 days'],
   repaymentsLate: ['Quá hạn theo lịch, chưa xác nhận', 'Past due in the schedule, unconfirmed'],
   repaymentsNoDue: [

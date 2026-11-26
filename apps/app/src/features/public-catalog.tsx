@@ -269,7 +269,7 @@ function PublishedComparison({
 type Bounds = { amount: number | null; months: number | null };
 const emptyBounds: Bounds = { amount: null, months: null };
 
-export function PublicCatalogView() {
+export function PublicCatalogView({ personalAction }: { personalAction?: React.ReactNode }) {
   const { colors: c, t, locale, money } = useDesign();
   const { local, rate, fields } = useTermsFormat();
   const { width } = useWindowDimensions();
@@ -316,9 +316,6 @@ export function PublicCatalogView() {
   }
   return (
     <>
-      <MarketNotice verified title={local('Nguồn từ tổ chức cho vay', 'From lender sources')}>
-        {t('publicCatalogNotice')}
-      </MarketNotice>
       <View style={{ flexDirection: desktop ? 'row' : 'column', gap: desktop ? 24 : 14 }}>
         <View style={{ width: desktop ? 226 : undefined, gap: 12 }}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -346,6 +343,7 @@ export function PublicCatalogView() {
               label: t(key === 'all' ? 'all' : categoryKeys[key]),
             }))}
           />
+          {personalAction}
           {filtersActive ? (
             <View style={{ gap: 3 }}>
               <Text small bold style={{ color: c.primary }}>
@@ -391,7 +389,10 @@ export function PublicCatalogView() {
             </MarketPanel>
           )}
         </View>
-        <View style={{ flex: desktop ? 1 : undefined, minWidth: 0 }}>
+        <View style={{ flex: desktop ? 1 : undefined, minWidth: 0, gap: 12 }}>
+          <MarketNotice verified title={local('Nguồn từ tổ chức cho vay', 'From lender sources')}>
+            {t('publicCatalogNotice')}
+          </MarketNotice>
           <Data q={q}>
             {(records) => {
               const results = records.filter((p) =>

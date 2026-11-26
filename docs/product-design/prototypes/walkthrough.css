@@ -1,0 +1,111 @@
+* {
+  box-sizing: border-box;
+}
+html {
+  color: #161616;
+  background: #ededed;
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+}
+body {
+  margin: 0;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  padding: 1rem 4vw;
+  border-bottom: 1px solid #a5a5a5;
+}
+.studio {
+  max-width: 1000px;
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 600px);
+  gap: 2rem;
+  padding: 2rem 4vw;
+  margin: auto;
+}
+aside {
+  align-self: start;
+}
+aside p,
+.sub {
+  color: #505050;
+}
+main {
+  background: #fff;
+  border: 1px solid #a5a5a5;
+  padding: clamp(1rem, 5vw, 3rem);
+  min-height: 580px;
+}
+h1 {
+  line-height: 1.14;
+  margin: 0.8rem 0;
+  font-size: clamp(1.8rem, 5vw, 2.75rem);
+}
+nav,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+button,
+select,
+input {
+  max-width: 100%;
+  min-height: 48px;
+  font: inherit;
+  color: inherit;
+  background: #fff;
+  border: 1px solid #555;
+  padding: 0.5rem 0.75rem;
+}
+button {
+  cursor: pointer;
+}
+.primary {
+  color: white;
+  background: #222;
+}
+input {
+  display: block;
+  width: 100%;
+  margin: 0.25rem 0 0.75rem;
+}
+:focus-visible {
+  outline: 3px solid #333;
+  outline-offset: 3px;
+}
+.panel {
+  border-block: 1px solid #bbb;
+  padding: 1rem 0;
+  margin: 1.2rem 0;
+}
+.notice {
+  border-left: 3px solid #222;
+  padding-left: 0.8rem;
+}
+.amount {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+.actions button {
+  flex: 1 1 auto;
+}
+@media (max-width: 720px) {
+  .studio {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  main {
+    min-height: 0;
+  }
+  aside p {
+    margin: 0.5rem 0;
+  }
+}

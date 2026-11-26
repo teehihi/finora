@@ -99,6 +99,16 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   const repeated = await context.request.post(base + '/repayments', { data: input });
   expect((await repeated.json()).id).toBe(loanId);
   expect((await ledger()).loans).toHaveLength(1);
+  await expect(page.getByText('Kỳ trả sắp tới', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Xem và ghi nhận kỳ này' }).click();
+  const focusDialog = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'Xác nhận đã trả', exact: true }),
+  });
+  await expect(focusDialog).toBeVisible();
+  await expect(focusDialog.getByText(/không chuyển tiền/)).toBeVisible();
+  await focusDialog.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await expect(focusDialog).not.toBeVisible();
+  expect(await ledger()).toEqual(active);
   await page.getByRole('button', { name: /Xem kỳ trả của Khoản vay QA, hạn/ }).click();
   await expect(page.getByRole('button', { name: 'Xác nhận đã trả', exact: true })).toBeVisible();
   expect((await ledger()).loans[0].paidPeriods).toBe(0);

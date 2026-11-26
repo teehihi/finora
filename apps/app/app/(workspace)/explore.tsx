@@ -19,7 +19,7 @@ import { ArrowUpRight, Calculator, Columns2, SlidersHorizontal } from 'lucide-re
 import { numeric, percent } from '@finora/i18n';
 import { api } from '../../src/services/client';
 import { Page, Data } from '../../src/components/layout';
-import { SignatureIcon, SignatureSweep } from '../../src/components/signature';
+import { SignatureIcon } from '../../src/components/signature';
 import { LoanProductCard, ProductComparison } from '../../src/features/catalog';
 import { PublicCatalogView } from '../../src/features/public-catalog';
 import { MarketNotice, MarketPanel } from '../../src/features/market-ui';
@@ -31,7 +31,7 @@ import {
 } from '../../src/features/catalog-model';
 
 export default function Explore() {
-  const { t, colors: c, locale } = useDesign();
+  const { t } = useDesign();
   const params = useLocalSearchParams<{ mode?: string; intent?: string }>();
   const mode = params.mode === 'sample' ? 'sample' : 'public';
   return (
@@ -47,45 +47,59 @@ export default function Explore() {
           { value: 'sample', label: t('sampleCatalogMode') },
         ]}
       />
-      <Action
-        label={locale === 'vi-VN' ? 'Nhập điều khoản của tôi' : 'Use my own loan terms'}
-        onPress={() => router.push('/simulate/custom')}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          overflow: 'hidden',
-          padding: 13,
-          gap: 12,
-          borderRadius: 19,
-          backgroundColor: c.signatureStart,
-        }}
-      >
-        <SignatureSweep name="explore-own-terms" />
-        <SignatureIcon icon={Calculator} size={43} tone="lime" />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text
-            small
-            bold
-            style={{ color: c.signatureLime, fontSize: 11, letterSpacing: 1.1, lineHeight: 17 }}
-          >
-            {locale === 'vi-VN' ? 'TỰ LẬP PHƯƠNG ÁN' : 'PERSONAL SIMULATION'}
-          </Text>
-          <Text bold style={{ color: c.onForest }}>
-            {locale === 'vi-VN' ? 'Nhập điều khoản của tôi' : 'Use my own loan terms'}
-          </Text>
-        </View>
-        <ArrowUpRight size={19} color={c.onForest} />
-      </Action>
       {mode === 'public' ? (
-        <PublicCatalogView />
+        <PublicCatalogView personalAction={<PersonalTerms />} />
       ) : (
-        <SampleCatalogView compareIntent={params.intent === 'compare'} />
+        <SampleCatalogView
+          personalAction={<PersonalTerms />}
+          compareIntent={params.intent === 'compare'}
+        />
       )}
     </Page>
   );
 }
 
-function SampleCatalogView({ compareIntent }: { compareIntent: boolean }) {
+function PersonalTerms() {
+  const { colors: c, locale } = useDesign();
+  const label = locale === 'vi-VN' ? 'Nhập điều khoản của tôi' : 'Use my own loan terms';
+  return (
+    <Action
+      label={label}
+      onPress={() => router.push('/simulate/custom')}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: c.surface,
+        borderWidth: 1,
+        borderColor: c.border,
+        borderRadius: 14,
+        gap: 9,
+        padding: 9,
+      }}
+    >
+      <SignatureIcon icon={Calculator} size={32} tone="emerald" />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text small bold style={{ color: c.primary }}>
+          {label}
+        </Text>
+        <Text small muted>
+          {locale === 'vi-VN'
+            ? 'Tính riêng với lãi và phí bạn nhập'
+            : 'Estimate with your own rate and fees'}
+        </Text>
+      </View>
+      <ArrowUpRight size={16} color={c.primary} />
+    </Action>
+  );
+}
+
+function SampleCatalogView({
+  compareIntent,
+  personalAction,
+}: {
+  compareIntent: boolean;
+  personalAction: React.ReactNode;
+}) {
   const { t, colors: c, locale } = useDesign();
   const { width } = useWindowDimensions();
   const desktop = width >= 1024;
@@ -194,6 +208,7 @@ function SampleCatalogView({ compareIntent }: { compareIntent: boolean }) {
               }))}
             />
           </View>
+          {personalAction}
           {desktop && (
             <View style={{ gap: 8, paddingTop: 12, borderTopWidth: 1, borderColor: c.border }}>
               {filterControls}

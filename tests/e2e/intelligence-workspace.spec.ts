@@ -132,4 +132,17 @@ test('analyze verified assumptions, explicitly save, and revisit the repayment s
   await page.getByRole('button', { name: 'Phân tích mô phỏng này' }).click();
   await expect(page).toHaveURL(/\/intelligence\?simulationId=[a-f0-9-]+$/i);
   await expect(page.getByRole('button', { name: 'Bỏ tham chiếu' })).toBeVisible();
+  await page.goto('/assistant');
+  await page.getByRole('button', { name: 'Mở mô phỏng với giả định này' }).last().click();
+  await expect(page).toHaveURL(/\/simulate\/custom\?handoff=[a-f0-9-]+$/i);
+  await expect(page.getByText('Giả định từ Finora AI', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Số tiền vay', { exact: true })).toHaveValue('50000000');
+  await expect(page.getByLabel('Kỳ hạn', { exact: true })).toHaveValue('24');
+  await expect(page.getByLabel('Lãi suất năm', { exact: true })).toHaveValue('12');
+  await expect(page.getByLabel('Tổng phí một lần (VND)', { exact: true })).toHaveValue('');
+  await page.getByRole('button', { name: 'Tính lịch trả nợ', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Chi tiết trả nợ' })).toBeVisible();
+  expect(await (await context.request.get(api + '/api/simulations')).json()).toHaveLength(1);
+  await page.reload();
+  await expect(page.getByLabel('Số tiền vay', { exact: true })).toHaveValue('');
 });

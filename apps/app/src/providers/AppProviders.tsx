@@ -11,7 +11,7 @@ export const queryClient = new QueryClient({
 });
 export const usePrefs = create<Preferences & { set: (value: Preferences) => void }>((set) => ({
   locale: 'vi-VN',
-  appearance: 'light',
+  appearance: 'system',
   set,
 }));
 export function useAccount() {
@@ -26,6 +26,8 @@ function Theme({ children }: { children: React.ReactNode }) {
   const account = useAccount();
   const { locale, appearance, set } = usePrefs();
   const scheme = useColorScheme();
+  // Signed-out surfaces follow the device, not the last account’s saved choice.
+  const activeAppearance = account.data ? appearance : 'system';
   useEffect(() => {
     if (account.data) set(account.data.preferences);
   }, [account.data, set]);
@@ -39,7 +41,9 @@ function Theme({ children }: { children: React.ReactNode }) {
       value={{
         locale,
         colors:
-          appearance === 'dark' || (appearance === 'system' && scheme === 'dark') ? dark : light,
+          activeAppearance === 'dark' || (activeAppearance === 'system' && scheme === 'dark')
+            ? dark
+            : light,
       }}
     >
       {children}
