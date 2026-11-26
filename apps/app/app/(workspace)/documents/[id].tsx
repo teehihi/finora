@@ -1,13 +1,19 @@
-import { useState, type ReactNode } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AccessibilityInfo, Keyboard, Platform, View, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Field, Heading, Text, useDesign } from '@finora/ui';
-import { Calculator, Check, CircleAlert, FileSearch, ShieldCheck } from 'lucide-react-native';
+import { Action, Button, Dialog, Field, Heading, Text, useDesign } from '@finora/ui';
+import {
+  Calculator,
+  Check,
+  CircleAlert,
+  FileSearch,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react-native';
 import {
   documentFieldNames,
-  documentReviewSchema,
   type DocumentReview,
   type DocumentReviewInput,
   type Estimate,
@@ -17,15 +23,23 @@ import { documentStrings } from '@finora/i18n';
 import { auth } from '../../../src/services/client';
 import { Back, Data, Page } from '../../../src/components/layout';
 import { Breakdown } from '../../../src/features/breakdown';
-import { docApi } from '../../../src/features/documents/client';
+import { DocumentApiError, docApi } from '../../../src/features/documents/client';
 import { PrivatePreview } from '../../../src/features/documents/PrivatePreview';
 
-const numericFields = ['principal', 'months', 'annualRate', 'totalFees'] as const;
-const inputFields = ['lender', ...numericFields, 'firstDue'] as const;
-const methods = ['flat', 'equalPrincipal', 'annuity'] as const;
-function isMethod(value: unknown): value is Method {
-  return methods.some((m) => m === value);
-}
+import {
+  documentMethods,
+  editableFields,
+  feeEvidenceExists,
+  initialDraft,
+  isDocumentMethod,
+  unresolvedRequiredTerms,
+  validateDraft,
+} from '../../../src/features/documents/review-model';
+
+type EditableField = (typeof editableFields)[number];
+const requiredForm = ['principal', 'months', 'annualRate', 'firstDue'] as const;
+const optionalForm = ['totalFees', 'lender'] as const;
+const numericOnly = ['principal', 'months', 'totalFees'];
 
 function Review({
   document: documentReview,
@@ -40,38 +54,54 @@ function Review({
   const split = width >= 1100;
   const vi = locale === 'vi-VN';
   const queryClient = useQueryClient();
-  const [showSources, setShowSources] = useState(split);
+  const [showSources, setShowSources] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [invalid, setInvalid] = useState(false);
+  const [invalid, setInvalid] = useState<Set<EditableField | 'method'>>(new Set());
   const [checked, setChecked] = useState<{
     body: DocumentReviewInput;
     result: Estimate;
     requestId: string;
   } | null>(null);
-  const [fields, setFields] = useState(
-    Object.fromEntries(
-      inputFields.map((key) => [key, String(documentReview.fields[key].value ?? '')]),
-    ) as Record<(typeof inputFields)[number], string>,
-  );
+  const [fields, setFields] = useState(() => initialDraft(documentReview.fields));
   const [method, setMethod] = useState<Method | null>(() => {
-    const value = documentReview.fields.method.value;
-    return isMethod(value) ? value : null;
+    const extracted = documentReview.fields.method;
+    return extracted.state === 'found' && isDocumentMethod(extracted.value)
+      ? extracted.value
+      : null;
   });
+  const requiredAttention = unresolvedRequiredTerms(documentReview.fields).length;
+  const feeUnknown = documentReview.fields.totalFees.state !== 'found';
+  const estimateId = 'document-estimate-' + documentReview.id;
+  const fieldAnchor = 'document-field-' + documentReview.id + '-';
+  useEffect(() => {
+    if (!checked) return;
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const frame = requestAnimationFrame(() =>
+        document.getElementById(estimateId)?.scrollIntoView({ block: 'start' }),
+      );
+      return () => cancelAnimationFrame(frame);
+    }
+    AccessibilityInfo.announceForAccessibility(s.estimated);
+  }, [checked, estimateId, s.estimated]);
   const modeMessage =
     documentReview.mode === 'pdf-text'
       ? s.textReview
       : documentReview.mode === 'local-ocr'
         ? s.ocrReview
         : documentReview.reason === 'reader-unavailable'
-          ? s.manualReader
+          ? documentReview.mime === 'application/pdf'
+            ? s.manualReader
+            : s.manualImageReader
           : documentReview.reason === 'ocr-unavailable'
             ? s.manualOcr
             : s.noText;
   const preview = useMutation({
+    gcTime: 0,
     mutationFn: (body: DocumentReviewInput) => docApi.preview(documentReview.id, body),
     onSuccess: (result, body) => setChecked({ body, result, requestId: randomUUID() }),
   });
   const save = useMutation({
+    gcTime: 0,
     mutationFn: ({ body, requestId }: NonNullable<typeof checked>) =>
       docApi.save(documentReview.id, body, requestId),
     onSuccess: ({ id }) => {
@@ -96,28 +126,76 @@ function Review({
     'serviceFee',
     'insuranceFee',
   ];
-  function confirm() {
-    const plain = (value: string) => (/^\d+$/.test(value.trim()) ? Number(value) : Number.NaN);
-    const rate = fields.annualRate.trim();
-    const body = documentReviewSchema.safeParse({
-      confirmed: true,
-      ...(fields.lender.trim() && { lender: fields.lender.trim() }),
-      input: {
-        principal: plain(fields.principal),
-        months: plain(fields.months),
-        annualRate: /^\d+(?:[.,]\d{1,4})?$/.test(rate)
-          ? Number(rate.replace(',', '.'))
-          : Number.NaN,
-        method,
-        fee: fields.totalFees.trim() ? plain(fields.totalFees) : null,
-        firstDue: fields.firstDue.trim(),
-      },
+  function clearError(name: EditableField | 'method') {
+    setInvalid((previous) => {
+      if (!previous.has(name)) return previous;
+      const next = new Set(previous);
+      next.delete(name);
+      return next;
     });
-    setInvalid(!body.success);
-    if (body.success) {
-      setChecked(null);
-      preview.mutate(body.data);
+    if (preview.isError) preview.reset();
+  }
+
+  function confirm() {
+    const result = validateDraft(fields, method);
+    setInvalid(result.success ? new Set() : result.errors);
+    if (!result.success) {
+      const first = ([...requiredForm, 'method', ...optionalForm] as const).find((name) =>
+        result.errors.has(name),
+      );
+      if (Platform.OS === 'web' && typeof document !== 'undefined' && first) {
+        requestAnimationFrame(() => {
+          const field = document.getElementById(fieldAnchor + first);
+          field?.scrollIntoView({ block: 'center' });
+          if (first !== 'method') field?.focus({ preventScroll: true });
+        });
+      } else {
+        AccessibilityInfo.announceForAccessibility(s.invalid);
+      }
+      return;
     }
+    Keyboard.dismiss();
+    setChecked(null);
+    preview.mutate(result.body);
+  }
+
+  function fieldsFor(name: EditableField) {
+    const hint =
+      name === 'annualRate'
+        ? s.annualHint
+        : name === 'principal'
+          ? s.digits
+          : name === 'firstDue'
+            ? s.datePlaceholder
+            : name === 'totalFees'
+              ? feeUnknown && feeEvidenceExists(documentReview.fields)
+                ? s.feeUnconfirmed
+                : s.feeUnknown
+              : name === 'lender'
+                ? s.optionalLender
+                : undefined;
+    return (
+      <Field
+        key={name}
+        nativeID={fieldAnchor + name}
+        label={s.fields[name]}
+        accessibilityState={{ disabled: busy }}
+        value={fields[name]}
+        editable={!busy}
+        maxLength={name === 'lender' ? 160 : name === 'principal' || name === 'totalFees' ? 32 : 16}
+        error={invalid.has(name) ? s.reviewInputError[name] : undefined}
+        hint={hint}
+        keyboardType={
+          name === 'annualRate' || numericOnly.includes(name) ? 'decimal-pad' : 'default'
+        }
+        inputMode={name === 'months' ? 'numeric' : name === 'annualRate' ? 'decimal' : undefined}
+        placeholder={name === 'firstDue' ? s.datePlaceholder : s.unknown}
+        onChangeText={(value) => {
+          setFields((current) => ({ ...current, [name]: value }));
+          clearError(name);
+        }}
+      />
+    );
   }
   const sourceContent = (
     <View style={{ gap: 10 }}>
@@ -125,9 +203,23 @@ function Review({
         <FileSearch size={21} color={c.primary} />
         <Heading size={20}>{s.extracted}</Heading>
       </View>
-      <Text small muted>
-        {modeMessage}
-      </Text>
+      {showSources || documentReview.mode !== 'pdf-text' ? (
+        <Text small muted>
+          {modeMessage}
+        </Text>
+      ) : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 6 }}>
+        <Text small bold style={{ color: requiredAttention ? c.actionAmber : c.primary }}>
+          {requiredAttention
+            ? requiredAttention + ' ' + s.requiredAttention
+            : s.extractedUnconfirmed}
+        </Text>
+        {!showSources && documentReview.mode === 'pdf-text' ? (
+          <Text small muted>
+            · {s.pdfLimit}
+          </Text>
+        ) : null}
+      </View>
       {!showSources ? (
         <View
           style={{
@@ -198,7 +290,7 @@ function Review({
             const rendered =
               value.value === null
                 ? label
-                : field === 'method' && isMethod(value.value)
+                : field === 'method' && isDocumentMethod(value.value)
                   ? s.methods[value.value]
                   : typeof value.value === 'number' && currencyEvidence.includes(field)
                     ? money(value.value)
@@ -259,57 +351,72 @@ function Review({
     <View style={{ gap: 13 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
         <ShieldCheck size={21} color={c.primary} />
-        <Heading size={20}>{s.assumptions}</Heading>
+        <Heading size={20}>{s.reviewTerms}</Heading>
       </View>
       <Text small muted>
         {s.confirmHelp}
       </Text>
-      {inputFields.map((name) => (
-        <Field
-          key={name}
-          label={s.fields[name]}
-          value={fields[name]}
-          editable={!busy}
-          maxLength={name === 'lender' ? 160 : 16}
-          hint={
-            name === 'annualRate'
-              ? s.annualHint
-              : name === 'principal' || name === 'totalFees'
-                ? s.digits
-                : undefined
-          }
-          keyboardType={numericFields.some((x) => x === name) ? 'decimal-pad' : 'default'}
-          placeholder={name === 'firstDue' ? s.datePlaceholder : s.unknown}
-          onChangeText={(value) => {
-            setFields((current) => ({ ...current, [name]: value }));
-            setChecked(null);
-            setInvalid(false);
-            preview.reset();
-          }}
-        />
-      ))}
-      <View style={{ gap: 5 }}>
-        <Text bold small>
-          {s.fields.method}
+      <View style={{ gap: 10 }}>
+        <Text small bold muted>
+          {s.requiredForm}
         </Text>
-        <View style={{ gap: 8, flexDirection: 'row', flexWrap: 'wrap' }}>
-          {methods.map((m) => (
-            <Button
-              key={m}
-              label={s.methods[m]}
-              disabled={busy}
-              variant={method === m ? 'primary' : 'outline'}
-              onPress={() => {
-                setMethod(m);
-                setChecked(null);
-                setInvalid(false);
-                preview.reset();
-              }}
-            />
-          ))}
+        {requiredForm.map(fieldsFor)}
+        <View style={{ gap: 6 }}>
+          <Text bold small>
+            {s.fields.method}
+          </Text>
+          <View
+            nativeID={fieldAnchor + 'method'}
+            accessibilityRole="radiogroup"
+            accessibilityLabel={s.fields.method}
+            style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}
+          >
+            {documentMethods.map((m) => (
+              <Action
+                key={m}
+                label={s.methods[m]}
+                role="radio"
+                disabled={busy}
+                selected={method === m}
+                onPress={() => {
+                  setMethod(m);
+                  clearError('method');
+                }}
+                style={{
+                  flexGrow: 1,
+                  alignItems: 'center',
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: method === m ? c.primary : c.borderStrong,
+                  backgroundColor: method === m ? c.secondary : c.input,
+                }}
+              >
+                <Text
+                  small
+                  bold={method === m}
+                  style={{ color: method === m ? c.primary : c.foreground }}
+                >
+                  {s.methods[m]}
+                </Text>
+              </Action>
+            ))}
+          </View>
+          {invalid.has('method') ? (
+            <Text small role="alert" style={{ color: c.error }}>
+              {s.reviewInputError.method}
+            </Text>
+          ) : null}
         </View>
       </View>
-      {invalid ? (
+      <View style={{ gap: 10, borderTopWidth: 1, borderColor: c.border, paddingTop: 13 }}>
+        <Text small bold muted>
+          {s.optionalForm}
+        </Text>
+        {optionalForm.map(fieldsFor)}
+      </View>
+      {invalid.size ? (
         <Text role="alert" style={{ color: c.error }}>
           {s.invalid}
         </Text>
@@ -326,6 +433,7 @@ function Review({
     <Page
       title={s.reviewTitle}
       description={s.reviewDescription}
+      style={{ gap: split ? 17 : 13 }}
       top={<Back to={() => router.navigate('/documents')} />}
     >
       <View
@@ -338,18 +446,9 @@ function Review({
         }}
         accessibilityLabel={vi ? 'Quy trình rà soát đề nghị vay' : 'Loan offer review steps'}
       >
-        <ReviewStep number={1} label={vi ? 'Đọc tài liệu' : 'Read document'} complete />
-        <ReviewStep
-          number={2}
-          label={vi ? 'Xác nhận giá trị' : 'Confirm values'}
-          active={!checked}
-          complete={!!checked}
-        />
-        <ReviewStep
-          number={3}
-          label={vi ? 'Tính khoản trả' : 'Calculate payments'}
-          active={!!checked}
-        />
+        <ReviewStep number={1} label={s.stepRead} complete />
+        <ReviewStep number={2} label={s.reviewTerms} active={!checked} complete={!!checked} />
+        <ReviewStep number={3} label={s.stepEstimate} active={!!checked} />
       </View>
       <PrivatePreview review={documentReview} />
       {documentReview.synthetic ? (
@@ -360,21 +459,35 @@ function Review({
           </Text>
         </View>
       ) : null}
-      <View
-        style={{
-          flexDirection: split ? 'row' : 'column',
-          gap: 14,
-          alignItems: split ? 'flex-start' : 'stretch',
-        }}
-      >
-        <ReviewPanel styleFlex={split ? 1 : undefined}>{sourceContent}</ReviewPanel>
-        <ReviewPanel styleFlex={split ? 1 : undefined}>{changes}</ReviewPanel>
-      </View>
+      {!checked ? (
+        <View
+          style={{
+            flexDirection: split ? 'row' : 'column',
+            gap: 14,
+            alignItems: split ? 'flex-start' : 'stretch',
+          }}
+        >
+          <ReviewPanel styleFlex={split ? 1 : undefined}>{sourceContent}</ReviewPanel>
+          <ReviewPanel styleFlex={split ? 1 : undefined}>{changes}</ReviewPanel>
+        </View>
+      ) : null}
       {checked ? (
-        <View style={{ gap: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View nativeID={estimateId} accessibilityLiveRegion="polite" style={{ gap: 10 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <Calculator size={21} color={c.primary} />
-            <Heading size={23}>{s.estimated}</Heading>
+            <View style={{ flex: 1, minWidth: 160 }}>
+              <Heading size={23}>{s.estimated}</Heading>
+            </View>
+            <Button
+              variant="outline"
+              label={s.editReviewed}
+              disabled={busy}
+              onPress={() => {
+                setChecked(null);
+                preview.reset();
+                save.reset();
+              }}
+            />
           </View>
           <Text muted small>
             {s.calculationNote}
@@ -398,52 +511,79 @@ function Review({
           ) : null}
         </View>
       ) : null}
-      <View style={{ gap: 9, paddingHorizontal: 4 }}>
-        {deleting ? (
-          <>
-            <Text>{s.confirmDelete}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              <Button
-                label={s.deleteNow}
-                variant="outline"
-                loading={remove.isPending}
-                disabled={busy}
-                onPress={() => remove.mutate()}
-              />
-              <Button
-                label={s.cancel}
-                variant="text"
-                disabled={busy}
-                onPress={() => setDeleting(false)}
-              />
-            </View>
-          </>
-        ) : (
-          <Button
-            label={s.remove}
-            variant="text"
-            disabled={busy}
-            onPress={() => setDeleting(true)}
-          />
-        )}
+      <View
+        style={{
+          alignItems: 'flex-start',
+          borderTopWidth: 1,
+          borderColor: c.border,
+          paddingTop: 4,
+        }}
+      >
+        <Action
+          label={s.remove}
+          disabled={busy}
+          onPress={() => {
+            remove.reset();
+            setDeleting(true);
+          }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 4 }}
+        >
+          <Trash2 size={16} color={c.error} />
+          <Text small bold style={{ color: c.error }}>
+            {s.remove}
+          </Text>
+        </Action>
+      </View>
+      <Dialog visible={deleting} title={s.remove} onClose={() => !busy && setDeleting(false)}>
+        <Text>{s.confirmDelete}</Text>
         {remove.isError ? (
           <Text role="alert" style={{ color: c.error }}>
             {s.requestError}
           </Text>
         ) : null}
-      </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <Button
+            label={s.deleteNow}
+            variant="outline"
+            loading={remove.isPending}
+            disabled={busy}
+            onPress={() => remove.mutate()}
+          />
+          <Button
+            label={s.cancel}
+            variant="text"
+            disabled={busy}
+            onPress={() => setDeleting(false)}
+          />
+        </View>
+      </Dialog>
     </Page>
   );
 }
 
 export default function ReviewRoute() {
+  const { locale } = useDesign();
+  const s = documentStrings[locale];
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = auth.useSession().data?.user.id;
   const q = useQuery({
     queryKey: ['privateDocument', userId, id],
-    queryFn: () => docApi.get(id),
+    queryFn: ({ signal }) => docApi.get(id, signal),
+    gcTime: 60_000,
+    retry: (attempt, error) =>
+      attempt < 1 && !(error instanceof DocumentApiError && [401, 404].includes(error.status)),
     enabled: Boolean(userId && id),
   });
+  if (q.error instanceof DocumentApiError && [401, 404].includes(q.error.status))
+    return (
+      <Page title={s.reviewTitle} description={s.documentUnavailable}>
+        <Button
+          variant="outline"
+          label={s.documentUnavailableAction}
+          onPress={() => router.replace('/documents')}
+        />
+      </Page>
+    );
   return (
     <Data q={q}>
       {(documentReview) =>

@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { Link, router } from 'expo-router';
-import { ArrowUpRight, CircleAlert, Info, Landmark } from 'lucide-react-native';
-import type { IntelligenceBlock } from '@finora/contracts';
+import {
+  ArrowUpRight,
+  ChevronDown,
+  CircleAlert,
+  Info,
+  Landmark,
+  TrendingDown,
+} from 'lucide-react-native';
+import type { IntelligenceBlock, IntelligenceScenario } from '@finora/contracts';
 import { Action, Button, Dialog, Heading, Text, useDesign } from '@finora/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { date } from '@finora/i18n';
@@ -130,26 +137,46 @@ function PublicSource({ value }: { value: string | null }) {
 export function AnalysisBlocks({
   blocks,
   turnId,
+  followUp,
 }: {
   blocks: IntelligenceBlock[];
   turnId?: string;
+  followUp?: (prompt: string) => void;
 }) {
   const { width } = useWindowDimensions();
   const order = { affordability: 0, scenario: 1, missing: 2, notice: 3, offers: 4 } as const;
   const sorted = blocks
     .map((block, index) => ({ block, index }))
     .sort((a, b) => order[a.block.kind] - order[b.block.kind]);
-  const scenarios = sorted.filter(({ block }) => block.kind === 'scenario');
+  const scenarios = sorted.filter(
+    (entry): entry is { block: IntelligenceScenario; index: number } =>
+      entry.block.kind === 'scenario',
+  );
+  const { locale, colors: c } = useDesign();
+  const vi = locale === 'vi-VN';
+  const stressPrompt = vi ? 'Nếu thu nhập giảm 20% thì sao?' : 'What if my income drops by 20%?';
   const paired = scenarios.length === 2;
   const render = ({ block, index }: (typeof sorted)[number]) => (
     <Block
       key={block.kind + index}
       value={block}
       save={turnId ? { turnId, blockIndex: index } : undefined}
+      followUp={followUp}
     />
   );
   return (
     <View style={{ gap: 14 }}>
+      {scenarios.length &&
+      followUp &&
+      !scenarios.some(({ block }) => block.stressRemainingCash !== null) ? (
+        <Button
+          label={vi ? 'Thử thu nhập giảm 20%' : 'Try 20% lower income'}
+          leading={<TrendingDown size={16} color={c.primary} />}
+          variant="outline"
+          onPress={() => followUp(stressPrompt)}
+        />
+      ) : null}
+      {paired ? <CompareStrip scenarios={[scenarios[0].block, scenarios[1].block]} /> : null}
       {sorted.map((item) => {
         if (!paired || item.block.kind !== 'scenario') return render(item);
         if (item.index !== scenarios[0].index) return null;
@@ -177,10 +204,99 @@ export function AnalysisBlocks({
   );
 }
 
+function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, IntelligenceScenario] }) {
+  const { colors: c, locale, t, money } = useDesign();
+  const vi = locale === 'vi-VN';
+  const feesKnown = scenarios.every((scenario) => scenario.total !== null);
+  const stressed = scenarios.some((scenario) => scenario.stressRemainingCash !== null);
+  const moneyOf = (value: number | null) => (value === null ? t('unknown') : money(value));
+  const values: { label: string; amount: (s: IntelligenceScenario) => number | null }[] = [
+    { label: t('intelligencePeak'), amount: (s) => s.peakPayment },
+    {
+      label: t(feesKnown ? 'assistantIncludingFees' : 'assistantPrincipalInterest'),
+      amount: (s) => (feesKnown ? s.total : s.repayment),
+    },
+    ...(stressed
+      ? [
+          {
+            label: t('intelligenceStress'),
+            amount: (s: IntelligenceScenario) => s.stressRemainingCash,
+          },
+        ]
+      : []),
+  ];
+  return (
+    <View
+      style={{
+        backgroundColor: c.surface,
+        borderRadius: 15,
+        borderWidth: 1,
+        borderColor: c.border,
+        overflow: 'hidden',
+      }}
+    >
+      <View
+        style={{ paddingHorizontal: 14, paddingVertical: 13, backgroundColor: c.secondary, gap: 3 }}
+      >
+        <Heading size={18}>{vi ? 'So sánh theo kỳ hạn' : 'Compare both terms'}</Heading>
+        <Text small muted>
+          {vi ? 'Cùng số tiền vay, lãi suất và cách tính' : 'Same loan amount, rate and method'}
+        </Text>
+      </View>
+      <View style={{ paddingHorizontal: 14, paddingVertical: 9, gap: 7 }}>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          {scenarios.map((s) => (
+            <Text
+              key={s.months}
+              bold
+              style={{ flex: 1, color: c.primary, fontVariant: ['tabular-nums'] }}
+            >
+              {s.months} {t('months')}
+            </Text>
+          ))}
+        </View>
+        {values.map(({ label, amount }) => (
+          <View
+            key={label}
+            style={{ gap: 4, borderTopWidth: 1, borderColor: c.border, paddingTop: 7 }}
+          >
+            <Text small muted>
+              {label}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {scenarios.map((s) => (
+                <Text
+                  key={s.months}
+                  small
+                  bold
+                  style={{
+                    flex: 1,
+                    color: (amount(s) ?? 0) < 0 ? c.warning : c.foreground,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  {moneyOf(amount(s))}
+                </Text>
+              ))}
+            </View>
+          </View>
+        ))}
+        {!feesKnown ? (
+          <Text small muted>
+            {vi
+              ? 'Chưa đủ dữ liệu phí để xếp hạng tổng chi phí.'
+              : 'Fees are not known, so full costs cannot be ranked.'}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 type Save = { turnId: string; blockIndex: number };
 
-function SaveScenario({ save }: { save: Save }) {
-  const { t } = useDesign();
+function SaveScenario({ save, scenario }: { save: Save; scenario: IntelligenceScenario }) {
+  const { t, money, colors: c } = useDesign();
   const session = auth.useSession();
   const queries = useQueryClient();
   const identifier = useRef<string | null>(null);
@@ -228,6 +344,9 @@ function SaveScenario({ save }: { save: Save }) {
         visible={open}
         onClose={() => !busy && setOpen(false)}
       >
+        <Text bold style={{ color: c.primary, fontVariant: ['tabular-nums'] }}>
+          {scenario.months} {t('months')} · {money(scenario.principal)}
+        </Text>
         <Text>{t('intelligenceSaveHint')}</Text>
         {failed ? (
           <Text role="alert" muted>
@@ -250,9 +369,19 @@ function SaveScenario({ save }: { save: Save }) {
   );
 }
 
-function Block({ value, save }: { value: IntelligenceBlock; save?: Save }) {
+function Block({
+  value,
+  save,
+  followUp,
+}: {
+  value: IntelligenceBlock;
+  save?: Save;
+  followUp?: (prompt: string) => void;
+}) {
   const { t, money, locale, colors: c } = useDesign();
   const [offersExpanded, expandOffers] = useState(false);
+  const [details, setDetails] = useState(false);
+  const vi = locale === 'vi-VN';
   const format = (amount: number | null) => (amount === null ? t('unknown') : money(amount));
   const percent = (n: number) =>
     new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(n);
@@ -314,6 +443,16 @@ function Block({ value, save }: { value: IntelligenceBlock; save?: Save }) {
           : value.method === 'annuity'
             ? 'annuity'
             : 'equalPrincipal';
+      const detailLabel = details
+        ? vi
+          ? 'Thu gọn phép tính'
+          : 'Hide calculation'
+        : vi
+          ? 'Xem phép tính'
+          : 'Inspect calculation';
+      const assumptions = vi
+        ? `Nếu vay ${value.principal} ₫ trong ${value.months} tháng, lãi suất ${value.annualRate}%/năm, ${{ flat: 'lãi phẳng', annuity: 'trả góp đều', equalPrincipal: 'gốc đều' }[value.method]}. ${value.fee === null ? 'Chưa biết phí.' : 'Phí hồ sơ ' + value.fee + ' ₫.'}`
+        : `What if I borrow ${value.principal} VND for ${value.months} months, interest ${value.annualRate}% per year, ${{ flat: 'flat rate', annuity: 'equal installments', equalPrincipal: 'equal principal' }[value.method]}? ${value.fee === null ? 'Fee unknown.' : 'One-time fee ' + value.fee + ' VND.'}`;
       return (
         <Receipt
           label={t(
@@ -329,29 +468,66 @@ function Block({ value, save }: { value: IntelligenceBlock; save?: Save }) {
           </Text>
           <AnalysisLedger
             rows={[
-              { label: t('amount'), value: money(value.principal) },
-              { label: t('term'), value: months(value.months) },
-              ...(value.firstDue
-                ? [{ label: t('intelligenceFirstDue'), value: date(value.firstDue, locale) }]
-                : []),
-              { label: t('intelligenceAnnualRate'), value: percent(value.annualRate / 100) },
-              { label: t('method'), value: t(methodKey) },
               { label: t('intelligencePeak'), value: money(value.peakPayment) },
               { label: t('assistantPrincipalInterest'), value: money(value.repayment) },
-              { label: t('fee'), value: format(value.fee) },
-              { label: t('assistantIncludingFees'), value: format(value.total) },
               {
                 label: t('intelligenceAfterPayment'),
                 value: format(value.remainingCash),
                 warning: value.remainingCash !== null && value.remainingCash < 0,
               },
-              {
-                label: t('intelligenceStress'),
-                value: format(value.stressRemainingCash),
-                warning: value.stressRemainingCash !== null && value.stressRemainingCash < 0,
-              },
+              ...(value.stressRemainingCash === null
+                ? []
+                : [
+                    {
+                      label: t('intelligenceStress'),
+                      value: format(value.stressRemainingCash),
+                      warning: value.stressRemainingCash < 0,
+                    },
+                  ]),
             ]}
           />
+          <Action
+            label={detailLabel}
+            onPress={() => setDetails(!details)}
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingHorizontal: 4,
+            }}
+          >
+            <Text small bold style={{ color: c.primary }}>
+              {detailLabel}
+            </Text>
+            <ChevronDown
+              size={17}
+              color={c.primary}
+              style={details ? { transform: [{ rotate: '180deg' }] } : undefined}
+            />
+          </Action>
+          {details ? (
+            <>
+              <AnalysisLedger
+                rows={[
+                  { label: t('amount'), value: money(value.principal) },
+                  { label: t('term'), value: months(value.months) },
+                  { label: t('intelligenceFirstDue'), value: date(value.firstDue, locale) },
+                  { label: t('intelligenceAnnualRate'), value: percent(value.annualRate / 100) },
+                  { label: t('method'), value: t(methodKey) },
+                  { label: t('interest'), value: money(value.repayment - value.principal) },
+                  { label: t('fee'), value: format(value.fee) },
+                  { label: t('assistantIncludingFees'), value: format(value.total) },
+                ]}
+              />
+              {followUp ? (
+                <Button
+                  label={vi ? 'Đổi giả định' : 'Edit assumptions'}
+                  variant="text"
+                  onPress={() => followUp(assumptions)}
+                />
+              ) : null}
+            </>
+          ) : null}
           {savedId ? (
             <Action
               label={t('assistantOpenPlan')}
@@ -363,7 +539,7 @@ function Block({ value, save }: { value: IntelligenceBlock; save?: Save }) {
             </Action>
           ) : null}
           {save && value.source === 'user_assumptions' && value.firstDue ? (
-            <SaveScenario save={save} />
+            <SaveScenario save={save} scenario={value} />
           ) : null}
         </Receipt>
       );
@@ -414,6 +590,11 @@ function Block({ value, save }: { value: IntelligenceBlock; save?: Save }) {
               <PublicSource value={item.sourceUrl} />
             </View>
           ))}
+          <Button
+            label={t('intelligenceCatalog')}
+            variant="text"
+            onPress={() => router.push('/explore')}
+          />
         </Receipt>
       );
     case 'missing':

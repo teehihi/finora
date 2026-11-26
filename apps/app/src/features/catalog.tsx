@@ -1,10 +1,20 @@
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowUpRight, Check } from 'lucide-react-native';
-import { Action, Heading, SourceAttribution, Text, useDesign } from '@finora/ui';
-import { percent } from '@finora/i18n';
+import { Action, Button, Field, Heading, SourceAttribution, Text, useDesign } from '@finora/ui';
+import { date, percent } from '@finora/i18n';
+import { compare } from '@finora/financial-engine';
 import type { Product } from '@finora/contracts';
 import { ComparisonGrid, MarketNotice, MarketPanel, ProductIcon } from './market-ui';
+import {
+  clampWithin,
+  commonScenarioBounds,
+  matchedInputs,
+  nextDue,
+  normalizeIntegerInput,
+  simulatorDefaults,
+} from './simulation-model';
 
 type Term = { label: string; value: string };
 
@@ -179,6 +189,7 @@ export function ProductComparison({ products }: { products: readonly [Product, P
   return (
     <View style={{ gap: 12 }}>
       <MarketNotice>{t('catalogDisclosure')}</MarketNotice>
+      <NormalizedComparison products={products} />
       <ComparisonGrid
         products={[info(products[0]), info(products[1])]}
         rows={left.map(({ label, value }, index) => ({
@@ -187,5 +198,142 @@ export function ProductComparison({ products }: { products: readonly [Product, P
         }))}
       />
     </View>
+  );
+}
+
+function NormalizedComparison({ products }: { products: readonly [Product, Product] }) {
+  const { locale, t, money, colors: c } = useDesign();
+  const local = (vi: string, en: string) => (locale === 'vi-VN' ? vi : en);
+  const bounds = commonScenarioBounds(products);
+  const [values, change] = useState(() => ({
+    amount: bounds
+      ? String(clampWithin(simulatorDefaults.amount, bounds.amountMin, bounds.amountMax))
+      : '',
+    months: bounds
+      ? String(clampWithin(simulatorDefaults.months, bounds.monthsMin, bounds.monthsMax))
+      : '',
+    firstDue: nextDue(),
+  }));
+  const inputs = useMemo(() => matchedInputs(products, values), [products, values]);
+  const result = useMemo(() => (inputs ? compare(...inputs) : null), [inputs]);
+  const peak = (payments: { payment: number }[]) => Math.max(...payments.map((p) => p.payment));
+  const unavailable = local('Chưa thể tính', 'Cannot calculate yet');
+  const comparisonProduct = (product: Product, label: 'A' | 'B') => ({
+    name: local(product.name, product.nameEn),
+    institution: percent(product.rateMin, locale) + ' · ' + t(product.method),
+    footer: (
+      <Button
+        label={local('Mô phỏng', 'Simulate') + ' ' + label}
+        variant="outline"
+        onPress={() =>
+          router.push({
+            pathname: '/simulate/[id]',
+            params: {
+              id: product.id,
+              amount: values.amount,
+              term: values.months,
+              due: values.firstDue,
+            },
+          })
+        }
+      />
+    ),
+  });
+
+  return (
+    <MarketPanel style={{ padding: 12 }}>
+      <Heading size={19}>{local('Cùng số tiền, cùng kỳ hạn', 'Same amount, same term')}</Heading>
+      {!bounds ? (
+        <Text small muted>
+          {local(
+            'Hai sản phẩm không có khoảng số tiền và kỳ hạn chung. Chỉ đối chiếu điều kiện bên dưới.',
+            'These products have no common amount and term. Compare their terms below instead.',
+          )}
+        </Text>
+      ) : (
+        <>
+          <Text small muted>
+            {local(
+              'Dùng lãi suất thấp nhất trong từng mẫu và ngày trả đầu giống nhau. Đây không phải báo giá.',
+              'Uses each sample’s lowest rate and the same first due date. Not a quote.',
+            )}
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flex: 1.6, minWidth: 136 }}>
+              <Field
+                label={t('amount')}
+                value={values.amount}
+                inputMode="numeric"
+                keyboardType="number-pad"
+                onChangeText={(value) =>
+                  change((v) => ({ ...v, amount: normalizeIntegerInput(value, locale) }))
+                }
+                hint={money(bounds.amountMin) + ' – ' + money(bounds.amountMax)}
+              />
+            </View>
+            <View style={{ flex: 1, minWidth: 106 }}>
+              <Field
+                label={t('term')}
+                value={values.months}
+                inputMode="numeric"
+                keyboardType="number-pad"
+                onChangeText={(value) => change((v) => ({ ...v, months: value }))}
+                hint={bounds.monthsMin + '–' + bounds.monthsMax + ' ' + t('months')}
+              />
+            </View>
+          </View>
+          <Text small muted>
+            {local('Ngày trả đầu dùng chung', 'Shared first due date')}:{' '}
+            {date(values.firstDue, locale)}
+          </Text>
+          {result && inputs ? (
+            <>
+              {result.totalDifference === null ? (
+                <Text small muted>
+                  {local(
+                    'Ít nhất một bên chưa rõ phí. Không xếp hạng tổng chi phí.',
+                    'Fees are unknown for at least one side. Total cost is not ranked.',
+                  )}
+                </Text>
+              ) : null}
+              <ComparisonGrid
+                products={[
+                  comparisonProduct(products[0], 'A'),
+                  comparisonProduct(products[1], 'B'),
+                ]}
+                rows={[
+                  {
+                    label: t('firstPayment'),
+                    values: [money(result.left.firstPayment), money(result.right.firstPayment)],
+                  },
+                  {
+                    label: local('Kỳ cao nhất theo lịch', 'Highest scheduled payment'),
+                    values: [money(peak(result.left.schedule)), money(peak(result.right.schedule))],
+                  },
+                  {
+                    label: t('repayment'),
+                    values: [money(result.left.repayment), money(result.right.repayment)],
+                  },
+                  {
+                    label: t('total'),
+                    values: [
+                      result.left.total === null ? unavailable : money(result.left.total),
+                      result.right.total === null ? unavailable : money(result.right.total),
+                    ],
+                  },
+                ]}
+              />
+            </>
+          ) : (
+            <Text small role="alert" style={{ color: c.error }}>
+              {local(
+                'Nhập số tiền và kỳ hạn trong khoảng chung để tính.',
+                'Enter an amount and term within the shared limits to calculate.',
+              )}
+            </Text>
+          )}
+        </>
+      )}
+    </MarketPanel>
   );
 }

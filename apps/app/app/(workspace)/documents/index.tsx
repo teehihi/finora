@@ -8,7 +8,6 @@ import {
   FolderOpen,
   ScanLine,
   ShieldCheck,
-  Upload,
 } from 'lucide-react-native';
 import { ActivityIndicator, View, useWindowDimensions } from 'react-native';
 import { useDesign, Text, Heading, Button } from '@finora/ui';
@@ -17,9 +16,10 @@ import { auth } from '../../../src/services/client';
 import { Back, Data, LinkRow, Page } from '../../../src/components/layout';
 import {
   DocumentApiError,
-  choosePrivateDocument,
   docApi,
+  type PickedPrivateDocument,
 } from '../../../src/features/documents/client';
+import { PrivateFilePicker } from '../../../src/features/documents/file-picker';
 import { syntheticLoanOfferPdf } from '../../../src/features/documents/fixture';
 
 export default function Documents() {
@@ -33,7 +33,13 @@ function PrivateIntake({ userId }: { userId: string }) {
   const { width } = useWindowDimensions();
   const wide = width >= 1140;
   const vi = locale === 'vi-VN';
-  const [analyzing, setAnalyzing] = useState(false);
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
+  const [pickError, setPickError] = useState<unknown>(null);
+  const inFlight = useRef(false);
   const attached = useRef(true);
   useEffect(() => {
     attached.current = true;
@@ -43,40 +49,52 @@ function PrivateIntake({ userId }: { userId: string }) {
   }, []);
   const queryClient = useQueryClient();
   const queryKey = ['privateDocuments', userId];
-  const q = useQuery({ queryKey, queryFn: docApi.list, enabled: Boolean(userId) });
+  const q = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => docApi.list(signal),
+    enabled: Boolean(userId),
+    gcTime: 60_000,
+  });
   const upload = useMutation({
-    mutationFn: async (synthetic: boolean) => {
-      if (!synthetic) {
-        const file = await choosePrivateDocument();
-        if (!file || !attached.current) return null;
-        setAnalyzing(true);
-        return docApi.upload(file.body, file.mime);
-      }
-      setAnalyzing(true);
-      return docApi.upload(syntheticLoanOfferPdf().buffer, 'application/pdf', true);
+    mutationFn: (upload: { file: PickedPrivateDocument } | { synthetic: true }) =>
+      'file' in upload
+        ? docApi.upload(upload.file.body, upload.file.mime)
+        : docApi.upload(syntheticLoanOfferPdf().buffer, 'application/pdf', true),
+    gcTime: 0,
+    onError: (error) => {
+      if (attached.current) setPickError(error);
     },
     onSettled: () => {
-      if (attached.current) setAnalyzing(false);
+      inFlight.current = false;
+      // A Mutation otherwise retains its arguments, including the original bytes.
+      if (attached.current) upload.reset();
     },
     onSuccess: (review) => {
       if (!review || !attached.current) return;
       void queryClient.invalidateQueries({ queryKey });
-      queryClient.setQueryData(['privateDocument', userId, review.id], review);
       router.push({ pathname: '/documents/[id]', params: { id: review.id } });
     },
   });
+  function beginUpload(file?: PickedPrivateDocument) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setPickError(null);
+    upload.mutate(file ? { file } : { synthetic: true });
+  }
   const error =
-    upload.error instanceof DocumentApiError
-      ? upload.error.status === 409
+    pickError instanceof DocumentApiError
+      ? pickError.status === 409
         ? s.tooMany
-        : upload.error.status === 503 || upload.error.status === 429
+        : pickError.status === 503 || pickError.status === 429
           ? s.busy
-          : upload.error.status === 400 ||
-              upload.error.status === 413 ||
-              upload.error.status === 415
-            ? s.uploadError
-            : s.requestError
-      : upload.error
+          : pickError.status === 413
+            ? s.tooLarge
+            : pickError.status === 415
+              ? s.wrongFormat
+              : pickError.status === 400
+                ? s.uploadError
+                : s.requestError
+      : pickError
         ? s.requestError
         : null;
   return (
@@ -123,13 +141,11 @@ function PrivateIntake({ userId }: { userId: string }) {
               </Text>
             </View>
           </View>
-          <Button
+          <PrivateFilePicker
             label={s.select}
-            variant="onForest"
-            loading={upload.isPending && upload.variables === false}
-            disabled={upload.isPending}
-            leading={<Upload size={17} color={c.forest} />}
-            onPress={() => upload.mutate(false)}
+            busy={upload.isPending}
+            onPick={beginUpload}
+            onError={setPickError}
           />
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 7 }}>
             <ShieldCheck size={16} color={c.onForestMuted} />
@@ -175,7 +191,7 @@ function PrivateIntake({ userId }: { userId: string }) {
           ))}
         </View>
       </View>
-      {analyzing ? (
+      {upload.isPending ? (
         <View
           accessibilityLiveRegion="polite"
           style={{
@@ -197,10 +213,10 @@ function PrivateIntake({ userId }: { userId: string }) {
         <Button
           label={s.sample}
           variant="outline"
-          loading={upload.isPending && upload.variables === true}
+          loading={upload.isPending && !!upload.variables && 'synthetic' in upload.variables}
           disabled={upload.isPending}
           leading={<FileText size={16} color={c.primary} />}
-          onPress={() => upload.mutate(true)}
+          onPress={() => beginUpload()}
         />
         <Text muted small>
           {s.syntheticFile}
@@ -247,7 +263,13 @@ function PrivateIntake({ userId }: { userId: string }) {
                           ? s.jpg
                           : s.png)
                     }
-                    body={row.synthetic ? s.syntheticFile : s.choose}
+                    body={
+                      row.synthetic
+                        ? s.syntheticFile
+                        : time.format(new Date(row.createdAt)) +
+                          ' · ' +
+                          (row.mode === 'manual' ? s.manualStatus : s.extractedStatus)
+                    }
                     icon={<FileText size={19} color={c.primary} />}
                     onPress={() =>
                       router.push({ pathname: '/documents/[id]', params: { id: row.id } })

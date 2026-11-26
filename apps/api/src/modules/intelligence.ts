@@ -39,7 +39,7 @@ import {
   approvedPurposes,
   buildProfile,
   interpret,
-  priorScenario,
+  normalizeVn,
   redactExternalPrompt,
   scenarioInput,
   snapshotOf,
@@ -47,6 +47,12 @@ import {
   toScenario,
   type Intent,
 } from './intelligence-rules.js';
+import {
+  analysisBlocks,
+  captureContext,
+  continueIntent,
+  persistedAnalysis,
+} from './intelligence-context.js';
 import {
   IntelligenceProviderError,
   OpenAIIntelligenceProvider,
@@ -93,7 +99,11 @@ const fromRow = (row: {
   blocks: unknown;
   simulationId: string | null;
 }): IntelligenceTurn =>
-  intelligenceTurnSchema.parse({ ...row, createdAt: row.createdAt.toISOString() });
+  intelligenceTurnSchema.parse({
+    ...row,
+    blocks: analysisBlocks(row.blocks),
+    createdAt: row.createdAt.toISOString(),
+  });
 
 const noInput = z.strictObject({});
 const searchInput = z.strictObject({ purpose: z.enum(approvedPurposes).nullable() });
@@ -286,10 +296,10 @@ async function resultFor(
 ) {
   const vi = input.locale === 'vi-VN';
   const say = (viText: string, en: string) => (vi ? viText : en);
-  const intent = interpret(input.prompt);
+  const current = interpret(input.prompt);
   const out: IntelligenceBlock[] = [];
   const notice = (message: string) => out.push({ kind: 'notice', message });
-  if (intent.blocked) {
+  if (current.blocked) {
     notice(
       say(
         'Finora chỉ dùng dữ liệu đã được phép và không thể bảo đảm hồ sơ được duyệt.',
@@ -303,9 +313,10 @@ async function resultFor(
         'I can help you estimate and understand loan terms, but cannot access someone else’s data, expose private information, or guarantee approval.',
       ),
       blocks: out,
+      context: undefined,
     };
   }
-  const route = await classify(input, intent, signal);
+  const route = await classify(input, current, signal);
   if (route.fallback)
     notice(
       say(
@@ -319,23 +330,25 @@ async function resultFor(
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take: 8,
-      select: { blocks: true },
+      select: { blocks: true, prompt: true, simulationId: true },
     }),
   ]);
-  const previous = history.map((r) => priorScenario(r.blocks)).find(Boolean);
   const snapshot = owned ? loanSchema.safeParse(owned.input) : undefined;
-  const refersBack =
-    /neu|giam|tang|thi sao|so sanh|what if|scenario|compare|instead/i.test(
-      input.prompt.normalize('NFD').replace(/\p{Diacritic}/gu, ''),
-    ) ||
-    intent.incomeCut !== undefined ||
-    intent.extraExpense !== undefined ||
-    route.selected.has('getSavedSimulations');
-  const baseScenario = snapshot?.success
-    ? snapshot.data
-    : refersBack && previous
-      ? snapshotOf(previous, previous.firstDue)
-      : undefined;
+  const attached = snapshot?.success ? snapshot.data : undefined;
+  const { intent, continues, scoped, firstDue } = continueIntent(
+    current,
+    input.prompt,
+    history,
+    attached,
+    input.simulationId,
+  );
+  if (current.aprOnly)
+    notice(
+      say(
+        'APR không mặc định là lãi danh nghĩa để lập lịch. Hãy nhập lãi danh nghĩa năm (hoặc tháng) được công bố riêng.',
+        'APR is not automatically the nominal rate used for an installment schedule. Provide the separately stated nominal annual or monthly rate.',
+      ),
+    );
   const knownProfile = rawProfile
     ? {
         income: Number(rawProfile.income),
@@ -347,10 +360,12 @@ async function resultFor(
   const shouldAssess =
     intent.isBorrowing ||
     !!owned ||
-    !!baseScenario ||
+    scoped ||
     intent.income !== undefined ||
     intent.debt !== undefined ||
     intent.expenses !== undefined ||
+    intent.incomeCut !== undefined ||
+    intent.extraExpense !== undefined ||
     route.selected.has('assessRepaymentCapacity');
   if (shouldAssess && profile.profile)
     out.push(toAffordability(profile.profile, profile.basis, intent.savings));
@@ -378,11 +393,7 @@ async function resultFor(
       ),
     );
   }
-  if (
-    intent.isBorrowing ||
-    route.selected.has('searchLoanProducts') ||
-    route.selected.has('compareLoanProducts')
-  ) {
+  if ((!continues && current.isBorrowing) || route.selected.has('searchLoanProducts')) {
     out.push(offers(intent, input.locale));
     notice(
       say(
@@ -394,7 +405,7 @@ async function resultFor(
   if (
     route.selected.has('getUpcomingRepayments') ||
     /ky (thanh toan|tra no) sap toi|no den han|khoan (thanh toan|tra no) sap toi|upcoming repayments|upcoming payments/i.test(
-      input.prompt.normalize('NFD').replace(/\p{Diacritic}/gu, ''),
+      normalizeVn(input.prompt),
     )
   ) {
     const tracked = await getUpcomingRepayments(userId);
@@ -411,7 +422,8 @@ async function resultFor(
     );
   }
   const next = nextMonth();
-  const first = scenarioInput(intent, baseScenario, next);
+  const first = scenarioInput(intent, undefined, firstDue ?? next);
+  const scenarioBlocks: Extract<IntelligenceBlock, { kind: 'scenario' }>[] = [];
   if (first.success && !intent.early) {
     if (intent.monthlyQuoted)
       notice(
@@ -426,10 +438,10 @@ async function resultFor(
         (key) => first.data[key] === snapshot.data[key],
       );
     const firstResult = financialTools.simulateRepaymentScenario(first.data);
-    out.push(
+    scenarioBlocks.push(
       toScenario(first.data, firstResult, intent, profile.profile, same ? owned?.id : undefined),
     );
-    if (!baseScenario)
+    if (!firstDue)
       notice(
         say(
           'Ngày kỳ đầu giả định là đầu tháng sau. Lịch minh họa không thay thế điều khoản của bên cho vay.',
@@ -439,7 +451,7 @@ async function resultFor(
     if (intent.secondMonths && intent.secondMonths !== first.data.months) {
       const alt = { ...first.data, months: intent.secondMonths };
       const cmp = financialTools.compareLoanOptions(first.data, alt);
-      out.push(toScenario(alt, cmp.right, intent, profile.profile));
+      scenarioBlocks.push(toScenario(alt, cmp.right, intent, profile.profile));
       if (cmp.totalDifference !== null && cmp.totalDifference !== 0) {
         const lowerTerm = cmp.totalDifference < 0 ? first.data.months : alt.months;
         const difference = num(Math.abs(cmp.totalDifference), input.locale);
@@ -458,19 +470,48 @@ async function resultFor(
         ),
       );
     }
+    out.push(...scenarioBlocks);
     if (
       profile.profile &&
-      firstResult.schedule.some(
-        (period) =>
-          period.payment > financialTools.analyzeFinancialProfile(profile.profile!).monthlyBudget,
+      scenarioBlocks.some(
+        ({ peakPayment }) =>
+          peakPayment > financialTools.analyzeFinancialProfile(profile.profile!).monthlyBudget,
       )
     )
       notice(
         say(
-          'Có kỳ vượt khả năng trả thêm ước tính. Hãy cân nhắc giảm số tiền vay hoặc kiểm tra lại ngân sách trước khi quyết định.',
-          'At least one payment exceeds estimated capacity. Consider a smaller amount or reassess the budget before borrowing.',
+          'Có kỳ vượt khả năng trả thêm ước tính. Hãy thử giảm số tiền vay hoặc kiểm tra lại ngân sách trước khi quyết định.',
+          'At least one payment exceeds estimated capacity. Try a smaller amount or reassess the budget before borrowing.',
         ),
       );
+    if (scenarioBlocks.some((block) => (block.stressRemainingCash ?? 0) < 0))
+      notice(
+        say(
+          'Trong kịch bản thay đổi này có phương án bị âm dòng tiền. Dòng tiền còn lại được tính sau kỳ trả cao nhất; kết quả không phải mức duyệt vay.',
+          'At least one scenario has negative cash flow under the stated changes. The remaining cash uses the highest payment and is not an approval limit.',
+        ),
+      );
+  }
+  if (
+    !scenarioBlocks.length &&
+    profile.profile &&
+    intent.knownPayment === undefined &&
+    (intent.incomeCut !== undefined || intent.extraExpense !== undefined)
+  ) {
+    const { income, expenses, debt } = profile.profile;
+    const changed = {
+      income: Math.round(income * (1 - (intent.incomeCut ?? 0) / 100)),
+      expenses: expenses + (intent.extraExpense ?? 0),
+      debt,
+    };
+    const before = income - expenses - debt;
+    const left = changed.income - changed.expenses - debt;
+    notice(
+      say(
+        `Theo thay đổi bạn nêu, dòng tiền tháng trước khi tính khoản vay mới từ ${num(before, input.locale)} ₫ còn ${num(left, input.locale)} ₫. Chưa tính được kỳ trả nếu thiếu các điều khoản vay.`,
+        `Under the stated changes, monthly cash flow before a new loan moves from ${num(before, input.locale)} VND to ${num(left, input.locale)} VND. An installment estimate requires the loan terms.`,
+      ),
+    );
   }
   if (intent.early) {
     const period = intent.payoffAfter;
@@ -526,7 +567,11 @@ async function resultFor(
     shouldAssess &&
     !first.success &&
     !intent.early &&
-    (intent.principal || !!baseScenario || route.selected.has('simulateLoan'))
+    (intent.principal !== undefined ||
+      scoped ||
+      (current.isBorrowing && current.months !== undefined) ||
+      current.principalDelta !== undefined ||
+      route.selected.has('simulateLoan'))
   ) {
     const missing = first.error.issues.map((i) => String(i.path[0])).filter((k) => k in labels);
     missing.forEach((k) => keys.add(k));
@@ -543,10 +588,15 @@ async function resultFor(
     });
   const answer =
     first.success && !intent.early
-      ? say(
-          'Mình đã tính lịch theo dữ liệu và giả định bên dưới. Hãy xem riêng kỳ cao nhất, tổng gốc và lãi, phí còn thiếu và tiền còn lại mỗi tháng.',
-          'I calculated a schedule using the inputs below. Review the highest installment, principal and interest, unknown fees and monthly cash remaining separately.',
-        )
+      ? scenarioBlocks.length > 1
+        ? say(
+            'Mình đã đối chiếu hai kỳ hạn theo cùng số tiền, lãi và cách tính. Hãy nhìn mức trả mỗi kỳ cùng tổng chi phí, rồi xem dòng tiền khi điều kiện thay đổi.',
+            'I compared both terms using the same amount, rate and method. Review the installment and total cost together, then check how cash flow changes.',
+          )
+        : say(
+            'Mình đã tính lịch theo dữ liệu và giả định bên dưới. Hãy xem riêng kỳ cao nhất, tổng gốc và lãi, phí còn thiếu và tiền còn lại mỗi tháng.',
+            'I calculated a schedule using the inputs below. Review the highest installment, principal and interest, unknown fees and monthly cash remaining separately.',
+          )
       : shouldAssess
         ? say(
             'Mình tách phần ngân sách, các lựa chọn công bố và dữ liệu còn thiếu ở dưới. Finora không xét duyệt khoản vay.',
@@ -556,7 +606,17 @@ async function resultFor(
             'Bạn có thể hỏi về ngân sách trả nợ, so sánh kỳ hạn hoặc kiểm tra điều khoản. Lãi trên dư nợ giảm dần được tính từ số gốc còn lại; tổng chi phí còn phụ thuộc vào phí.',
             'Ask about repayment capacity, term comparisons, or contract terms. Reducing-balance interest uses the outstanding principal; total cost also depends on fees.',
           );
-  return { provider: route.provider, answer, blocks: intelligenceBlocksSchema.parse(out) };
+  // The transport caps payloads. Prioritize typed calculations and missing
+  // inputs if someone asks about many things in a single message.
+  const coreCount = out.filter(({ kind }) => kind !== 'notice').length;
+  let remainingNotices = Math.max(0, 12 - coreCount);
+  const bounded = out.filter(({ kind }) => kind !== 'notice' || remainingNotices-- > 0);
+  return {
+    provider: route.provider,
+    answer,
+    blocks: intelligenceBlocksSchema.parse(bounded),
+    context: captureContext(intent, first.success ? first.data : undefined),
+  };
 }
 export const userScenarioSource = 'FINORA_USER_SCENARIO';
 
@@ -589,7 +649,7 @@ export class IntelligenceController {
       where: { userId: req.userId, id: input.turnId },
     });
     if (!turn) throw new NotFoundException();
-    const scenario = intelligenceBlocksSchema.parse(turn.blocks)[input.blockIndex];
+    const scenario = analysisBlocks(turn.blocks)[input.blockIndex];
     if (!scenario || scenario.kind !== 'scenario' || scenario.source !== 'user_assumptions')
       throw new BadRequestException('Scenario is not available for saving');
     const snapshot = loanSchema.parse(snapshotOf(scenario, scenario.firstDue));
@@ -667,7 +727,9 @@ export class IntelligenceController {
         'X-Accel-Buffering': 'no',
       });
       res.flushHeaders();
-      const result = prior ? fromRow(prior) : await resultFor(input, userId, sim, abort.signal);
+      const result = prior
+        ? { ...fromRow(prior), context: undefined }
+        : await resultFor(input, userId, sim, abort.signal);
       abort.signal.throwIfAborted();
       send({ type: 'meta', provider: result.provider });
       for (const part of result.answer.match(/(?:\S+\s*){1,5}/gu) ?? []) {
@@ -687,7 +749,7 @@ export class IntelligenceController {
               simulationId: input.simulationId,
               answer: result.answer,
               provider: result.provider,
-              blocks: JSON.parse(JSON.stringify(result.blocks)),
+              blocks: JSON.parse(JSON.stringify(persistedAnalysis(result.blocks, result.context))),
             },
             select: { id: true },
           })

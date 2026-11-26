@@ -36,6 +36,15 @@ test('email OTP creates a session using the real local Mailpit message', async (
     'Run pnpm setup to start Mailpit',
   ).toBe(true);
 
+  let sends = 0;
+  page.on('request', (request) => {
+    if (
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname === '/api/auth/email-otp/send-verification-otp'
+    )
+      sends += 1;
+  });
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(page).toHaveURL(/\/auth$/);
@@ -45,6 +54,13 @@ test('email OTP creates a session using the real local Mailpit message', async (
   await page.getByRole('button', { name: 'Tiếp tục bằng email' }).click();
   await expect(page.getByRole('heading', { name: 'Kiểm tra email' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Gửi lại sau/ })).toBeDisabled();
+
+  // Returning from the email editor with the same address must not invalidate the code.
+  await page.getByRole('button', { name: 'Sửa email' }).click();
+  await expect(page.getByLabel('Email', { exact: true })).toHaveValue(email);
+  await page.getByRole('button', { name: 'Tiếp tục bằng email' }).click();
+  await expect(page.getByRole('heading', { name: 'Kiểm tra email' })).toBeVisible();
+  expect(sends).toBe(1);
 
   await expect.poll(() => receivedCode(request, email)).toMatch(/^\d{6}$/);
   const code = await receivedCode(request, email);
@@ -97,4 +113,104 @@ test('an authenticated legacy user verifies their own email without losing passw
   await expect(page).toHaveURL(/\/home$/);
   await page.getByRole('tab', { name: 'Hồ sơ' }).click();
   await expect(page.getByText('Email đã xác minh', { exact: true })).toBeVisible();
+});
+
+const fixtureCors = {
+  'access-control-allow-origin': 'http://localhost:8081',
+  'access-control-allow-credentials': 'true',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
+  'access-control-allow-headers': 'content-type',
+};
+
+test('public tour compares an illustrative repayment without a session or API calculator', async ({
+  page,
+}) => {
+  const quoteRequests: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.includes('/simulations')) quoteRequests.push(request.url());
+  });
+  await page.setViewportSize({ width: 375, height: 844 });
+  await page.goto('/showcase');
+  const result = page.getByTestId('showcase-first-payment');
+  await expect(result).toBeVisible();
+  const first = await result.textContent();
+  const longer = page.getByRole('radio', { name: '24 tháng' });
+  await longer.click();
+  await expect(longer).toBeChecked();
+  await expect(result).not.toHaveText(first ?? '');
+  await expect(page.getByText(/không phải đề nghị cho vay/i)).toBeVisible();
+  expect(quoteRequests).toHaveLength(0);
+  await page.getByRole('button', { name: 'Bắt đầu cùng Finora' }).click();
+  await expect(page).toHaveURL(/\/auth$/);
+});
+
+test('a provider outage can be retried without losing the entered email or inventing Google sign-in', async ({
+  page,
+}) => {
+  let offline = true;
+  await page.route('**/api/auth/providers', async (route) => {
+    await route.fulfill({
+      status: offline ? 503 : 200,
+      headers: fixtureCors,
+      json: offline ? { error: 'Service unavailable' } : { emailOtp: true, google: false },
+    });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/auth');
+  const email = page.getByLabel('Email', { exact: true });
+  await email.fill('recovery@example.test');
+  const retry = page.getByRole('button', { name: 'Thử kết nối lại' });
+  await expect(retry).toBeVisible();
+  offline = false;
+  await retry.click();
+  await expect(retry).toBeHidden();
+  await expect(email).toHaveValue('recovery@example.test');
+  await expect(page.getByRole('button', { name: 'Tiếp tục với Google' })).toHaveCount(0);
+});
+
+test('an accepted code is not submitted twice when restoring the session needs a retry', async ({
+  page,
+}) => {
+  let restore = false;
+  let verificationPosts = 0;
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const user = {
+    id,
+    name: 'Finora Test',
+    email: 'session-recovery@example.test',
+    emailVerified: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await page.route('**/api/auth/get-session', (route) =>
+    route.fulfill({
+      headers: fixtureCors,
+      json: restore
+        ? { user, session: { id, userId: id, expiresAt: '2030-01-01T00:00:00.000Z' } }
+        : null,
+    }),
+  );
+  await page.route('**/api/auth/email-otp/send-verification-otp', (route) =>
+    route.request().method() === 'OPTIONS'
+      ? route.fulfill({ status: 204, headers: fixtureCors })
+      : route.fulfill({ headers: fixtureCors, json: { success: true } }),
+  );
+  await page.route('**/api/auth/sign-in/email-otp', (route) => {
+    if (route.request().method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: fixtureCors });
+    verificationPosts += 1;
+    return route.fulfill({ headers: fixtureCors, json: { user, token: id } });
+  });
+  await page.goto('/auth');
+  await page.getByLabel('Email', { exact: true }).fill(user.email);
+  await page.getByRole('button', { name: 'Tiếp tục bằng email' }).click();
+  await page.getByLabel('Mã xác minh 6 số').fill('234567');
+  await page.getByRole('button', { name: 'Xác minh và tiếp tục' }).click();
+  await expect(page.getByRole('heading', { name: 'Hoàn tất đăng nhập' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Xác minh và tiếp tục' })).toHaveCount(0);
+  restore = true;
+  await page.getByRole('button', { name: 'Kiểm tra lại phiên' }).click();
+  await expect(page).toHaveURL(/\/home$/);
+  expect(verificationPosts).toBe(1);
 });

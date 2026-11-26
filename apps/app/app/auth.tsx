@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, View, useWindowDimensions } from 'react-native';
 import { Redirect, router, useLocalSearchParams, type Href } from 'expo-router';
-import { ArrowUpRight, LockKeyhole, MailCheck, ShieldCheck } from 'lucide-react-native';
+import { ArrowUpRight, LockKeyhole, MailCheck, ShieldCheck, WifiOff } from 'lucide-react-native';
 import { z } from 'zod';
 import { getAccessStrings, type Key } from '@finora/i18n';
 import { Action, Button, Field, Heading, Text, useDesign } from '@finora/ui';
@@ -19,14 +19,14 @@ import { GoogleAction } from '../src/features/auth/GoogleAction';
 import { AuthArtwork } from '../src/features/auth/AuthArtwork';
 
 type Step = 'email' | 'code' | 'password';
-type Pending = 'request' | 'resend' | 'verify' | 'password' | 'google';
+type Pending = 'request' | 'resend' | 'verify' | 'password' | 'google' | 'reconnect' | 'restore';
 const emailSchema = z.email().max(254);
 
 export default function Auth() {
   const params = useLocalSearchParams<{ returnTo?: string; oauth?: string }>();
   const returnTo = allowedAuthReturn(params.returnTo);
   const { colors: c, locale, t } = useDesign();
-  const accessCopy = getAccessStrings(locale);
+  const copy = getAccessStrings(locale);
   const { width } = useWindowDimensions();
   const wide = width >= 1024;
   const session = auth.useSession();
@@ -38,6 +38,8 @@ export default function Auth() {
   const [pending, setPending] = useState<Pending | null>(null);
   const inFlight = useRef(false);
   const [until, setUntil] = useState(0);
+  const lastDelivery = useRef<{ address: string; deadline: number } | null>(null);
+  const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<Key | null>(
     params.oauth === 'error' ? 'authGoogleError' : null,
   );
@@ -69,6 +71,7 @@ export default function Auth() {
     if (inFlight.current) return;
     setError(null);
     setNotice(null);
+    setRestoring(false);
     setPassword('');
     setCode('');
     setStep(next);
@@ -83,6 +86,20 @@ export default function Auth() {
     }
     if (methods.data?.emailOtp === false) return;
     const address = check.data;
+    const previous = lastDelivery.current;
+    if (
+      !retry &&
+      previous?.address.toLowerCase() === address.toLowerCase() &&
+      previous.deadline > Date.now()
+    ) {
+      // Editing an unchanged address need not replace the valid code already sent.
+      setEmail(previous.address);
+      setCode('');
+      setUntil(previous.deadline);
+      setError(null);
+      setStep('code');
+      return;
+    }
     void run(
       async () => {
         const result = await auth.emailOtp.sendVerificationOtp({ email: address, type: 'sign-in' });
@@ -93,7 +110,9 @@ export default function Auth() {
         }
         setEmail(address);
         setCode('');
-        setUntil(Date.now() + resendDelay);
+        const deadline = Date.now() + resendDelay;
+        lastDelivery.current = { address, deadline };
+        setUntil(deadline);
         setStep('code');
         if (retry) setNotice('authCodeResent');
       },
@@ -112,8 +131,9 @@ export default function Auth() {
       async () => {
         const result = await auth.signIn.emailOtp({ email, otp: code });
         if (result.error) return setError(codeFailure(result.error));
-        setCode('');
-        void session.refetch().catch(() => undefined);
+        lastDelivery.current = null;
+        setRestoring(true);
+        await session.refetch();
       },
       'verify',
       'authConnectionError',
@@ -142,7 +162,8 @@ export default function Auth() {
           );
         }
         setPassword('');
-        void session.refetch().catch(() => undefined);
+        setRestoring(true);
+        await session.refetch();
       },
       'password',
       'authConnectionError',
@@ -164,7 +185,8 @@ export default function Auth() {
           // Expo's system browser can return without a session when dismissed.
           const restored = await auth.getSession();
           if (!restored.data) return setError('authGoogleNoSession');
-          void session.refetch().catch(() => undefined);
+          setRestoring(true);
+          await session.refetch();
         }
       },
       'google',
@@ -172,11 +194,28 @@ export default function Auth() {
     );
   }
 
+  function reconnect() {
+    void run(
+      async () => {
+        await Promise.allSettled([session.refetch(), methods.refetch()]);
+      },
+      'reconnect',
+      'authConnectionError',
+    );
+  }
+
+  function retrySession() {
+    void run(() => session.refetch(), 'restore', 'authConnectionError');
+  }
+
   const busy = pending !== null;
+  const connectionIssue = Boolean(
+    session.error || methods.isError || error === 'authConnectionError',
+  );
   const googleAvailable = methods.data?.google === true && redirectOAuthSupported;
   const emailAvailable = methods.data?.emailOtp !== false;
   const title = step === 'code' ? 'authCodeTitle' : 'signIn';
-  if (session.isPending) {
+  if (session.isPending && !busy && !restoring && step === 'email') {
     return (
       <PublicPage auth>
         <View
@@ -192,6 +231,47 @@ export default function Auth() {
           <Text muted small>
             {t('authChecking')}
           </Text>
+        </View>
+      </PublicPage>
+    );
+  }
+
+  if (restoring) {
+    return (
+      <PublicPage auth>
+        <View
+          style={{
+            width: '100%',
+            maxWidth: 490,
+            alignSelf: 'center',
+            marginVertical: 36,
+            borderRadius: 23,
+            borderWidth: 1,
+            borderColor: c.border,
+            backgroundColor: c.surface,
+            padding: 22,
+            gap: 12,
+          }}
+        >
+          <MailCheck size={25} color={c.primary} />
+          <Heading size={27}>{copy.restoreTitle}</Heading>
+          <Text muted>{copy.restoreBody}</Text>
+          {connectionIssue ? (
+            <Text role="alert" small style={{ color: c.error }}>
+              {copy.offlineBody}
+            </Text>
+          ) : null}
+          <Button
+            label={copy.restoreRetry}
+            onPress={retrySession}
+            loading={busy || session.isRefetching}
+          />
+          <Button
+            variant="text"
+            label={copy.useDifferentLogin}
+            onPress={() => changeStep('email')}
+            disabled={busy}
+          />
         </View>
       </PublicPage>
     );
@@ -258,10 +338,37 @@ export default function Auth() {
             </Text>
           </View>
 
-          {session.error || methods.isError ? (
-            <Text role="alert" small style={{ color: c.error }}>
-              {t('authConnectionError')}
-            </Text>
+          {connectionIssue ? (
+            <View
+              style={{
+                backgroundColor: c.elevated,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: c.border,
+                padding: 11,
+                gap: 5,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <WifiOff size={17} color={c.error} />
+                <Text role="alert" bold small>
+                  {copy.offlineTitle}
+                </Text>
+              </View>
+              <Text small muted>
+                {copy.offlineBody}
+              </Text>
+              <Action
+                label={copy.offlineRetry}
+                onPress={reconnect}
+                disabled={busy}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                <Text small bold style={{ color: c.primary }}>
+                  {copy.offlineRetry}
+                </Text>
+              </Action>
+            </View>
           ) : null}
 
           {step === 'code' ? (
@@ -304,11 +411,15 @@ export default function Auth() {
               <Field
                 label={t('email')}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(next) => {
+                  setEmail(next);
+                  if (error === 'authEmailInvalid') setError(null);
+                }}
                 keyboardType="email-address"
                 autoComplete="email"
                 autoCapitalize="none"
                 autoCorrect={false}
+                returnKeyType={step === 'email' ? 'go' : 'default'}
                 maxLength={254}
                 editable={!busy}
                 placeholder="ban@example.com"
@@ -324,6 +435,7 @@ export default function Auth() {
                   autoComplete="current-password"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  returnKeyType="go"
                   maxLength={128}
                   editable={!busy}
                   error={error === 'authPasswordRequired' ? t(error) : undefined}
@@ -333,7 +445,8 @@ export default function Auth() {
             </View>
           )}
 
-          {error && !['authEmailInvalid', 'authPasswordRequired'].includes(error) ? (
+          {error &&
+          !['authConnectionError', 'authEmailInvalid', 'authPasswordRequired'].includes(error) ? (
             <Text role="alert" small style={{ color: c.error }}>
               {t(error)}
             </Text>
@@ -427,9 +540,9 @@ export default function Auth() {
               {t('authHint')}
             </Text>
           </View>
-          {step === 'email' && Platform.OS === 'web' ? (
+          {step === 'email' ? (
             <Action
-              label={accessCopy.preview}
+              label={copy.preview}
               onPress={() => router.push('/showcase')}
               style={{
                 flexDirection: 'row',
@@ -439,7 +552,7 @@ export default function Auth() {
               }}
             >
               <Text small bold style={{ color: c.primary }}>
-                {accessCopy.preview}
+                {copy.preview}
               </Text>
               <ArrowUpRight size={15} color={c.primary} />
             </Action>

@@ -3,7 +3,6 @@ import { File } from 'expo-file-system';
 import { getDocumentAsync } from 'expo-document-picker';
 import { fetch as expoFetch } from 'expo/fetch';
 import {
-  documentMimeSchema,
   maxDocumentBytes,
   type DocumentMime,
   type DocumentReview,
@@ -12,12 +11,9 @@ import {
   type Estimate,
 } from '@finora/contracts';
 import { auth, base } from '../../services/client';
+import { DocumentApiError, documentFileMime } from './file-policy';
 
-export class DocumentApiError extends Error {
-  constructor(public readonly status: number) {
-    super('Document API error');
-  }
-}
+export { DocumentApiError, documentFileMime } from './file-policy';
 
 const segments = (id: string) => '/' + encodeURIComponent(id);
 async function request<T>(
@@ -25,13 +21,16 @@ async function request<T>(
   method = 'GET',
   headers: Record<string, string> = {},
   body?: BodyInit,
+  signal?: AbortSignal,
 ) {
   const web = Platform.OS === 'web';
   const post = web ? fetch : expoFetch;
   const response = await post(base + '/api/document-analysis' + path, {
     body,
+    signal,
     method,
     credentials: web ? 'include' : 'omit',
+    ...(web ? { cache: 'no-store' as const } : {}),
     headers: web ? headers : { ...headers, cookie: auth.getCookie() },
   });
   if (!response.ok) throw new DocumentApiError(response.status);
@@ -44,8 +43,9 @@ function json<T>(
   return request<T>(path, 'POST', { 'Content-Type': 'application/json' }, JSON.stringify(body));
 }
 export const docApi = {
-  list: () => request<DocumentSummary[]>(''),
-  get: (id: string) => request<DocumentReview>(segments(id)),
+  list: (signal?: AbortSignal) => request<DocumentSummary[]>('', 'GET', {}, undefined, signal),
+  get: (id: string, signal?: AbortSignal) =>
+    request<DocumentReview>(segments(id), 'GET', {}, undefined, signal),
   remove: (id: string) => request<{ deleted: true }>(segments(id), 'DELETE'),
   upload: (body: BodyInit, mime: DocumentMime, synthetic = false) =>
     request<DocumentReview>(
@@ -105,45 +105,31 @@ export async function loadPrivateImage(
   return 'data:' + mime + ';base64,' + chunks.join('');
 }
 
-export async function choosePrivateDocument() {
+export type PickedPrivateDocument = { body: BodyInit; mime: DocumentMime };
+
+export async function choosePrivateDocument(): Promise<PickedPrivateDocument | null> {
   const picked = await getDocumentAsync({
     type: ['application/pdf', 'image/jpeg', 'image/png'],
     copyToCacheDirectory: true,
     multiple: false,
     base64: false,
   });
-  if (picked.canceled) return null;
+  if (picked.canceled || !picked.assets[0]) return null;
   const asset = picked.assets[0];
-  // Some OS file providers omit MIME; the server always validates the signature.
-  const fallback = /\.pdf$/i.test(asset.name)
-    ? 'application/pdf'
-    : /\.png$/i.test(asset.name)
-      ? 'image/png'
-      : /\.jpe?g$/i.test(asset.name)
-        ? 'image/jpeg'
-        : '';
-  const mime = documentMimeSchema.safeParse(
-    asset.mimeType && asset.mimeType !== 'application/octet-stream' ? asset.mimeType : fallback,
-  );
-  const tooLarge = asset.size !== undefined && asset.size > maxDocumentBytes;
-  if (Platform.OS === 'web') {
-    if (!mime.success || tooLarge || !asset.file || asset.file.size > maxDocumentBytes)
-      throw new DocumentApiError(413);
-    return { body: asset.file, mime: mime.data };
-  }
   const localCopy = new File(asset.uri);
   try {
-    if (!mime.success || tooLarge || localCopy.size > maxDocumentBytes)
-      throw new DocumentApiError(413);
+    const mime = documentFileMime(asset.name, asset.mimeType, asset.size);
+    if (localCopy.size > maxDocumentBytes) throw new DocumentApiError(413);
     const bytes = await localCopy.bytes();
+    if (!bytes.byteLength) throw new DocumentApiError(400);
     if (bytes.byteLength > maxDocumentBytes) throw new DocumentApiError(413);
-    return { body: Uint8Array.from(bytes).buffer, mime: mime.data };
+    return { body: Uint8Array.from(bytes).buffer, mime };
   } finally {
     // DocumentPicker copied into the sandbox; leave the user's original untouched.
     try {
       localCopy.delete();
     } catch {
-      // Unavailable temporary file; no data is logged.
+      // An unavailable temporary file does not need to be logged.
     }
   }
 }

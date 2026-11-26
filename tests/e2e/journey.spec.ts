@@ -40,6 +40,10 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await page.getByLabel('Tiền trả nợ hiện tại').fill('1500000');
   await page.getByRole('button', { name: 'Lưu thay đổi' }).click();
   await expect(page.getByText('Đã lưu thay đổi.')).toBeVisible();
+  await expect(page.getByText('Tiền còn lại sau chi phí và nợ')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /9\.500\.000/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Xem cách tính' }).click();
+  await expect(page.getByText(/không phải điểm tín dụng/i)).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   const profileTab = await page.getByRole('tab', { name: 'Hồ sơ', exact: true }).boundingBox();
   const loansTab = await page.getByRole('tab', { name: 'Khoản vay', exact: true }).boundingBox();
@@ -73,13 +77,13 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
     ).toBeTruthy();
     await expect(page.getByText('Tổng tiền gồm phí', { exact: true })).toBeVisible();
   }
-  await page.getByRole('button', { name: 'Giải thích cùng Finora AI' }).click();
-  await page.getByLabel('Nhập câu hỏi của bạn').fill('Giải thích bản mô phỏng');
+  await page.getByRole('button', { name: 'Phân tích mô phỏng này' }).click();
+  await page.getByLabel('Bạn đang cân nhắc khoản vay nào?').fill('Giải thích bản mô phỏng');
   await page.getByRole('button', { name: 'Gửi', exact: true }).click();
-  await expect(page.getByText(/Tổng gốc và lãi theo lịch là/)).toBeVisible();
+  await expect(page.getByText(/Mình đã tính lịch theo dữ liệu và giả định bên dưới/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Gửi', exact: true })).toBeDisabled();
   await page.reload();
-  await expect(page.getByText(/Tổng gốc và lãi theo lịch là/)).toBeVisible();
+  await expect(page.getByText(/Mình đã tính lịch theo dữ liệu và giả định bên dưới/)).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('tab', { name: 'Tổng quan' }).click();
   await expect(page.getByText(/5\.500\.000/)).toBeVisible();
@@ -90,6 +94,7 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await page.screenshot({ path: info.outputPath('home-populated.png') });
   await page.getByRole('tab', { name: 'Hồ sơ', exact: true }).click();
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/\/auth/);
   await page.goto(url);
   await expect(page).toHaveURL(/\/auth/);
   await page.getByRole('button', { name: 'Dùng mật khẩu hiện có' }).click();

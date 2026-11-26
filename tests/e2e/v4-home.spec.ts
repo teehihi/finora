@@ -48,3 +48,36 @@ test('Home separates repayment capacity from cash remaining and exposes the feat
       .toBeLessThanOrEqual(width);
   }
 });
+
+test('Home links each quick action to the real tool and opens saved simulations directly', async ({
+  context,
+  page,
+}) => {
+  const owner = await createLegacyAccount(context.request, {
+    email: randomUUID() + '@example.test',
+    name: 'An',
+    password: randomUUID(),
+  });
+  expect(owner.ok()).toBeTruthy();
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const destinations = [
+    ['Tìm khoản vay', /\/explore$/],
+    ['Mô phỏng mẫu', /\/simulate\/personal-flex$/],
+    ['So sánh mẫu', /\/explore\?mode=sample&intent=compare$/],
+    ['Đọc hợp đồng', /\/documents$/],
+    ['Lịch trả nợ', /\/repayments$/],
+    ['Mở Finora AI', /\/assistant$/],
+    ['Xem tất cả', /\/loans\?pane=simulations$/],
+  ] as const;
+
+  for (const [label, expectedUrl] of destinations) {
+    await page.goto('/home');
+    await page.getByRole('button', { name: label, exact: true }).click();
+    await expect(page).toHaveURL(expectedUrl);
+  }
+  await expect(page.getByRole('tab', { name: 'Bản mô phỏng', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+});

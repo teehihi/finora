@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, CalendarDays, CircleCheck, CreditCard } from 'lucide-react-native';
-import { Button, Dialog, EmptyState, Heading, Progress, Text, useDesign } from '@finora/ui';
+import {
+  CalendarClock,
+  CalendarDays,
+  ChevronRight,
+  CircleCheck,
+  CreditCard,
+} from 'lucide-react-native';
+import { Action, Button, Dialog, EmptyState, Heading, Progress, Text, useDesign } from '@finora/ui';
 import { date, numeric } from '@finora/i18n';
 import type { DueRepayment, TrackedPayment, TrackedRepayment } from '@finora/contracts';
 import { Back, Data, Page } from '../../src/components/layout';
@@ -37,8 +43,15 @@ export default function Repayments() {
       top={<Back to={() => router.navigate('/loans')} />}
     >
       <Data q={ledger}>
-        {(value) =>
-          value.loans.length ? (
+        {(value) => {
+          const selectDue = ({ loanId, period }: DueRepayment) => {
+            const loan = value.loans.find((item) => item.id === loanId);
+            const payment = loan?.schedule.find((item) => item.period === period && !item.paid);
+            if (!loan || !payment) return;
+            save.reset();
+            setSelection({ loanId, title: loan.title, payment });
+          };
+          return value.loans.length ? (
             <>
               <View style={{ backgroundColor: c.forest, borderRadius: 24, padding: 20, gap: 7 }}>
                 <CreditCard size={22} color={c.onForestMuted} />
@@ -58,11 +71,13 @@ export default function Repayments() {
                   items={value.upcoming}
                   total={value.upcomingTotal}
                   range={date(value.today, locale) + ' – ' + date(value.through, locale)}
+                  onSelect={selectDue}
                 />
                 <DuePanel
                   heading={t('repaymentsLate')}
                   items={value.overdue}
                   total={value.overdueTotal}
+                  onSelect={selectDue}
                   overdue
                 />
               </View>
@@ -90,13 +105,15 @@ export default function Repayments() {
                   <Button
                     variant="outline"
                     label={t('saved')}
-                    onPress={() => router.navigate('/loans')}
+                    onPress={() =>
+                      router.navigate({ pathname: '/loans', params: { pane: 'simulations' } })
+                    }
                   />
                 }
               />
             </View>
-          )
-        }
+          );
+        }}
       </Data>
       <Dialog
         bottom={width < 620}
@@ -141,12 +158,14 @@ function DuePanel({
   total,
   range,
   overdue = false,
+  onSelect,
 }: {
   heading: string;
   items: DueRepayment[];
   total: number;
   range?: string;
   overdue?: boolean;
+  onSelect: (item: DueRepayment) => void;
 }) {
   const { t, money, locale, colors: c } = useDesign();
   const [shown, setShown] = useState(4);
@@ -178,15 +197,20 @@ function DuePanel({
         </Text>
       ) : null}
       {items.slice(0, shown).map((item) => (
-        <View
+        <Action
+          onPress={() => onSelect(item)}
+          label={t('repaymentsReviewDue')
+            .replace('{title}', item.title)
+            .replace('{date}', date(item.date, locale))}
           key={item.loanId + ':' + item.period}
           style={{
             flexDirection: 'row',
             gap: 9,
-            alignItems: 'baseline',
+            alignItems: 'center',
             borderTopWidth: 1,
             borderColor: c.border,
             paddingVertical: 7,
+            borderRadius: 0,
           }}
         >
           <Text small style={{ flex: 1, color: c.foreground }}>
@@ -195,7 +219,8 @@ function DuePanel({
           <Text small bold style={{ color: c.foreground, fontVariant: ['tabular-nums'] }}>
             {money(item.payment)}
           </Text>
-        </View>
+          <ChevronRight size={16} color={c.muted} />
+        </Action>
       ))}
       {items.length > shown ? (
         <View style={{ alignSelf: 'flex-start' }}>

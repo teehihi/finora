@@ -108,3 +108,45 @@ test('Intelligence runs owned Vietnamese analysis, typed comparison and private 
     await other.dispose();
   }
 });
+
+test('stress-tests a stated budget before a loan is specified without rewriting the profile', async () => {
+  const client = await request.newContext({ baseURL: api, extraHTTPHeaders: headers });
+  try {
+    const created = await createLegacyAccount(client, {
+      name: 'Finora AI cash flow QA',
+      email: randomUUID() + '@example.test',
+      password: randomUUID(),
+    });
+    expect(created.ok(), await created.text()).toBe(true);
+    async function run(prompt: string) {
+      const result = await client.post('/api/intelligence/stream', {
+        data: { prompt, locale: 'vi-VN', requestId: randomUUID() },
+      });
+      expect(result.ok(), await result.text()).toBe(true);
+      const packets = (await result.text())
+        .split('\n')
+        .filter((line) => line.startsWith('data: '))
+        .map((line) => JSON.parse(line.slice(6)));
+      expect(packets[0]).toEqual({ type: 'meta', provider: 'mock' });
+      return packets.find((packet) => packet.type === 'structured')?.blocks;
+    }
+    const base = await run('Thu nhập 15 triệu, chi phí sinh hoạt 8 triệu, đang trả nợ 1 triệu.');
+    expect(base.find(({ kind }: { kind: string }) => kind === 'affordability')).toMatchObject({
+      cashFlow: 6_000_000,
+      basis: 'user',
+    });
+    const shock = await run('Nếu thu nhập giảm 20% thì sao?');
+    expect(shock.some(({ kind }: { kind: string }) => kind === 'scenario')).toBe(false);
+    expect(shock).toContainEqual(
+      expect.objectContaining({
+        kind: 'notice',
+        message: expect.stringMatching(/6\.000\.000.*3\.000\.000/),
+      }),
+    );
+    const account = await client.get('/api/account');
+    expect(account.ok()).toBe(true);
+    expect((await account.json()).profile).toBeNull();
+  } finally {
+    await client.dispose();
+  }
+});

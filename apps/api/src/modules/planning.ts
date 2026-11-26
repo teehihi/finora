@@ -15,6 +15,8 @@ import {
 import {
   draftSchema,
   saveSchema,
+  saveCustomSimulationSchema,
+  userScenarioSource,
   preferencesSchema,
   profileSchema,
   type Product,
@@ -87,6 +89,38 @@ export class PlanningService {
     });
     return savedDto(row);
   }
+  async saveCustom(userId: string, requestId: string, input: LoanInput) {
+    const result = financialTools.simulateRepaymentScenario(input);
+    const product: Product = {
+      id: 'personal-scenario',
+      name: 'Phương án của bạn',
+      nameEn: 'Your scenario',
+      institution: 'Finora',
+      category: 'personal',
+      amountMin: input.principal,
+      amountMax: input.principal,
+      monthsMin: input.months,
+      monthsMax: input.months,
+      rateMin: input.annualRate,
+      rateMax: input.annualRate,
+      method: input.method,
+      fee: input.fee,
+      source: userScenarioSource,
+    };
+    const row = await db.loanSimulation.upsert({
+      where: { userId_requestId: { userId, requestId } },
+      create: {
+        userId,
+        requestId,
+        productId: null,
+        input: json(input),
+        result: json(result),
+        productSnapshot: json(product),
+      },
+      update: {},
+    });
+    return savedDto(row);
+  }
   async facts(userId: string, id: string) {
     const x = await db.loanSimulation.findFirst({ where: { userId, id } });
     if (!x) throw new NotFoundException();
@@ -147,6 +181,12 @@ export class PlanningController {
     @Body(new Validate(saveSchema)) body: typeof saveSchema._output,
   ) {
     return this.planning.save(req.userId, body.requestId, body.productId, body.input);
+  }
+  @Post('simulations/custom') saveCustom(
+    @Req() req: OwnedRequest,
+    @Body(new Validate(saveCustomSimulationSchema)) body: typeof saveCustomSimulationSchema._output,
+  ) {
+    return this.planning.saveCustom(req.userId, body.requestId, body.input);
   }
   @Get('simulations') async list(@Req() req: OwnedRequest) {
     return (

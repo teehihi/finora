@@ -24,8 +24,35 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
   await page.screenshot({ path: info.outputPath('document-intake.png') });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: info.outputPath('document-intake-mobile.png') });
+  const openPicker = page.getByRole('button', { name: 'Chọn PDF hoặc ảnh' });
+  const canceledPicker = page.waitForEvent('filechooser');
+  await openPicker.click();
+  await (await canceledPicker).element().dispatchEvent('cancel');
+  await expect(openPicker).toBeEnabled();
+  await expect(page.getByText('Đang đọc tài liệu của bạn…')).toHaveCount(0);
+
+  const unsupportedPicker = page.waitForEvent('filechooser');
+  await openPicker.click();
+  await (
+    await unsupportedPicker
+  ).setFiles({
+    name: 'unsupported.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('Synthetic unsupported file'),
+  });
+  await expect(page.getByText('Chọn một tệp PDF, JPEG hoặc PNG.')).toBeVisible();
+  await expect(openPicker).toBeEnabled();
+
+  let releaseUpload!: () => void;
+  const uploadGate = new Promise<void>((resolve) => {
+    releaseUpload = resolve;
+  });
+  await page.route('**/api/document-analysis', async (route) => {
+    if (route.request().method() === 'POST') await uploadGate;
+    await route.continue();
+  });
   const filechooser = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: 'Chọn PDF hoặc ảnh' }).click();
+  await openPicker.click();
   await (
     await filechooser
   ).setFiles({
@@ -33,7 +60,14 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
     mimeType: 'application/pdf',
     buffer: Buffer.from(syntheticLoanOfferPdf()),
   });
+  try {
+    await expect(page.getByText('Đang đọc tài liệu của bạn…')).toBeVisible();
+    await expect(openPicker).toBeDisabled();
+  } finally {
+    releaseUpload();
+  }
   await expect(page.getByRole('heading', { name: 'Rà soát đề nghị vay' })).toBeVisible();
+  await page.unroute('**/api/document-analysis');
   await page.screenshot({ path: info.outputPath('document-review-mobile.png') });
   await page.setViewportSize({ width: 1440, height: 960 });
   const id = new URL(page.url()).pathname.split('/').at(-1);
@@ -47,9 +81,9 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
   expect((await request.get(endpoint)).status()).toBe(404);
   expect((await request.get(endpoint + '/file')).status()).toBe(404);
   expect((await request.delete(endpoint, { headers })).status()).toBe(404);
-  expect((await page.request.get(endpoint + '/file')).headers()['content-disposition']).toContain(
-    'attachment;',
-  );
+  const download = await page.request.get(endpoint + '/file');
+  expect(download.headers()['content-disposition']).toContain('attachment;');
+  expect(download.headers()['cache-control']).toBe('no-store');
 
   const foreign = await request.post(endpoint + '/preview', {
     headers,
@@ -70,7 +104,11 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
     await page.getByRole('button', { name: 'Xem giá trị và trích dẫn' }).click();
   await expect(page.getByText(/Trang 1:.*Principal/)).toBeVisible();
   await expect(page.getByLabel('Tiền gốc (VND)')).toHaveValue('30000000');
-  await page.getByLabel('Tiền gốc (VND)').fill('26000000');
+  await page.getByLabel('Tiền gốc (VND)').fill('26,000.000');
+  await page.getByRole('button', { name: 'Xác nhận và tính lại' }).click();
+  await expect(page.getByText('Nhập tiền gốc lớn hơn 0 và không quá 1.000 tỷ ₫.')).toBeVisible();
+  await page.getByLabel('Tiền gốc (VND)').fill('26.000.000');
+  await page.getByLabel('Ngày trả kỳ đầu').fill('15/01/2027');
   await page.getByLabel('Tổng phí (VND, nếu biết)').fill('');
   await page.getByRole('button', { name: 'Xác nhận và tính lại' }).click();
   await expect(
@@ -80,6 +118,15 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
     .getByRole('heading', { name: 'Finora tính từ thông số đã xác nhận' })
     .scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath('document-confirmed-result.png') });
+  await page.getByRole('button', { name: 'Sửa thông số' }).click();
+  await expect(page.getByRole('button', { name: 'Lưu bản mô phỏng đã rà soát' })).toHaveCount(0);
+  await expect(page.getByLabel('Tiền gốc (VND)')).toHaveValue('26.000.000');
+  await page.getByRole('button', { name: 'Xác nhận và tính lại' }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole('heading', { name: 'Finora tính từ thông số đã xác nhận' })
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('document-confirmed-mobile.png') });
   await page.getByRole('button', { name: 'Lưu bản mô phỏng đã rà soát' }).click();
   await expect(page).toHaveURL(/\/saved\//);
   await expect(page.getByText('Tài liệu riêng tư đã rà soát')).toBeVisible();
@@ -88,7 +135,10 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
     api + '/simulations/' + new URL(savedUrl).pathname.split('/').at(-1),
   );
   expect(saved.ok()).toBeTruthy();
-  expect((await saved.json()).result.total).toBeNull();
+  const savedEstimate = await saved.json();
+  expect(savedEstimate.input.principal).toBe(26_000_000);
+  expect(savedEstimate.input.firstDue).toBe('2027-01-15');
+  expect(savedEstimate.result.total).toBeNull();
 
   await page.goto('/documents/' + id);
   await page.getByRole('button', { name: 'Xóa tài liệu' }).click();
@@ -96,6 +146,8 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
   await expect(page).toHaveURL(/\/documents$/);
   expect((await page.request.get(endpoint)).status()).toBe(404);
   expect((await page.request.get(endpoint + '/file')).status()).toBe(404);
+  await page.goto('/documents/' + id);
+  await expect(page.getByText('Tài liệu không còn khả dụng với phiên hiện tại.')).toBeVisible();
   await page.goto(savedUrl);
   await expect(page.getByText('Tài liệu riêng tư đã rà soát')).toBeVisible();
 });

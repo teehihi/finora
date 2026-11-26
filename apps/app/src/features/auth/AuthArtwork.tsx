@@ -3,6 +3,7 @@ import { CalendarDays, Calculator, FileSearch } from 'lucide-react-native';
 import { Heading, Text, useDesign } from '@finora/ui';
 import { getAccessStrings } from '@finora/i18n';
 import mascot from '../../../assets/brand/fin-assistant.png';
+import { BrandLines } from './BrandLines';
 
 export function AuthArtwork({ wide }: { wide: boolean }) {
   const { colors: c, locale } = useDesign();
@@ -12,38 +13,26 @@ export function AuthArtwork({ wide }: { wide: boolean }) {
       style={{
         flex: wide ? 1 : undefined,
         minWidth: 0,
-        minHeight: wide ? 540 : 134,
+        minHeight: wide ? 510 : 107,
         backgroundColor: c.forest,
         borderRadius: wide ? 30 : 23,
         overflow: 'hidden',
         justifyContent: 'space-between',
-        padding: wide ? 30 : 17,
-        paddingBottom: wide ? 24 : 17,
+        padding: wide ? 30 : 14,
+        paddingBottom: wide ? 24 : 14,
         gap: wide ? 21 : 0,
       }}
     >
-      <View
-        pointerEvents="none"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={{
-          position: 'absolute',
-          width: wide ? 300 : 190,
-          height: wide ? 300 : 190,
-          right: wide ? -52 : -55,
-          top: -108,
-          borderWidth: 34,
-          borderColor: '#B7F68E1A',
-          borderRadius: 200,
-        }}
-      />
+      <BrandLines />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
-          <Text bold small style={{ color: '#BDEF9B' }}>
-            Finora
-          </Text>
+          {wide ? (
+            <Text bold small style={{ color: '#BDEF9B' }}>
+              Finora
+            </Text>
+          ) : null}
           <Heading size={wide ? 37 : 23} style={{ color: c.onForest }}>
-            {copy.welcome}
+            {wide ? copy.welcome : copy.welcome.replace('. ', '.\n')}
           </Heading>
           {wide ? <Text style={{ color: c.onForestMuted }}>{copy.intro}</Text> : null}
         </View>
@@ -52,7 +41,7 @@ export function AuthArtwork({ wide }: { wide: boolean }) {
             source={mascot}
             accessibilityIgnoresInvertColors
             resizeMode="contain"
-            style={{ width: 91, height: 95 }}
+            style={{ width: 74, height: 74 }}
           />
         ) : null}
       </View>
@@ -63,7 +52,7 @@ export function AuthArtwork({ wide }: { wide: boolean }) {
               source={mascot}
               accessibilityIgnoresInvertColors
               resizeMode="contain"
-              style={{ width: 208, height: 180 }}
+              style={{ width: 178, height: 158 }}
             />
           </View>
           <View accessibilityRole="list" style={{ gap: 8 }}>
@@ -81,9 +70,9 @@ export function AuthArtwork({ wide }: { wide: boolean }) {
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 11,
-                  borderRadius: 13,
-                  backgroundColor: '#FFFFFF14',
-                  padding: 11,
+                  borderTopWidth: 1,
+                  borderColor: '#FFFFFF33',
+                  paddingVertical: 9,
                 }}
               >
                 <Icon size={18} color="#BDEF9B" />

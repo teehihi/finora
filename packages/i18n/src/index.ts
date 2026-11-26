@@ -40,6 +40,10 @@ const copy = {
     'Thao tác chỉ cập nhật sổ cá nhân, không chuyển tiền hay thông báo cho bên cho vay.',
     'This only updates your ledger. It does not move money or notify the lender.',
   ],
+  repaymentsReviewDue: [
+    'Xem kỳ trả của {title}, hạn {date}',
+    'Review installment for {title}, due {date}',
+  ],
   repaymentsProgress: ['Đã xác nhận {paid}/{total} kỳ', '{paid}/{total} payments confirmed'],
   repaymentsSchedule: ['Lịch từng kỳ', 'Payment schedule'],
   repaymentsUntrackedNote: [
@@ -449,9 +453,18 @@ const copy = {
   system: ['Theo thiết bị', 'System'],
   privacy: ['Quyền riêng tư', 'Privacy'],
   privacyText: [
-    'Hồ sơ và mô phỏng chỉ hiển thị trong tài khoản của bạn. Trợ lý phát triển xử lý dữ liệu trên máy chủ cục bộ.',
-    'Your profile and simulations belong to your account. The development assistant processes data on the local server.',
+    'Hồ sơ, mô phỏng và tài liệu chỉ hiển thị trong tài khoản của bạn. Finora AI mặc định xử lý cục bộ; chỉ dùng AI bên ngoài cho yêu cầu bạn đồng ý gửi.',
+    'Your saved profile, simulations, and documents are private to your account. Finora AI runs locally by default and uses an external model only when you opt in for that request.',
   ],
+  privacyClearFin: ['Xóa lịch sử Finora AI', 'Clear Finora AI history'],
+  privacyClearLegacy: ['Xóa lịch sử trò chuyện cũ', 'Clear legacy chat history'],
+  privacyFinCleared: ['Đã xóa lịch sử Finora AI.', 'Finora AI history cleared.'],
+  privacyLegacyCleared: ['Đã xóa lịch sử trò chuyện cũ.', 'Legacy chat history cleared.'],
+  privacyHistoryScope: [
+    'Chỉ xóa lịch sử đã chọn của tài khoản này. Hồ sơ, mô phỏng, tài liệu và lịch trả nợ vẫn được giữ nguyên.',
+    'Only the selected history for this account is removed. Your profile, simulations, documents, and repayment schedule are kept.',
+  ],
+  privacyDeleteHistory: ['Xác nhận xóa lịch sử', 'Confirm history deletion'],
   mock: ['Mô phỏng AI · Cục bộ', 'Mock AI · Local'],
   assistantTitle: ['Cùng hiểu khoản vay', 'Make sense of borrowing'],
   intelligenceTitle: ['Bàn phân tích khoản vay', 'Borrowing analysis desk'],
@@ -660,3 +673,5 @@ export const date = (value: string | Date, locale: Locale) =>
 
 export { documentStrings } from './document';
 export { accessStrings, getAccessStrings, showcaseStrings } from './access';
+
+export { homeCopy } from './home';
