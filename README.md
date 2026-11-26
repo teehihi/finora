@@ -61,7 +61,7 @@ Native dùng Expo SecureStore và plugin Expo của Better Auth, web dùng cooki
 | `pnpm build`                                          | Xuất Expo Web vào `apps/app/dist`, biên dịch API và package dùng chung                         |
 | `pnpm test:e2e`                                       | Kiểm thử Playwright với PostgreSQL thật và các tài khoản tổng hợp mới                          |
 
-Để chạy E2E từ bản build, hoàn thành setup và build, chạy `pnpm exec playwright install chromium`, rồi `pnpm test:e2e`. Có thể dùng Chrome sẵn có bằng `FINORA_BROWSER_CHANNEL=chrome pnpm test:e2e`. Khi hai cổng trống, cấu hình Playwright tự khởi động API và máy chủ web tĩnh có hỗ trợ deep link. Khi đang phát triển, bộ test có thể dùng các tiến trình đã chạy trên cùng cổng. E2E ghi tài khoản và fixture tổng hợp vào **database phát triển**. CI dùng volume mới trên runner.
+Để chạy E2E từ bản build, hoàn thành setup và build, chạy `pnpm exec playwright install chromium`, rồi `pnpm test:e2e`. Bài test đọc PDF cần `pdftotext` trong `PATH` (Ubuntu/Debian: `sudo apt-get install poppler-utils`; macOS: `brew install poppler`). Kiểm tra bằng `pdftotext -v`. CI tự cài trình đọc này; OCR cho ảnh là tùy chọn riêng. Có thể dùng Chrome sẵn có bằng `FINORA_BROWSER_CHANNEL=chrome pnpm test:e2e`. Khi hai cổng trống, cấu hình Playwright tự khởi động API và máy chủ web tĩnh có hỗ trợ deep link. Khi đang phát triển, bộ test có thể dùng các tiến trình đã chạy trên cùng cổng. E2E ghi tài khoản và fixture tổng hợp vào **database phát triển**. CI dùng volume mới trên runner.
 
 ### Mã nguồn và tài liệu
 

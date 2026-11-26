@@ -2,6 +2,10 @@ name: Finora CI
 on:
   push:
   pull_request:
+# Keep branch push checks and PR merge-ref checks independent.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -23,6 +27,11 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Install and verify the PDF reader
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          pdftotext -v
       - run: pnpm test:e2e
       - if: failure()
         uses: actions/upload-artifact@v4
