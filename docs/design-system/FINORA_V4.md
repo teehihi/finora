@@ -32,3 +32,9 @@ Use the [existing demo setup](../architecture/INTELLIGENCE.md) and log in to a l
 See the [visual QA report](FINORA_V4_VISUAL_QA.md) for real before/after screenshots, the six-width review, dark appearance, and instructions to reproduce the captures. The separate visual test uses the live local API, real Mailpit OTP, and synthetic owner-scoped records.
 
 The JavaScript exports for web, iOS, and Android and the NestJS build completed. Lint, formatting, typecheck, and 69 unit tests passed. All 17 functional browser scenarios passed; the opt-in visual suite also passed separately with 52 captures. A web regression test covers mouse and emulated-touch release navigation, cancellation, keyboard activation, and reduced motion. The original native event path and Liquid Glass code were preserved; no simulator or physical device test was available. The local runs did not use real OAuth credentials, live AI, or customer data. Nothing was deployed.
+
+## Home and dock refinement
+
+The mobile Home uses a full-width capacity panel and places the next tracked installment before the shortcuts. Profile income is split into expenses plus existing debt and the amount left before a new loan; overspending renders a labeled shortfall instead of a positive remainder. That cash figure does not replace the existing repayment-capacity estimate. The surface never fabricates a payment or a financial profile.
+
+The featured Finora AI control remains the third of five tabs. Its fixed visual treatment is separate from the moving selected-tab indicator and does not change swipe-on-release, tap, keyboard activation, or reduced-motion logic. The workspace uses actual platform safe-area insets around the layout; no status-bar or Home-indicator pixels are baked into the app. Supported iOS uses cooperating native Liquid Glass shapes for the dock. Web and older devices use the shaped fallback; desktop retains its navigation rail.
