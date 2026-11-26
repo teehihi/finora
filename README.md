@@ -30,22 +30,24 @@ Mở [Expo Web](http://localhost:8081), [tình trạng API](http://localhost:300
 
 ### Cấu hình mạng
 
-| Thiết bị                | Máy chủ API                   | Cách chạy                                    |
-| ----------------------- | ----------------------------- | -------------------------------------------- |
-| Web trên máy phát triển | Hostname của trang, cổng 3000 | Mở localhost:8081                            |
-| iOS Simulator           | http://localhost:3000         | Development build, kết nối với Metro         |
-| Android Emulator        | http://10.0.2.2:3000          | Expo Go SDK 58, dùng Metro qua 10.0.2.2:8081 |
-| Điện thoại thật         | http://IP_LAN_CỦA_MÁY:3000    | Cùng Wi-Fi; iOS cần development build        |
+| Thiết bị                | Máy chủ API mặc định               | Cách chạy                             |
+| ----------------------- | ---------------------------------- | ------------------------------------- |
+| Web trên máy phát triển | Hostname của trang, cổng 3000      | Mở localhost:8081                     |
+| iOS Simulator           | Metro hiện tại hoặc localhost      | Development build, kết nối với Metro  |
+| Android Emulator        | Metro hiện tại hoặc 10.0.2.2       | Development build hoặc Expo Go SDK 58 |
+| Điện thoại thật         | Host của Metro hiện tại, cổng 3000 | Cùng Wi-Fi; iOS cần development build |
 
-Cấu hình API trong `apps/api/.env`, PostgreSQL trong `.env`, địa chỉ công khai cho Expo trong `apps/app/.env`. Khi đổi cổng hoặc thông tin PostgreSQL, đồng bộ `DATABASE_URL` với Compose. Đổi biến khi volume đã có dữ liệu cũng cần cập nhật role trong database hiện có.
+`pnpm dev`, `pnpm dev:app`, `pnpm dev:api`, `pnpm build` và các lệnh build/dev ở package app tự chạy bước chuẩn bị mạng. Để trống `EXPO_PUBLIC_API_URL` khi chạy local. App development lấy host Metro đang phục vụ bundle; web lấy hostname của trang. API chạy bằng `dev` chỉ bổ sung origin Expo cổng 8081 của các giao diện LAN riêng đang hoạt động, không cộng dồn IP cũ. Lệnh `pnpm expo:lan` vẫn dùng được và chỉ làm bước chuẩn bị này, không ghi IP Wi-Fi vào cấu hình.
 
-Với điện thoại trong mạng Wi-Fi tin cậy, để API bind `HOST=0.0.0.0`, đặt `BETTER_AUTH_URL=http://IP_LAN_CỦA_MÁY:3000` và thêm chính xác `http://IP_LAN_CỦA_MÁY:8081` vào `WEB_ORIGINS` (phân tách bằng dấu phẩy). Development build tự lấy địa chỉ API từ host Metro; chỉ cần đặt `EXPO_PUBLIC_API_URL` nếu dùng API ở máy chủ khác. Khởi động lại `pnpm dev`, mở development build trên iPhone hoặc Expo Go SDK 58 trên Android và quét QR Metro. `localhost` trên điện thoại trỏ về chính điện thoại. Trên web, dùng cùng hostname cho web và API để trình duyệt gửi cookie same-site. Chỉ mở cổng 3000 và 8081 trên mạng tin cậy. Cổng cơ sở dữ liệu luôn bind vào loopback.
+Khi chuyển Wi-Fi, kết nối lại máy và điện thoại cùng mạng tin cậy, mở lại địa chỉ web hoặc quét QR Metro hiện tại. Nếu Metro đang giữ QR cũ, dừng và chạy lại `pnpm dev`. Không cần sửa `.env` hay build lại development app chỉ vì IP đổi. Nếu app cũ chứa bundle đã nhúng IP hoặc Metro không còn tải được bundle mới, kết nối lại bằng QR hiện tại; bản standalone cũ có IP nhúng cần build/cài lại một lần với API HTTPS cố định. Nếu vẫn lỗi, mở `http://<IP_MÁY>:3000/health` trên điện thoại để kiểm tra API, tường lửa, quyền mạng cục bộ iOS và mạng khách có chặn thiết bị liên lạc với nhau không.
 
-Để cấu hình tự động cho điện thoại thật, kết nối máy tính và điện thoại cùng Wi-Fi rồi chạy `pnpm expo:lan`. Lệnh dò IPv4 LAN của máy tính, cập nhật `EXPO_PUBLIC_API_URL`, `BETTER_AUTH_URL` và thêm origin Expo vào `WEB_ORIGINS`. Khởi động lại `pnpm dev`; nếu đang dùng app native đã build, build và cài lại để cập nhật URL API được nhúng trong app.
+Các file `.env` có đúng mẫu do script cũ tạo được dọn một lần: bỏ địa chỉ LAN ở app, khôi phục Better Auth về loopback và xóa các origin LAN cũ dạng `http://<IP_RIÊNG>:8081`. Override trong môi trường hoặc `apps/app/.env.local` vẫn được giữ. Nếu bạn chủ ý đặt toàn bộ bộ giá trị giống mẫu LAN cũ, chạy với `FINORA_KEEP_LEGACY_LAN=1` để giữ nguyên. `BETTER_AUTH_URL` cho OAuth là endpoint canonical đã đăng ký, không được tự đổi theo Wi-Fi.
+
+Với preview/production, đặt `EXPO_PUBLIC_API_URL` thành URL HTTPS ổn định trước khi build; cấu hình `BETTER_AUTH_URL` và `WEB_ORIGINS` chính xác phía API. `pnpm --filter @finora/api start` chỉ dùng allowlist cấu hình, trừ khi chủ động đặt `FINORA_DEV_LAN=1` cho môi trường development. Chỉ mở cổng 3000/8081 trên mạng tin cậy. PostgreSQL tiếp tục bind loopback; nếu đổi cổng hoặc thông tin PostgreSQL, đồng bộ `DATABASE_URL` với Compose và role trong volume hiện có.
 
 Native dùng Expo SecureStore và plugin Expo của Better Auth, web dùng cookie HTTP-only. Thanh điều hướng dùng Liquid Glass của Callstack trên iOS 26 trở lên, Expo Blur trên iOS cũ và Android, bề mặt thường trên web. Android dùng `BlurTargetView`; thiết bị dưới API 31 nhận nền bán trong suốt thay cho blur nặng.
 
-`@callstack/liquid-glass` là native module nên app iOS không chạy được trong Expo Go, kể cả khi iOS cũ dùng Expo Blur. Để build và cài trực tiếp lên iPhone, bật Developer Mode, kết nối iPhone với Mac đã cài Xcode 26 trở lên, rồi chạy `pnpm --filter @finora/app exec expo run:ios --device`. Xcode sẽ yêu cầu chọn iPhone và signing team nếu cần. Sau khi cài app Finora development build, chạy `pnpm dev` và mở server dev từ app đó. Phiên bản iOS dưới 26 vẫn dùng Expo Blur. Bản native standalone sử dụng scheme `finora://`. Trong một development build, iOS có thể yêu cầu quyền mạng cục bộ và Android có thể yêu cầu cấu hình HTTP debug cho host phát triển cụ thể. Bản phân phối dùng HTTPS. [Liquid Glass của Callstack](https://github.com/callstack/liquid-glass) · [Expo development build](https://docs.expo.dev/develop/development-builds/introduction/)
+`@callstack/liquid-glass` là native module nên app iOS không chạy được trong Expo Go, kể cả khi iOS cũ dùng Expo Blur. Để build và cài trực tiếp lên iPhone, bật Developer Mode, kết nối iPhone với Mac đã cài Xcode 26 trở lên, rồi chạy `pnpm --filter @finora/app run ios --device`. Xcode sẽ yêu cầu chọn iPhone và signing team nếu cần. Sau khi cài app Finora development build, chạy `pnpm dev` và mở server dev từ app đó. Phiên bản iOS dưới 26 vẫn dùng Expo Blur. Bản native standalone sử dụng scheme `finora://`. Trong một development build, iOS có thể yêu cầu quyền mạng cục bộ và Android có thể yêu cầu cấu hình HTTP debug cho host phát triển cụ thể. Bản phân phối dùng HTTPS. [Liquid Glass của Callstack](https://github.com/callstack/liquid-glass) · [Expo development build](https://docs.expo.dev/develop/development-builds/introduction/)
 
 ### Lệnh thường dùng
 

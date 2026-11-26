@@ -7,7 +7,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
-import { env } from './config/env.js';
+import { env, webOrigins } from './config/env.js';
 import { db } from './infrastructure/db.js';
 import { auth, authProviders, isApplePrepared, SessionGuard } from './modules/auth.js';
 import { PlanningController, PlanningService } from './modules/planning.js';
@@ -59,7 +59,7 @@ async function main() {
   });
   app.use(requestLog, helmet());
   app.enableCors({
-    origin: env.WEB_ORIGINS,
+    origin: (origin, callback) => callback(null, Boolean(origin && webOrigins().includes(origin))),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   });
@@ -69,7 +69,7 @@ async function main() {
     const origin = req.get('origin');
     if (
       origin &&
-      !env.WEB_ORIGINS.includes(origin) &&
+      !webOrigins().includes(origin) &&
       origin !== new URL(env.BETTER_AUTH_URL).origin &&
       origin !== 'finora://' &&
       !(
