@@ -1,170 +1,671 @@
-import { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { requestId } from '../../src/services/request-id';
-import { useQuery } from '@tanstack/react-query';
-import { Sparkles } from 'lucide-react-native';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
-  Text,
-  Card,
-  Heading,
-  Badge,
-  Button,
-  Select,
-  ChatMessage,
-  ChatComposer,
-  SourceAttribution,
-  FinancialMetric,
-  useDesign,
-} from '@finora/ui';
-import type { ChatRequest } from '@finora/contracts';
-import { Page, Columns, Data } from '../../src/components/layout';
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  TextInput,
+  View,
+  useWindowDimensions,
+  type ViewStyle,
+} from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
+  BookOpen,
+  Check,
+  ChevronDown,
+  CircleHelp,
+  Paperclip,
+  Square,
+} from 'lucide-react-native';
+import type { ChatRequest, ChatTurn, Saved } from '@finora/contracts';
+import { date } from '@finora/i18n';
+import { tokens } from '@finora/design-tokens';
+import { Action, BottomSheet, Heading, SourceAttribution, Text, useDesign } from '@finora/ui';
+import { Data, useWorkspaceDockInset } from '../../src/components/layout';
 import { api, auth } from '../../src/services/client';
-import { queryClient } from '../../src/providers/AppProviders';
+import { requestId } from '../../src/services/request-id';
+
+type PendingTurn = {
+  request: ChatRequest;
+  answer: string;
+  state: 'sending' | 'stopped' | 'failed' | 'complete';
+};
+
 export default function Assistant() {
-  const { t, locale, money, colors: c } = useDesign();
-  const user = auth.useSession();
-  const uid = user.data?.user.id;
+  const { data } = auth.useSession();
   const { simulationId } = useLocalSearchParams<{ simulationId?: string }>();
-  const [selected, choose] = useState(simulationId ?? '');
-  useEffect(() => {
-    if (simulationId) choose(simulationId);
-  }, [simulationId]);
-  const [prompt, write] = useState(''),
-    [text, append] = useState(''),
-    [active, setActive] = useState(false),
-    [failed, fail] = useState(false);
-  const last = useRef<ChatRequest | null>(null);
-  const cancel = useRef<AbortController | null>(null);
-  useEffect(() => () => cancel.current?.abort(), []);
-  const saved = useQuery({ queryKey: ['saved', uid], queryFn: api.saved });
+  // Discard drafts, selected simulations and aborted streams across identity changes.
+  return data?.user.id ? (
+    <AssistantWorkspace key={data.user.id} uid={data.user.id} simulationId={simulationId} />
+  ) : null;
+}
+
+function AssistantWorkspace({ uid, simulationId }: { uid: string; simulationId?: string }) {
+  const { t, locale, money, colors: c } = useDesign();
+  const { width } = useWindowDimensions();
+  const dockInset = useWorkspaceDockInset();
+  const twoColumns = width >= 1080;
   const history = useQuery({ queryKey: ['history', uid], queryFn: api.history });
-  const context = saved.data?.find((v) => v.id === selected);
-  async function send(question: string, retry = false) {
-    if (cancel.current || !question.trim()) return;
-    const request =
-      retry && last.current
-        ? last.current
-        : {
-            requestId: requestId(),
-            prompt: question.trim(),
-            simulationId: selected || undefined,
-            locale,
-          };
-    last.current = request;
-    write(question);
-    const controller = new AbortController();
-    cancel.current = controller;
-    setActive(true);
-    append('');
-    fail(false);
+  const saved = useQuery({ queryKey: ['saved', uid], queryFn: api.saved });
+  const [selected, choose] = useState(simulationId ?? '');
+  const [composerFocused, setComposerFocused] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [turn, setTurn] = useState<PendingTurn | null>(null);
+  const controller = useRef<AbortController | null>(null);
+  const feed = useRef<ComponentRef<typeof ScrollView>>(null);
+  const initialHistory = useRef(false);
+  const followFeed = useRef(false);
+  const [showJump, setShowJump] = useState(false);
+  const scope = saved.data?.find((item) => item.id === selected);
+  const active = turn?.state === 'sending';
+  const loadingScope = Boolean(selected) && saved.isPending;
+  const lastStored = history.data?.at(-1);
+  const visibleTurn =
+    turn?.state === 'complete' &&
+    lastStored?.prompt === turn.request.prompt &&
+    lastStored.answer === turn.answer
+      ? null
+      : turn;
+  const compactConversation = !twoColumns && Boolean(visibleTurn || history.data?.length);
+
+  useEffect(() => {
+    if (typeof simulationId === 'string') choose(simulationId);
+  }, [simulationId]);
+  useEffect(
+    () => () => {
+      const activeController = controller.current;
+      controller.current = null;
+      activeController?.abort();
+    },
+    [],
+  );
+
+  function jumpToLatest() {
+    followFeed.current = true;
+    setShowJump(false);
+    feed.current?.scrollToEnd({ animated: false });
+  }
+
+  async function send(question: string, retry?: ChatRequest) {
+    const clean = question.trim();
+    if (controller.current || !clean || (loadingScope && !retry)) return;
+    const request: ChatRequest = retry ?? {
+      requestId: requestId(),
+      prompt: clean,
+      simulationId: scope?.id,
+      locale,
+    };
+    const transfer = new AbortController();
+    controller.current = transfer;
+    const isCurrent = () => controller.current === transfer;
+    jumpToLatest();
+    if (!retry) setPrompt('');
+    setTurn({ request, answer: '', state: 'sending' });
+    let answer = '';
     try {
-      await api.stream(request, controller.signal, (chunk) => append((s) => s + chunk));
-      await queryClient.invalidateQueries({ queryKey: ['history', uid] });
-      write('');
+      await api.stream(request, transfer.signal, (delta) => {
+        if (!isCurrent() || transfer.signal.aborted) return;
+        answer += delta;
+        setTurn({ request, answer, state: 'sending' });
+      });
+      if (!isCurrent()) return;
+      if (transfer.signal.aborted) {
+        setTurn({ request, answer, state: 'stopped' });
+        return;
+      }
+      // The server's history is authoritative and contains the calculation facts.
+      // If refresh fails, keep the finished answer readable rather than dropping it.
+      const refreshed = await history.refetch();
+      if (!isCurrent()) return;
+      setTurn(refreshed.isSuccess ? null : { request, answer, state: 'complete' });
     } catch {
-      if (!controller.signal.aborted) fail(true);
+      if (isCurrent()) {
+        setTurn({ request, answer, state: transfer.signal.aborted ? 'stopped' : 'failed' });
+      }
     } finally {
-      cancel.current = null;
-      setActive(false);
-      append('');
+      if (isCurrent()) controller.current = null;
     }
   }
+
+  function attach(id: string) {
+    choose(id);
+    // Preserve an explicit reference (or its explicit removal) across Back and reload.
+    // Only the opaque saved ID is included; the account-scoped API resolves the plan.
+    router.setParams({ simulationId: id });
+    setPicker(false);
+  }
+
+  const actionRow: ViewStyle = {
+    minHeight: 50,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  };
   return (
-    <Page title={t('assistantTitle')} description={t('assistantHint')}>
-      <Badge>{t('mock')}</Badge>
-      <Columns>
-        <View style={{ flex: 1.5, gap: 14 }}>
-          <Data q={history}>
-            {(rows) => (
+    <View
+      style={{
+        flex: 1,
+        minHeight: 0,
+        width: '100%',
+        maxWidth: 1240,
+        alignSelf: 'center',
+        flexDirection: 'row',
+        paddingHorizontal: width >= 1024 ? 32 : 18,
+        paddingBottom: dockInset || 13,
+      }}
+    >
+      <View style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+        <View
+          style={{
+            paddingTop: twoColumns ? 25 : 14,
+            paddingBottom: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            columnGap: 12,
+            rowGap: 2,
+            borderBottomWidth: 1,
+            borderColor: c.border,
+          }}
+        >
+          {compactConversation ? (
+            <Heading size={21}>{t('assistantTitle')}</Heading>
+          ) : (
+            <Text bold style={{ color: c.primary, fontSize: 12, letterSpacing: 1.3 }}>
+              {t('ai').toUpperCase()}
+            </Text>
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+            <View style={{ backgroundColor: c.accent, width: 6, height: 6, borderRadius: 3 }} />
+            <Text small muted>
+              {t('mock')}
+            </Text>
+          </View>
+        </View>
+        <ScrollView
+          ref={feed}
+          style={{ flex: 1, minHeight: 0 }}
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={80}
+          onScroll={({ nativeEvent }) => {
+            const { contentSize, layoutMeasurement, contentOffset } = nativeEvent;
+            const near = contentSize.height - layoutMeasurement.height - contentOffset.y < 110;
+            followFeed.current = near;
+            setShowJump(!near);
+          }}
+          onContentSizeChange={() => {
+            if (!initialHistory.current && history.data?.length) {
+              initialHistory.current = true;
+              followFeed.current = true;
+            }
+            if (followFeed.current) feed.current?.scrollToEnd({ animated: false });
+          }}
+          contentContainerStyle={{
+            gap: 22,
+            paddingTop: twoColumns ? 27 : 18,
+            paddingBottom: 20,
+            paddingRight: twoColumns ? 12 : 0,
+          }}
+        >
+          {!compactConversation ? (
+            <View style={{ gap: 7, maxWidth: 550 }}>
+              <Heading size={twoColumns ? 53 : 35}>{t('assistantTitle')}</Heading>
+              <Text muted>{t('assistantHint')}</Text>
+            </View>
+          ) : null}
+          <Data q={{ ...history, isError: history.isError && history.data === undefined }}>
+            {(all) => (
               <>
-                {rows.map((row) => (
-                  <View style={{ gap: 6 }} key={row.id}>
-                    <ChatMessage who={t('you')} body={row.prompt} />
-                    <ChatMessage who={'Finora · ' + t('mock')} body={row.answer} />
-                    {row.facts ? <SourceAttribution source={t('calc')} /> : null}
+                {!all.length && !visibleTurn ? (
+                  <View style={{ gap: 5, marginTop: twoColumns ? 36 : 12 }}>
+                    <Text small bold muted style={{ letterSpacing: 0.7 }}>
+                      {t('assistantStartingPoints')}
+                    </Text>
+                    {(['askInterest', 'askFee', 'assistantAskPlanning'] as const).map(
+                      (key, index) => (
+                        <Action
+                          key={key}
+                          label={t(key)}
+                          onPress={() => void send(t(key))}
+                          style={{
+                            ...actionRow,
+                            borderTopWidth: 1,
+                            borderColor: c.border,
+                            borderRadius: 0,
+                          }}
+                        >
+                          <Text small muted style={{ width: 24, fontVariant: ['tabular-nums'] }}>
+                            0{index + 1}
+                          </Text>
+                          <Text style={{ flex: 1, fontSize: 15 }}>{t(key)}</Text>
+                          <ArrowRight size={17} color={c.primary} />
+                        </Action>
+                      ),
+                    )}
                   </View>
-                ))}
+                ) : null}
+                {all.map((row, index) => {
+                  const day = date(row.createdAt, locale);
+                  return (
+                    <View key={row.id} style={{ gap: 14 }}>
+                      {index === 0 || date(all[index - 1].createdAt, locale) !== day ? (
+                        <Text small muted>
+                          {day}
+                        </Text>
+                      ) : null}
+                      <TurnContent
+                        prompt={row.prompt}
+                        answer={row.answer}
+                        facts={row.facts}
+                        simulationId={
+                          saved.data?.some(({ id }) => id === row.simulationId)
+                            ? row.simulationId
+                            : undefined
+                        }
+                      />
+                    </View>
+                  );
+                })}
               </>
             )}
           </Data>
-          {!history.data?.length ? (
-            <View style={{ gap: 8 }}>
-              {(['askInterest', 'askFee'] as const).map((k) => (
-                <Button
-                  key={k}
-                  label={t(k)}
-                  disabled={active}
-                  variant="outline"
-                  onPress={() => send(t(k))}
-                />
-              ))}
+          {visibleTurn ? (
+            <View style={{ gap: 10 }}>
+              <TurnContent prompt={visibleTurn.request.prompt} answer={visibleTurn.answer} />
+              {visibleTurn.state === 'sending' && !visibleTurn.answer ? (
+                <View
+                  accessibilityLiveRegion="polite"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                >
+                  <ActivityIndicator size="small" color={c.primary} />
+                  <Text small muted>
+                    {t('assistantPreparing')}
+                  </Text>
+                </View>
+              ) : null}
+              {visibleTurn.state === 'failed' || visibleTurn.state === 'stopped' ? (
+                <View style={{ alignItems: 'flex-start' }}>
+                  <Text role={visibleTurn.state === 'failed' ? 'alert' : undefined} small muted>
+                    {t(visibleTurn.state === 'stopped' ? 'assistantStopped' : 'assistantSendError')}
+                  </Text>
+                  <Action
+                    label={t('retry')}
+                    onPress={() => void send(visibleTurn.request.prompt, visibleTurn.request)}
+                    style={{ paddingHorizontal: 6 }}
+                  >
+                    <Text small bold style={{ color: c.primary }}>
+                      {t('retry')}
+                    </Text>
+                  </Action>
+                </View>
+              ) : null}
             </View>
           ) : null}
-          {active ? <ChatMessage who={t('mock')} body={text || t('loading')} /> : null}
-          <Card>
-            <ChatComposer
-              label={t('composer')}
+        </ScrollView>
+        {showJump ? (
+          <Action
+            label={t('assistantLatest')}
+            onPress={jumpToLatest}
+            style={{
+              alignSelf: 'center',
+              paddingHorizontal: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 7,
+              backgroundColor: c.surface,
+              borderWidth: 1,
+              borderColor: c.border,
+              marginBottom: 5,
+            }}
+          >
+            <ArrowDown size={15} color={c.primary} />
+            <Text small>{t('assistantLatest')}</Text>
+          </Action>
+        ) : null}
+        <View
+          style={{
+            paddingVertical: 9,
+            gap: 6,
+            backgroundColor: c.background,
+            borderTopWidth: 1,
+            borderColor: c.border,
+          }}
+        >
+          {!twoColumns ? (
+            <Action
+              label={t('context')}
+              onPress={() => setPicker(true)}
+              disabled={active}
+              style={{
+                alignSelf: 'flex-start',
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 4,
+                gap: 6,
+                minWidth: 44,
+                maxWidth: '100%',
+              }}
+            >
+              <Paperclip size={15} color={c.primary} />
+              <Text small bold style={{ color: c.primary }}>
+                {scope
+                  ? locale === 'vi-VN'
+                    ? scope.product.name
+                    : scope.product.nameEn
+                  : t('assistantAttach')}
+              </Text>
+              <ChevronDown size={14} color={c.muted} />
+            </Action>
+          ) : null}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-end',
+              padding: 6,
+              gap: 8,
+              backgroundColor: c.surface,
+              borderWidth: 1,
+              borderColor: composerFocused ? c.focus : c.border,
+              borderRadius: 14,
+            }}
+          >
+            <TextInput
+              nativeID="finora-assistant-composer"
+              accessibilityLabel={t('composer')}
               value={prompt}
+              onChangeText={setPrompt}
+              onFocus={() => setComposerFocused(true)}
+              onBlur={() => setComposerFocused(false)}
+              placeholder={t('composer')}
+              placeholderTextColor={c.muted}
               editable={!active}
-              onChangeText={(s) => {
-                write(s);
-                fail(false);
+              multiline
+              numberOfLines={1}
+              maxLength={1200}
+              textAlignVertical="center"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                color: c.foreground,
+                fontFamily: tokens.font.body,
+                fontSize: 16,
+                lineHeight: 23,
+                paddingHorizontal: 7,
+                paddingVertical: 9,
+                minHeight: 44,
+                maxHeight: 96,
+                ...(Platform.OS === 'web' ? { outlineWidth: 0 } : {}),
               }}
             />
-            {failed ? (
-              <>
-                <Text role="alert">{t('error')}</Text>
-                <Button label={t('retry')} onPress={() => send(prompt, true)} variant="soft" />
-              </>
-            ) : null}
-            <Button
+            <Action
               label={t(active ? 'stop' : 'send')}
-              onPress={() => (active ? cancel.current?.abort() : send(prompt))}
-              disabled={!active && !prompt.trim()}
-            />
-          </Card>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Card>
-            <Sparkles color={c.primary} />
-            <Heading size={23}>{t('context')}</Heading>
-            <Data q={saved}>
-              {(rows) => (
-                <Select
-                  label={t('saved')}
-                  value={selected}
-                  onChange={(v) => {
-                    if (!active) choose(v);
-                  }}
-                  options={[
-                    { value: '', label: t('none') },
-                    ...rows.map((r) => ({
-                      value: r.id,
-                      label:
-                        (locale === 'vi-VN' ? r.product.name : r.product.nameEn) +
-                        ' · ' +
-                        money(r.input.principal),
-                    })),
-                  ]}
-                />
+              disabled={!active && (!prompt.trim() || loadingScope)}
+              onPress={() => (active ? controller.current?.abort() : void send(prompt))}
+              style={{
+                width: 44,
+                minHeight: 44,
+                alignItems: 'center',
+                backgroundColor: c.primary,
+                borderRadius: 9,
+              }}
+            >
+              {active ? (
+                <Square size={15} color={c.onPrimary} fill={c.onPrimary} />
+              ) : (
+                <ArrowUp size={22} color={c.onPrimary} />
               )}
-            </Data>
-            {context ? (
-              <>
-                <FinancialMetric
-                  label={t('firstPayment')}
-                  value={money(context.result.firstPayment)}
-                />
-                <SourceAttribution source={t('calc')} />
-              </>
-            ) : null}
+            </Action>
+          </View>
+        </View>
+      </View>
+
+      {twoColumns ? (
+        <View
+          style={{
+            marginLeft: 26,
+            borderLeftWidth: 1,
+            borderColor: c.border,
+            width: width >= 1440 ? 298 : 238,
+            paddingLeft: 22,
+            paddingTop: 29,
+            gap: 15,
+          }}
+        >
+          <BookOpen size={20} color={c.primary} />
+          <Heading size={28}>{t('context')}</Heading>
+          <Text small muted>
+            {t('assistantContextHint')}
+          </Text>
+          <Action
+            label={t('context')}
+            onPress={() => setPicker(true)}
+            disabled={active}
+            style={{
+              ...actionRow,
+              paddingHorizontal: 12,
+              borderWidth: 1,
+              borderColor: c.border,
+              borderRadius: 10,
+            }}
+          >
+            <Paperclip size={15} color={c.primary} />
+            <Text small bold style={{ flex: 1 }}>
+              {scope ? (locale === 'vi-VN' ? scope.product.name : scope.product.nameEn) : t('none')}
+            </Text>
+            <ChevronDown size={16} color={c.muted} />
+          </Action>
+          {scope ? <ContextPlan item={scope} /> : null}
+          <View style={{ paddingTop: 14, borderTopWidth: 1, borderColor: c.border, gap: 7 }}>
+            <CircleHelp size={17} color={c.muted} />
             <Text small muted>
               {t('aiNote')}
             </Text>
-          </Card>
+          </View>
         </View>
-      </Columns>
-    </Page>
+      ) : null}
+      <BottomSheet visible={picker} title={t('context')} onClose={() => setPicker(false)}>
+        <Text small muted>
+          {t('assistantContextHint')}
+        </Text>
+        <Action
+          label={t('none')}
+          onPress={() => attach('')}
+          style={{ ...actionRow, borderTopWidth: 1, borderColor: c.border }}
+        >
+          <Text bold style={{ flex: 1 }}>
+            {t('none')}
+          </Text>
+          {!scope ? <Check size={17} color={c.primary} /> : null}
+        </Action>
+        <Data q={saved}>
+          {(all) =>
+            all.map((item: Saved) => (
+              <Action
+                key={item.id}
+                label={locale === 'vi-VN' ? item.product.name : item.product.nameEn}
+                onPress={() => attach(item.id)}
+                style={{ ...actionRow, borderTopWidth: 1, borderColor: c.border }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text bold>{locale === 'vi-VN' ? item.product.name : item.product.nameEn}</Text>
+                  <Text small muted>
+                    {money(item.input.principal)}
+                  </Text>
+                </View>
+                {item.id === scope?.id ? <Check size={17} color={c.primary} /> : null}
+              </Action>
+            ))
+          }
+        </Data>
+        {saved.data?.length === 0 ? (
+          <Text small muted>
+            {t('assistantNoPlans')}
+          </Text>
+        ) : null}
+        <Text small muted>
+          {t('aiNote')}
+        </Text>
+      </BottomSheet>
+    </View>
+  );
+}
+
+function TurnContent({
+  prompt,
+  answer,
+  facts,
+  simulationId,
+}: {
+  prompt: string;
+  answer: string;
+  facts?: ChatTurn['facts'];
+  simulationId?: string | null;
+}) {
+  const { t, colors: c } = useDesign();
+  return (
+    <View style={{ gap: 13 }}>
+      <View
+        style={{
+          alignSelf: 'flex-end',
+          maxWidth: '92%',
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          borderRadius: 13,
+          borderBottomRightRadius: 4,
+          backgroundColor: c.secondary,
+          gap: 2,
+        }}
+      >
+        <Text small bold style={{ color: c.primary }}>
+          {t('you')}
+        </Text>
+        <Text style={{ fontSize: 15 }}>{prompt}</Text>
+      </View>
+      {answer ? (
+        <View style={{ alignItems: 'flex-start', gap: 8 }}>
+          <View style={{ alignItems: 'center', flexDirection: 'row', gap: 7 }}>
+            <BookOpen size={14} color={c.primary} />
+            <Text small bold style={{ color: c.primary }}>
+              {t('ai')}
+            </Text>
+          </View>
+          <Text style={{ maxWidth: 620, fontSize: 16, lineHeight: 25 }}>{answer}</Text>
+          {facts ? <FactsLedger facts={facts} simulationId={simulationId} /> : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function ContextPlan({ item }: { item: Saved }) {
+  const { t, money, colors: c } = useDesign();
+  return (
+    <View
+      style={{
+        paddingVertical: 10,
+        gap: 5,
+        borderTopWidth: 1,
+        borderColor: c.border,
+      }}
+    >
+      {[
+        [t('amount'), money(item.input.principal)],
+        [t('term'), item.input.months + ' ' + t('months')],
+      ].map(([label, value]) => (
+        <View
+          key={label}
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            gap: 5,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Text small muted>
+            {label}
+          </Text>
+          <Text small bold style={{ fontVariant: ['tabular-nums'] }}>
+            {value}
+          </Text>
+        </View>
+      ))}
+      <OpenPlan id={item.id} />
+    </View>
+  );
+}
+
+function OpenPlan({ id }: { id: string }) {
+  const { t, colors: c } = useDesign();
+  return (
+    <Action
+      label={t('assistantOpenPlan')}
+      onPress={() => router.push({ pathname: '/saved/[id]', params: { id } })}
+      style={{ flexDirection: 'row', gap: 6, alignItems: 'center', alignSelf: 'flex-start' }}
+    >
+      <Text small bold style={{ color: c.primary }}>
+        {t('assistantOpenPlan')}
+      </Text>
+      <ArrowRight size={15} color={c.primary} />
+    </Action>
+  );
+}
+
+function FactsLedger({
+  facts,
+  simulationId,
+}: {
+  facts: NonNullable<ChatTurn['facts']>;
+  simulationId?: string | null;
+}) {
+  const { t, money, colors: c } = useDesign();
+  return (
+    <View
+      style={{
+        width: '100%',
+        maxWidth: 520,
+        borderLeftWidth: 2,
+        borderColor: c.accent,
+        backgroundColor: c.elevated,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        marginTop: 4,
+        gap: 5,
+      }}
+    >
+      <Text small bold style={{ color: c.primary, marginBottom: 3 }}>
+        {t('assistantSavedFigures')}
+      </Text>
+      {[
+        [t('firstPayment'), money(facts.firstPayment)],
+        [t('assistantPrincipalInterest'), money(facts.repayment)],
+        [t('assistantIncludingFees'), facts.total === null ? t('unknown') : money(facts.total)],
+      ].map(([label, value]) => (
+        <View
+          key={label}
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            columnGap: 9,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Text small muted>
+            {label}
+          </Text>
+          <Text small bold style={{ fontVariant: ['tabular-nums'] }}>
+            {value}
+          </Text>
+        </View>
+      ))}
+      <SourceAttribution source={t('calc')} />
+      {simulationId ? <OpenPlan id={simulationId} /> : null}
+    </View>
   );
 }

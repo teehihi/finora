@@ -1,92 +1,139 @@
 import boat from '../assets/images/paper-boat.jpg';
 import { View, Image, useWindowDimensions } from 'react-native';
 import { Redirect, router } from 'expo-router';
-import { ArrowUpRight, BookOpen, Calculator, CalendarDays, Compass } from 'lucide-react-native';
-import { Text, Heading, Button, useDesign } from '@finora/ui';
+import { ArrowUpRight } from 'lucide-react-native';
+import { Text, Heading, Button, Eyebrow, useDesign } from '@finora/ui';
+import { tokens } from '@finora/design-tokens';
 import { auth } from '../src/services/client';
 import { PublicPage } from '../src/components/layout';
+
+const chapters = [
+  ['discoverTitle', 'discoverText'],
+  ['costTitle', 'costText'],
+  ['planTitle', 'planText'],
+] as const;
+
 export default function Welcome() {
   const { data } = auth.useSession();
   const { width } = useWindowDimensions();
   const wide = width >= 840;
-  const { colors: c, t } = useDesign();
+  const { colors: c, locale, t } = useDesign();
+  const vi = locale === 'vi-VN';
   if (data) return <Redirect href="/home" />;
-  const items = [
-    [Compass, 'discoverTitle', 'discoverText'],
-    [Calculator, 'costTitle', 'costText'],
-    [CalendarDays, 'planTitle', 'planText'],
-  ] as const;
+
   return (
     <PublicPage>
-      <View style={{ paddingVertical: wide ? 48 : 24, gap: wide ? 38 : 24 }}>
+      <View
+        style={{ paddingTop: wide ? 48 : 30, paddingBottom: wide ? 36 : 24, gap: wide ? 46 : 27 }}
+      >
         <View
           style={{
             flexDirection: wide ? 'row' : 'column',
-            backgroundColor: c.forest,
-            borderRadius: 24,
-            overflow: 'hidden',
+            alignItems: 'stretch',
+            gap: wide ? 40 : 27,
           }}
         >
           <View
             style={{
-              flex: wide ? 1 : undefined,
-              padding: wide ? 44 : 24,
-              justifyContent: 'space-between',
-              gap: wide ? 34 : 18,
+              flex: wide ? 0.96 : undefined,
+              minWidth: 0,
+              alignItems: 'flex-start',
+              justifyContent: 'center',
+              paddingVertical: wide ? 22 : 0,
+              gap: wide ? 24 : 17,
             }}
           >
-            <View style={{ flexDirection: 'row', gap: 9, alignItems: 'center' }}>
-              <BookOpen size={18} color={c.onForestMuted} />
-              <Text small bold style={{ color: c.onForestMuted, letterSpacing: 1 }}>
-                {t('guide').toLocaleUpperCase()}
-              </Text>
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+              <View style={{ backgroundColor: c.accent, width: 27, height: 2 }} />
+              <Eyebrow tone="forest">{t('guide')}</Eyebrow>
             </View>
-            <View style={{ gap: 16 }}>
-              <Heading size={wide ? Math.min(66, width * 0.048) : 39} style={{ color: c.onForest }}>
-                {t('welcome')}
-              </Heading>
-              <Text
-                style={{
-                  maxWidth: 410,
-                  color: c.onForestMuted,
-                  fontSize: wide ? 18 : 16,
-                  lineHeight: wide ? 28 : 24,
-                }}
-              >
-                {t('intro')}
+            <Heading size={wide ? Math.min(78, width * 0.058) : width <= 375 ? 40 : 46}>
+              {t('welcome')}
+            </Heading>
+            <Text
+              muted
+              style={{
+                maxWidth: 410,
+                fontSize: wide ? 18 : 16,
+                lineHeight: wide ? 29 : 25,
+              }}
+            >
+              {t('intro')}
+            </Text>
+            <Button
+              label={t('start')}
+              icon={<ArrowUpRight size={18} color={c.onPrimary} />}
+              onPress={() => router.push('/auth')}
+            />
+          </View>
+
+          <View
+            style={{
+              flex: wide ? 1.04 : undefined,
+              minWidth: 0,
+              backgroundColor: c.forest,
+              overflow: 'hidden',
+              borderRadius: tokens.radius.feature,
+            }}
+          >
+            <Image
+              source={boat}
+              resizeMode="cover"
+              accessible={false}
+              style={{ width: '100%', height: wide ? Math.min(420, width * 0.31) : 180 }}
+            />
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: wide ? 22 : 15,
+                paddingVertical: wide ? 13 : 10,
+                gap: 12,
+              }}
+            >
+              <Eyebrow tone="onForest">Finora / 01</Eyebrow>
+              <Text small style={{ color: c.onForestMuted, textAlign: 'right' }}>
+                {vi ? 'Một kế hoạch rõ ràng hơn.' : 'A clearer plan.'}
               </Text>
-            </View>
-            <View style={{ alignSelf: 'flex-start' }}>
-              <Button
-                label={t('start')}
-                variant="onForest"
-                icon={<ArrowUpRight size={18} color={c.forest} />}
-                onPress={() => router.push('/auth?mode=signup')}
-              />
             </View>
           </View>
-          <Image
-            source={boat}
-            resizeMode="cover"
-            accessible={false}
-            style={
-              wide ? { flex: 1.08, height: '100%', minHeight: 420 } : { width: '100%', height: 180 }
-            }
-          />
         </View>
-        <View style={{ flexDirection: wide ? 'row' : 'column', gap: wide ? 32 : 18 }}>
-          {items.map(([Icon, title, desc]) => (
-            <View
-              key={title}
-              style={{ flex: 1, gap: 8, borderTopWidth: 1, borderColor: c.border, paddingTop: 18 }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Icon size={21} color={c.primary} />
-                <Heading size={24}>{t(title)}</Heading>
+
+        <View>
+          <Eyebrow tone="forest" style={{ marginBottom: wide ? 12 : 2 }}>
+            {vi ? 'Từ lựa chọn đến lịch trả nợ' : 'From choice to repayment'}
+          </Eyebrow>
+          <View style={{ flexDirection: wide ? 'row' : 'column', columnGap: 24 }}>
+            {chapters.map(([title, detail], index) => (
+              <View
+                key={title}
+                style={{
+                  flex: wide ? 1 : undefined,
+                  flexDirection: 'row',
+                  gap: 13,
+                  paddingTop: 12,
+                  paddingBottom: wide ? 8 : 12,
+                  borderColor: c.border,
+                  borderTopWidth: 1,
+                }}
+              >
+                <Text
+                  small
+                  bold
+                  style={{ color: c.primary, fontVariant: ['tabular-nums'], paddingTop: 4 }}
+                >
+                  {String(index + 1).padStart(2, '0')}
+                </Text>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Heading size={23}>{t(title)}</Heading>
+                  <Text small muted>
+                    {t(detail)}
+                  </Text>
+                </View>
               </View>
-              <Text muted>{t(desc)}</Text>
-            </View>
-          ))}
+            ))}
+          </View>
         </View>
       </View>
     </PublicPage>

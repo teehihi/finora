@@ -12,6 +12,7 @@ export default function Saved() {
   const q = useQuery({
     queryKey: ['savedOne', user.data?.user.id, id],
     queryFn: () => api.detail(id),
+    enabled: !!user.data?.user.id && !!id,
   });
   return (
     <Data q={q}>

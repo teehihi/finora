@@ -1,8 +1,7 @@
+import { createLegacyAccount } from './legacy-fixture';
 import { test, expect, request } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 test('server calculations, replay and private fixture ownership', async () => {
-  // Preserve Better Auth's per-IP sign-up burst limit across E2E specs.
-  await new Promise((resolve) => setTimeout(resolve, 10_000));
   const options = {
     baseURL: 'http://localhost:3000',
     extraHTTPHeaders: { Origin: 'http://localhost:8081' },
@@ -12,8 +11,10 @@ test('server calculations, replay and private fixture ownership', async () => {
   try {
     expect((await b.get('/api/simulations')).status()).toBe(401);
     for (const client of [a, b]) {
-      const r = await client.post('/api/auth/sign-up/email', {
-        data: { name: 'Sandbox', email: randomUUID() + '@example.test', password: randomUUID() },
+      const r = await createLegacyAccount(client, {
+        name: 'Sandbox',
+        email: randomUUID() + '@example.test',
+        password: randomUUID(),
       });
       expect(r.ok(), `Signup failed: ${r.status()} ${await r.text()}`).toBeTruthy();
     }

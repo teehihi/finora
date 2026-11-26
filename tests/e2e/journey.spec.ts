@@ -1,8 +1,10 @@
+import { createLegacyAccount } from './legacy-fixture';
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 const widths = [360, 390, 430, 768, 1024, 1440, 1920];
 test('Vietnamese borrowing journey, persisted login and responsive navigation', async ({
   page,
+  request,
 }, info) => {
   const email = 'finora-' + randomUUID() + '@example.test',
     password = randomUUID() + 'aA';
@@ -17,11 +19,15 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await page.screenshot({ path: info.outputPath('welcome-desktop.png') });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: info.outputPath('welcome-mobile.png') });
+  // Create a legacy password account in a separate cookie jar, then exercise
+  // the secondary sign-in UI against that existing account.
+  const legacy = await createLegacyAccount(request, { name: 'An', email, password });
+  expect(legacy.ok()).toBe(true);
   await start.click();
-  await page.getByLabel('Tên của bạn', { exact: true }).fill('An');
+  await page.getByRole('button', { name: 'Dùng mật khẩu hiện có' }).click();
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Tạo tài khoản', exact: true }).click();
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Xin chào, An.' })).toBeVisible();
   await page.getByRole('tab', { name: 'Hồ sơ', exact: true }).click();
   await page.getByLabel('Thu nhập hằng tháng').fill('20000000');
@@ -61,10 +67,11 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
   await page.goto(url);
   await expect(page).toHaveURL(/\/auth/);
+  await page.getByRole('button', { name: 'Dùng mật khẩu hiện có' }).click();
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(/\/home/);
+  await expect(page).toHaveURL(url);
   await page.getByRole('tab', { name: 'Khoản vay' }).click();
   await expect(page).toHaveURL(/\/loans/);
   await page.getByRole('button', { name: 'Chi tiêu linh hoạt' }).click();

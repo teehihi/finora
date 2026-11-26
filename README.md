@@ -16,9 +16,9 @@ pnpm run setup
 pnpm dev
 ```
 
-**Dùng đúng `pnpm run setup`.** Cú pháp `pnpm setup` là lệnh tích hợp để cấu hình shell của pnpm. Script của Finora tạo các file môi trường còn thiếu, sinh secret ngẫu nhiên, chờ PostgreSQL healthy, sinh Prisma Client, áp dụng migration và upsert bốn sản phẩm. Chạy lại giữ dữ liệu và cấu hình hiện có. Nếu tự sao chép file mẫu, đặt `BETTER_AUTH_SECRET` thành secret ngẫu nhiên ít nhất 32 ký tự trước khi chạy API.
+**Dùng đúng `pnpm run setup`.** Cú pháp `pnpm setup` là lệnh tích hợp để cấu hình shell của pnpm. Script của Finora tạo các file môi trường còn thiếu, sinh secret ngẫu nhiên, chờ PostgreSQL healthy, khởi động Mailpit, sinh Prisma Client, áp dụng migration và upsert bốn sản phẩm. Chạy lại giữ dữ liệu và cấu hình hiện có. Nếu tự sao chép file mẫu, đặt `BETTER_AUTH_SECRET` thành secret ngẫu nhiên ít nhất 32 ký tự trước khi chạy API.
 
-Mở [Expo Web](http://localhost:8081), [tình trạng API](http://localhost:3000/health) hoặc [Swagger](http://localhost:3000/docs). Tạo tài khoản bằng email thử nghiệm và mật khẩu từ 8 ký tự. Local chưa có dịch vụ gửi email xác minh hoặc khôi phục mật khẩu.
+Mở [Expo Web](http://localhost:8081), [tình trạng API](http://localhost:3000/health) hoặc [Swagger](http://localhost:3000/docs). Nhập email thử nghiệm (ví dụ `finora-demo@example.test`) rồi mở [Mailpit](http://127.0.0.1:8025) để lấy mã đăng nhập. Mailpit chỉ nhận thư cục bộ. Người dùng đã có mật khẩu vẫn có thể dùng phương thức cũ. [Hướng dẫn OTP, Google và liên kết tài khoản](docs/architecture/AUTHENTICATION.md).
 
 1. Mở **Hồ sơ**, nhập thu nhập, chi phí và tiền trả nợ hằng tháng bằng VND.
 2. Trong **Khám phá**, chọn một sản phẩm mẫu và mở **Mô phỏng trả nợ**.
@@ -50,7 +50,7 @@ Native dùng Expo SecureStore và plugin Expo của Better Auth, web dùng cooki
 | Lệnh                                                  | Tác dụng                                                                                       |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `pnpm env:init`                                       | Tạo riêng các file môi trường còn thiếu                                                        |
-| `pnpm infra:up` / `infra:status` / `infra:logs`       | Chạy, kiểm tra, theo dõi PostgreSQL                                                            |
+| `pnpm infra:up` / `infra:status` / `infra:logs`       | Chạy, kiểm tra, theo dõi PostgreSQL và Mailpit                                                 |
 | `pnpm infra:down`                                     | Dừng container và giữ named volume                                                             |
 | `pnpm db:generate` / `db:migrate` / `db:seed`         | Sinh client, áp dụng migration đã commit, upsert dữ liệu mẫu                                   |
 | `pnpm db:studio`                                      | Mở Prisma Studio trên máy                                                                      |

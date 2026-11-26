@@ -9,7 +9,7 @@ import { rateLimit } from 'express-rate-limit';
 import { toNodeHandler } from 'better-auth/node';
 import { env } from './config/env.js';
 import { db } from './infrastructure/db.js';
-import { auth, SessionGuard } from './modules/auth.js';
+import { auth, authProviders, isApplePrepared, SessionGuard } from './modules/auth.js';
 import { PlanningController, PlanningService } from './modules/planning.js';
 import { AssistantController, AI_PROVIDER, MockProvider } from './modules/assistant.js';
 import { DocumentsController, LocalStorageProvider, STORAGE } from './infrastructure/storage.js';
@@ -58,8 +58,14 @@ async function main() {
     if (
       origin &&
       !env.WEB_ORIGINS.includes(origin) &&
-      origin !== env.BETTER_AUTH_URL &&
-      origin !== 'finora://'
+      origin !== new URL(env.BETTER_AUTH_URL).origin &&
+      origin !== 'finora://' &&
+      !(
+        isApplePrepared &&
+        req.method === 'POST' &&
+        req.path === '/auth/callback/apple' &&
+        origin === 'https://appleid.apple.com'
+      )
     )
       return res.sendStatus(403);
     next();
@@ -68,7 +74,11 @@ async function main() {
     '/api/auth',
     rateLimit({ windowMs: 60000, limit: 300, standardHeaders: 'draft-7', legacyHeaders: false }),
   );
-  server.all('/api/auth/*splat', toNodeHandler(auth));
+  server.get('/api/auth/providers', (_req, res) => res.json(authProviders));
+  server.all('/api/auth/*splat', (req, res) => {
+    req.headers['x-finora-client-ip'] = req.ip ?? req.socket.remoteAddress;
+    return toNodeHandler(auth)(req, res);
+  });
   server.use(
     '/api',
     rateLimit({ windowMs: 60000, limit: 240, standardHeaders: 'draft-7', legacyHeaders: false }),

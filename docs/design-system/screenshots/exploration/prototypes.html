@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finora: ba hướng thiết kế</title>
+    <style>
+      @font-face {
+        font-family: FinoraSans;
+        src: url('../../../../node_modules/@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf');
+        font-weight: 400;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: FinoraSans;
+        src: url('../../../../node_modules/@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf');
+        font-weight: 500 900;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: FinoraSerif;
+        src: url('../../../../node_modules/@expo-google-fonts/source-serif-4/400Regular/SourceSerif4_400Regular.ttf');
+        font-weight: 400;
+        font-display: swap;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 34px;
+        background: #e8e9df;
+        color: #222824;
+        font:
+          15px/1.5 FinoraSans,
+          system-ui,
+          sans-serif;
+      }
+      header,
+      main {
+        max-width: 1380px;
+        margin: auto;
+      }
+      header > p {
+        margin: 5px 0 24px;
+      }
+      h1,
+      h2,
+      h3,
+      p,
+      figure {
+        margin: 0;
+      }
+      h1 {
+        font:
+          42px/1.15 FinoraSerif,
+          Georgia,
+          serif;
+      }
+      header .overline {
+        margin-bottom: 8px;
+      }
+      img {
+        width: 84px;
+        height: auto;
+        display: block;
+      }
+      main {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .direction {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: auto 1fr 1fr;
+        gap: 12px;
+      }
+      .direction > h2 {
+        font-size: 16px;
+        letter-spacing: -0.015em;
+      }
+      .screen {
+        min-width: 0;
+        background: var(--canvas);
+        padding: 21px;
+        min-height: 326px;
+        border: 1px solid #c9cfc2;
+        border-radius: 17px;
+      }
+      .screen h3 {
+        font:
+          33px/1.12 FinoraSerif,
+          Georgia,
+          serif;
+        margin: 4px 0 10px;
+        letter-spacing: -0.03em;
+      }
+      .overline {
+        color: #516057;
+        font-size: 11px;
+        letter-spacing: 0.09em;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .screen .overline {
+        margin: 15px 0 8px;
+      }
+      .copy {
+        color: #4b5a50;
+        font-size: 13px;
+        margin: 0 0 12px;
+      }
+      .metric {
+        padding: 14px;
+        border-radius: 12px;
+        margin: 10px 0 1px;
+        background: var(--forest);
+        color: #fff;
+        font-size: 12px;
+      }
+      .metric strong {
+        display: block;
+        font-size: 29px;
+        font-weight: 550;
+        letter-spacing: -0.035em;
+        font-variant-numeric: tabular-nums;
+      }
+      .line {
+        border-bottom: 1px solid #cbd0c4;
+        padding: 8px 0;
+        font-size: 12px;
+      }
+      .screen label {
+        display: block;
+        color: #344b3e;
+        font-size: 12px;
+      }
+      input {
+        display: block;
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid #82978b;
+        border-radius: 7px;
+        margin: 5px 0 8px;
+        padding: 8px;
+        font: inherit;
+        background: transparent;
+      }
+      button {
+        width: 100%;
+        min-height: 40px;
+        border: 0;
+        background: var(--forest);
+        color: #fff;
+        border-radius: 7px;
+        font:
+          600 13px FinoraSans,
+          system-ui;
+      }
+      .auth .password {
+        margin-top: 10px;
+        color: var(--forest);
+        font-size: 12px;
+        text-decoration: underline;
+      }
+      .ledger {
+        --canvas: #f7f5ef;
+        --forest: #173d32;
+      }
+      .cashflow {
+        --canvas: #f1f5ef;
+        --forest: #214a3a;
+      }
+      .cashflow h3 {
+        font:
+          700 28px/1.14 FinoraSans,
+          system-ui;
+      }
+      .cashflow .metric {
+        background: #dceba6;
+        color: #19362a;
+        border-radius: 7px;
+      }
+      .bars {
+        display: flex;
+        height: 18px;
+        gap: 3px;
+        margin-top: 7px;
+      }
+      .bars i {
+        width: 64%;
+        background: #3d705e;
+        border-radius: 2px;
+      }
+      .bars i + i {
+        width: 36%;
+        background: #7d932c;
+      }
+      .cashflow .auth label,
+      .cashflow .auth .password {
+        text-align: center;
+      }
+      .copilot {
+        --canvas: #f5f3ed;
+        --forest: #233a32;
+      }
+      .copilot .thread {
+        background: #ecebe0;
+        padding: 10px 12px;
+        margin-top: 5px;
+        border-left: 2px solid #86a88d;
+        font-size: 13px;
+      }
+      .copilot .answer {
+        padding: 10px 0;
+        font-size: 13px;
+      }
+      .copilot .answer strong {
+        display: block;
+        color: #173d32;
+        font-size: 19px;
+        font-variant-numeric: tabular-nums;
+      }
+      .copilot .auth {
+        background: #dce6d7;
+      }
+      @media (max-width: 850px) {
+        body {
+          padding: 16px;
+        }
+        main {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+        .direction {
+          grid-template-rows: auto auto auto;
+        }
+        h1 {
+          font-size: 33px;
+        }
+        .screen {
+          min-height: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="overline">Finora · Product experience 2.0</div>
+      <h1>Ba cách mở sổ</h1>
+      <p>Prototypes Home và đăng nhập, cùng dùng một dữ liệu minh họa.</p>
+    </header>
+    <main>
+      <section class="direction ledger">
+        <h2>I / Sổ tay tài chính</h2>
+        <article class="screen">
+          <img src="../../../../apps/app/assets/brand/lockup.png" alt="Finora" />
+          <div class="overline">Home / Tổng quan</div>
+          <h3>Một nhịp trả phù hợp.</h3>
+          <div class="metric">Ước tính · mỗi tháng<strong>3.400.000 ₫</strong></div>
+          <div class="line">Xem khả năng trả nợ trước khi chọn khoản vay.</div>
+          <div class="line">Bản mô phỏng đã lưu</div>
+        </article>
+        <article class="screen auth">
+          <img src="../../../../apps/app/assets/brand/lockup.png" alt="Finora" />
+          <div class="overline">Đăng nhập / Không gian cá nhân</div>
+          <h3>Vay thông minh,<br />trả chủ động.</h3>
+          <p class="copy">Nhận mã xác minh qua email. Không cần tạo mật khẩu mới.</p>
+          <label>Địa chỉ email<input type="email" placeholder="ban@example.com" /></label
+          ><button type="button">Tiếp tục với email</button>
+          <p class="password">Đăng nhập bằng mật khẩu</p>
+        </article>
+      </section>
+      <section class="direction cashflow">
+        <h2>II / Nhịp tiền</h2>
+        <article class="screen">
+          <img src="../../../../apps/app/assets/brand/lockup.png" alt="Finora" />
+          <div class="overline">Home / Dòng tiền</div>
+          <h3>Ngân sách trả nợ</h3>
+          <div class="metric">
+            Ước tính · mỗi tháng<strong>3.400.000 ₫</strong>
+            <div class="bars" aria-hidden="true"><i></i><i></i></div>
+          </div>
+          <div class="line">Phần đã dành / Phần còn lại</div>
+          <div class="line">Mở các phương án đã lưu</div>
+        </article>
+        <article class="screen auth">
+          <img src="../../../../apps/app/assets/brand/lockup.png" alt="Finora" />
+          <div class="overline">Đăng nhập / Bước 1 trên 2</div>
+          <h3>Biết rõ trước khi vay.</h3>
+          <p class="copy">Tiếp tục bằng email để bắt đầu bản tính riêng của bạn.</p>
+          <label>Địa chỉ email<input type="email" placeholder="ban@example.com" /></label
+          ><button type="button">Tiếp tục với email</button>
+          <p class="password">Đăng nhập bằng mật khẩu</p>
+        </article>
+      </section>
+      <section class="direction copilot">
+        <h2>III / Cùng Finora</h2>
+        <article class="screen">
+          <img src="../../../../apps/app/assets/brand/lockup.png" alt="Finora" />
+          <div class="overline">Home / Hỏi Finora</div>
+          <h3>Bạn muốn tính điều gì?</h3>
+          <p class="thread">Mỗi tháng mình có thể dành bao nhiêu để trả nợ?</p>
+          <p class="answer">Ước tính minh họa · mỗi tháng<strong>3.400.000 ₫</strong></p>
+          <div class="line">Xem giả định và hồ sơ tham chiếu</div>
+          <div class="line">Bản mô phỏng đã lưu</div>
+        </article>
+        <article class="screen auth">
+          <img src="../../../../apps/app/assets/brand/lockup.png" alt="Finora" />
+          <div class="overline">Đăng nhập / Bắt đầu</div>
+          <h3>Cùng hiểu khoản vay.</h3>
+          <p class="copy">Đăng nhập để giữ hồ sơ và câu hỏi trong không gian riêng của bạn.</p>
+          <label>Địa chỉ email<input type="email" placeholder="ban@example.com" /></label
+          ><button type="button">Tiếp tục với email</button>
+          <p class="password">Đăng nhập bằng mật khẩu</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { create } from 'zustand';
 import { dark, light } from '@finora/design-tokens';
@@ -29,6 +29,11 @@ function Theme({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (account.data) set(account.data.preferences);
   }, [account.data, set]);
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.documentElement.lang = locale;
+    }
+  }, [locale]);
   return (
     <DesignContext.Provider
       value={{

@@ -1,6 +1,6 @@
 # Nhận diện Finora
 
-Hai PNG gốc nằm ở `apps/app/assets/brand/original.png` và `original-transparent.png`. Lockup dùng trong giao diện được cắt phần trong suốt thừa. Icon, favicon và splash sử dụng artwork nguyên tỷ lệ trên nền ivory. Ở dark mode logo đặt trên một nền sáng. Các bản vector, biểu tượng độc lập, lockup ngang và biến thể tối do chủ thương hiệu phê duyệt hiện còn thiếu.
+Hai PNG gốc được đối chiếu nguyên byte với bộ Resource đã duyệt: `apps/app/assets/brand/original.png` và `original-transparent.png`. Lockup nhúng trong app cắt khoảng trong suốt thừa và không đổi tỷ lệ hoặc màu. `apps/app/public/favicon.ico` giữ nguyên favicon trong bộ Resource. `assets/brand/icon.png` dùng nguyên artwork từ `appIcon.png`, đặt trên nền ivory và thu tỉ lệ đồng nhất về 1024 px để có canvas đục cho icon native. Logo áp dụng nền sáng ở dark mode, không nhuộm màu. Bộ hướng dẫn Fin là tài liệu tham khảo; không cắt nhân vật từ contact sheet làm artwork sản xuất.
 
 Ảnh thuyền giấy và đồng xu được tạo cho màn hình chào và xác thực. Ảnh là tài sản local đóng gói cùng ứng dụng. Giao diện sản phẩm dùng nền ivory, xanh rừng và các đường phân cách nhẹ. Màu nhấn giúp nhận ra hành động và dữ liệu trong bản tính.
 

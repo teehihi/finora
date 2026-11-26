@@ -32,7 +32,8 @@ prepare('apps/api/.env', (s) =>
         '/' +
         encodeURIComponent(root.POSTGRES_DB) +
         '?schema=public',
-    ),
+    )
+    .replace('SMTP_PORT=1025', 'SMTP_PORT=' + (root.MAILPIT_SMTP_PORT || '1025')),
 );
 prepare('apps/app/.env');
 if (!process.argv.includes('--env-only')) {

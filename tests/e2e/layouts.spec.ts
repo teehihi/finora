@@ -1,3 +1,4 @@
+import { createLegacyAccount } from './legacy-fixture';
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 
@@ -5,9 +6,10 @@ test('five destinations adapt at all widths and persist appearance and English',
   page,
   context,
 }) => {
-  const created = await context.request.post('http://localhost:3000/api/auth/sign-up/email', {
-    headers: { Origin: 'http://localhost:8081' },
-    data: { name: 'Layout QA', email: randomUUID() + '@example.test', password: randomUUID() },
+  const created = await createLegacyAccount(context.request, {
+    name: 'Layout QA',
+    email: randomUUID() + '@example.test',
+    password: randomUUID(),
   });
   expect(created.ok()).toBe(true);
   for (const [route, heading] of [

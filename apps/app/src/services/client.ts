@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { fetch as expoFetch } from 'expo/fetch';
 import { createAuthClient } from 'better-auth/react';
+import { emailOTPClient } from 'better-auth/client/plugins';
 import { expoClient } from '@better-auth/expo/client';
 import { createApi } from '@finora/api-client';
 const hostUri = Constants.expoConfig?.hostUri;
@@ -34,6 +35,7 @@ export const auth = createAuthClient({
       storage: SecureStore,
       disableCache: true,
     }),
+    emailOTPClient(),
   ],
   fetchOptions: { credentials: Platform.OS === 'web' ? 'include' : 'omit' },
 });
