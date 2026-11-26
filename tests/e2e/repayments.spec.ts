@@ -65,11 +65,29 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   const loanId = active.loans[0].id;
 
   await page.goto('/loans');
-  await expect(page.getByText('Kỳ thanh toán tiếp theo', { exact: true })).toBeVisible();
-  await expect(page.getByRole('radio', { name: 'Đến hạn hôm nay' })).toBeChecked();
-  await expect(page.getByText('Tiền gốc', { exact: true })).toBeVisible();
-  await expect(page.getByText('Tiền lãi', { exact: true })).toBeVisible();
-  await expect(page.getByRole('progressbar', { name: 'Đã xác nhận 0/12 kỳ' })).toBeVisible();
+  await expect(page.getByText('Kỳ trả gần nhất', { exact: true })).toBeVisible();
+  await expect(page.getByText('Đến hạn hôm nay', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Lập kế hoạch trả' }).click();
+  const planner = page.getByRole('dialog', { name: 'Kế hoạch trả kỳ tới' });
+  await expect(planner).toBeVisible();
+  await planner.getByRole('button', { name: 'Tính kế hoạch' }).click();
+  await expect(planner.getByRole('alert')).toBeVisible();
+  await planner.getByLabel('Đã để dành', { exact: true }).fill('0');
+  await planner
+    .getByLabel('Thu nhập sẽ nhận trước hoặc trong ngày hạn')
+    .fill(String(result.firstPayment));
+  await planner.getByLabel('Chi phí còn phải chi trước hoặc trong ngày hạn').fill('0');
+  await planner.getByRole('button', { name: 'Tính kế hoạch' }).click();
+  await expect(planner.getByText('Dự kiến vừa đủ')).toBeVisible();
+  await planner.getByRole('radio', { name: 'Thu nhập giảm 20%' }).click();
+  await expect(planner.getByText('Dự kiến còn thiếu')).toBeVisible();
+  await expect(planner.getByRole('radio', { name: 'Thu nhập giảm 20%' })).toBeChecked();
+  await planner.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await expect(planner).not.toBeVisible();
+  expect(await ledger()).toEqual(active);
+  await page.getByRole('button', { name: input.title, exact: true }).click();
+  await expect(page.getByText(/Tiền gốc:.*Tiền lãi:/)).toBeVisible();
+  await expect(page.getByText('Đã xác nhận 0/12 kỳ', { exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('loan-center-390.png'), fullPage: true });
   await page.getByRole('button', { name: 'Mở sổ trả nợ' }).click();
   await expect(page).toHaveURL(/\/repayments$/);
@@ -92,8 +110,9 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   expect((await ledger()).upcomingTotal).toBe(0);
   expect((await ledger()).loans[0].paidPeriods).toBe(1);
   await page.goto('/loans');
-  await expect(page.getByText('Kỳ thanh toán tiếp theo', { exact: true })).toBeVisible();
-  await expect(page.getByRole('progressbar', { name: 'Đã xác nhận 1/12 kỳ' })).toBeVisible();
+  await expect(page.getByText('Kỳ trả gần nhất', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: input.title, exact: true }).click();
+  await expect(page.getByText('Đã xác nhận 1/12 kỳ', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Mở sổ trả nợ' }).click();
   await expect(page).toHaveURL(/\/repayments$/);
   await expect(page.getByRole('heading', { name: input.title })).toBeVisible();
@@ -157,10 +176,11 @@ test('saving a simulation does not create an obligation; tracking and payment bo
     ).ok(),
   ).toBe(true);
   await page.goto('/loans');
-  await expect(page.getByRole('radio', { name: 'Đến hạn hôm nay' })).toBeChecked();
-  const laterDate = page.getByRole('radio').nth(1);
-  await laterDate.click();
-  await expect(laterDate).toBeChecked();
-  await expect(page.getByText('Cần trả theo lịch', { exact: true })).toBeVisible();
-  await expect(page.getByText('Khoản thứ hai', { exact: true })).toHaveCount(2);
+  await expect(page.getByText('Đến hạn hôm nay', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Khoản thứ hai', exact: true }).click();
+  await expect(page.getByText(/Tiền gốc:.*Tiền lãi:/)).toBeVisible();
+  await page.getByRole('tab', { name: 'Hoàn thành' }).click();
+  await expect(page.getByText('Chưa có khoản xác nhận đủ kỳ.')).toBeVisible();
+  await page.getByRole('tab', { name: 'Đang trả' }).click();
+  await expect(page.getByRole('button', { name: 'Khoản thứ hai', exact: true })).toBeVisible();
 });

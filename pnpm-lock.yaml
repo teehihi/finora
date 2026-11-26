@@ -156,6 +156,9 @@ importers:
       '@finora/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@finora/financial-engine':
+        specifier: workspace:*
+        version: link:../../packages/financial-engine
       '@finora/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
