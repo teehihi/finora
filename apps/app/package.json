@@ -19,6 +19,7 @@
     "@finora/api-client": "workspace:*",
     "@finora/contracts": "workspace:*",
     "@finora/design-tokens": "workspace:*",
+    "@finora/financial-engine": "workspace:*",
     "@finora/i18n": "workspace:*",
     "@finora/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

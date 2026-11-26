@@ -80,3 +80,5 @@ export function compare(a: LoanInput, b: LoanInput) {
         : new D(left.total).minus(right.total).toNumber(),
   };
 }
+
+export { repaymentPlan, repaymentPlanMoneyLimit } from './repayment-plan';
