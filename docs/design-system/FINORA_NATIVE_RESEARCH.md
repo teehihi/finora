@@ -33,8 +33,8 @@ These observations come from first-party product pages/help material and current
 - **Navigation:** keep labels on persistent destinations. The draggable dock is a product-specific interaction with an accessible tap path; its shell behavior is preserved.
 - **Materials:** Apple's current guidance defines Liquid Glass as a functional control/navigation layer. Keep it on the dock where supported; use a solid, high-quality fallback elsewhere and avoid glass cards.
 - **Accessibility and interaction:** preserve accessible names and selected state, contrast, touch targets, keyboard avoidance, and a reduced-motion path. Core navigation remains available by both tap and drag.
-- **Sheets and charts:** use native-feeling sheets for future focused detail/edit tasks, with clear dismissal and actions. Avoid adding a chart to Home without enough real data to make it informative.
-- **Haptics:** Apple recommends purposeful haptic feedback as supplemental feedback. No new haptics are introduced here because the current custom dock has no haptic contract and this scope does not require adding a new native dependency.
+- **Sheets and charts:** [Apple's sheet guidance](https://developer.apple.com/design/human-interface-guidelines/sheets) favors focused tasks with clear dismissal. Avoid adding a chart to Home without enough real data to make it informative.
+- **Haptics:** [Apple recommends](https://developer.apple.com/design/human-interface-guidelines/playing-haptics) short, optional haptics for discrete events. No new haptics are introduced here because the current custom dock has no haptic contract and this scope does not require adding a new native dependency.
 
 ## Three Home explorations
 
