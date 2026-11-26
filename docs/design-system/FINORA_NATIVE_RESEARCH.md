@@ -45,3 +45,10 @@ The three 390px design previews are in `docs/design-system/previews/finora-nativ
 3. **C — Warm Premium:** richer sage/ivory surfaces with a friendly greeting and a single prominent action. It carries more brand warmth, but creates heavier surfaces and places more emphasis on the brand color than daily utility needs.
 
 The concepts use the same fixture content to compare hierarchy. The implemented Home selects A, but replaces fixture values with the real existing account and saved-simulation responses, including the no-profile empty state. No competitor layout or artwork is copied.
+
+## Verification limits
+
+- `pnpm run setup` completed with the existing PostgreSQL volume; no database reset was run. App unit tests, typecheck, lint, formatting, the Expo bundled-native version check, and an iOS Debug build succeeded.
+- The authenticated web journey did not reach Home: its existing password sign-in displayed the generic connection/sign-in error, including when both app and Better Auth URLs were overridden to `localhost` for the run. Home, tap/drag dock assertions, and the mobile screenshot assertions therefore remain unverified in E2E.
+- The iOS build installed, but the headless host has no Simulator.app UI. The dev-client URL triggered an iOS “Open in Finora?” confirmation which could not be accepted here, so an authenticated native Home render was not captured. `adb devices` returned no Android emulators.
+- The CUA browser blocks local-file URLs and disallows using another browser path to work around that restriction. The concept HTML previews are available, but their rendered screenshots, the before/after captures, and the three visual review rounds remain outstanding.
