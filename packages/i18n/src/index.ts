@@ -186,14 +186,15 @@ const copy = {
   authEditorialPrincipal: ['Tách riêng tiền gốc', 'Separate the principal'],
   authEditorialCost: ['Đọc kỹ lãi và phí', 'See interest and fees'],
   authEditorialSchedule: ['Xếp lịch trả từng kỳ', 'Plan each payment'],
-  authWelcome: ['Bắt đầu với Finora', 'Start with Finora'],
+  authWelcome: ['Đăng nhập', 'Sign in'],
   authWelcomeBody: [
-    'Dùng email để đăng nhập hoặc tạo tài khoản. Không cần đặt mật khẩu.',
-    'Use your email to sign in or create an account. No password needed.',
+    'Đăng nhập hoặc tạo tài khoản bằng email. Finora sẽ gửi mã xác minh cho bạn.',
+    'Sign in or create an account with your email. Finora will send you a verification code.',
   ],
   authContinueEmail: ['Tiếp tục bằng email', 'Continue with email'],
   authChecking: ['Đang kiểm tra phiên đăng nhập…', 'Checking your session…'],
   authCodeTitle: ['Kiểm tra email', 'Check your email'],
+  authCodeSentTo: ['Mã xác minh được gửi đến', 'Verification code sent to'],
   authCodeIntro: [
     'Nếu email nhận được thư, dùng mã 6 số để tiếp tục. Mã có hiệu lực trong 5 phút.',
     'Use the 6-digit code if it arrives in your inbox. It is valid for 5 minutes.',

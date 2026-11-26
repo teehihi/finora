@@ -86,34 +86,32 @@ export function PublicPage({
           <View style={{ width: '100%', maxWidth: tokens.breakpoints.content, flexGrow: 1 }}>
             <View
               style={{
-                minHeight: width >= 768 ? 82 : 64,
+                minHeight: auth ? (width >= 768 ? 72 : 56) : width >= 768 ? 82 : 64,
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                borderBottomWidth: 1,
+                borderBottomWidth: auth ? 0 : 1,
                 borderColor: c.border,
               }}
             >
-              <Action label="Finora" onPress={() => router.replace('/')}>
-                <Logo small={width < 768} />
-              </Action>
+              {auth ? (
+                <View>
+                  <Logo small={width < 768} />
+                </View>
+              ) : (
+                <Action label="Finora" onPress={() => router.replace('/')}>
+                  <Logo small={width < 768} />
+                </Action>
+              )}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Language />
-                {auth ? (
-                  <Action
-                    label={t('back')}
-                    onPress={() => router.replace('/')}
-                    style={{ minWidth: 44, alignItems: 'center' }}
-                  >
-                    <ArrowLeft size={20} color={c.primary} />
-                  </Action>
-                ) : (
+                {!auth ? (
                   <Button
                     variant="outline"
                     label={t('signIn')}
                     onPress={() => router.push('/auth')}
                   />
-                )}
+                ) : null}
               </View>
             </View>
             {children}
