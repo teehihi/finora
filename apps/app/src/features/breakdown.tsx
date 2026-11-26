@@ -26,7 +26,10 @@ export function Breakdown({
     { color: c.chartInterest, value: result.interest },
     ...(input.fee === null ? [] : [{ color: c.chartFee, value: input.fee }]),
   ];
+  const last = result.schedule.at(-1);
   const highest = Math.max(0, ...result.schedule.map((row) => row.payment));
+  const largerFinalPayment =
+    last && last.payment === highest && last.payment > result.firstPayment * 1.25;
   const ledger = [
     [t('principal'), money(input.principal)],
     [t('interest'), money(result.interest)],
@@ -55,9 +58,17 @@ export function Breakdown({
           >
             {money(result.firstPayment)}
           </Text>
-          {highest > result.firstPayment + 1000 ? (
+          {highest > result.firstPayment ? (
             <Text small style={{ color: c.onForestMuted }}>
               {local('Kỳ cao nhất theo lịch', 'Highest scheduled payment')}: {money(highest)}
+            </Text>
+          ) : null}
+          {largerFinalPayment ? (
+            <Text small style={{ color: c.onForestMuted }}>
+              {local(
+                'Kỳ cuối cao hơn kỳ đầu đáng kể. Hãy kiểm tra lịch trước khi dùng phương án này.',
+                'The last payment is substantially larger than the first. Review the schedule before using this estimate.',
+              )}
             </Text>
           ) : null}
         </View>

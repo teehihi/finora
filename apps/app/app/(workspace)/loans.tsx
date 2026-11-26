@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Calculator, ChevronRight } from 'lucide-react-native';
 import { Action, Button, EmptyState, Heading, Text, useDesign } from '@finora/ui';
@@ -22,11 +21,15 @@ export default function Loans() {
     enabled: !!user?.id,
   });
   const desktop = width >= 1024;
-  const [pane, setPane] = useState<'schedule' | 'simulations'>('schedule');
+  const params = useLocalSearchParams<{ pane?: string }>();
+  const pane = params.pane === 'simulations' ? 'simulations' : 'schedule';
+  const setPane = (next: 'schedule' | 'simulations') => router.setParams({ pane: next });
 
   return (
     <Page title={t('loans')}>
-      <Data q={ledger}>{(value) => <PaymentFocus value={value} desktop={desktop} />}</Data>
+      {pane === 'schedule' && ledger.data ? (
+        <PaymentFocus value={ledger.data} desktop={desktop} />
+      ) : null}
       <View
         accessibilityRole="tablist"
         style={{ flexDirection: 'row', gap: 17, borderBottomWidth: 1, borderColor: c.border }}

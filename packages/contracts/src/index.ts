@@ -32,6 +32,11 @@ export const draftSchema = z
   .object({ productId: z.string().max(80).min(1), input: loanSchema })
   .strict();
 export const saveSchema = draftSchema.extend({ requestId: z.uuid() });
+export const saveCustomSimulationSchema = saveSchema
+  .omit({ productId: true })
+  .extend({ confirmed: z.literal(true) });
+export type SaveCustomSimulation = z.infer<typeof saveCustomSimulationSchema>;
+export const userScenarioSource = 'FINORA_USER_SCENARIO';
 export const chatSchema = z
   .object({
     prompt: z.string().trim().min(1).max(1200),

@@ -77,21 +77,12 @@ export default function Saved() {
             input={s.input}
             result={s.result}
             actions={
-              <View style={{ gap: 8 }}>
-                <Button
-                  label={t('explain')}
-                  onPress={() =>
-                    router.push({ pathname: '/assistant', params: { simulationId: s.id } })
-                  }
-                />
-                <Button
-                  label={t('intelligenceSavedAnalysis')}
-                  variant="outline"
-                  onPress={() =>
-                    router.push({ pathname: '/intelligence', params: { simulationId: s.id } })
-                  }
-                />
-              </View>
+              <Button
+                label={t('intelligenceSavedAnalysis')}
+                onPress={() =>
+                  router.push({ pathname: '/intelligence', params: { simulationId: s.id } })
+                }
+              />
             }
           />
           <TrackRepaymentCta key={s.id} simulation={s} />

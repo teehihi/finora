@@ -22,6 +22,7 @@ import { Data } from '../components/layout';
 import { api } from '../services/client';
 import { ComparisonGrid, MarketNotice, MarketPanel, ProductIcon } from './market-ui';
 import { hasUnknownRelevantBounds, matchesPublishedLoan } from './market-filters';
+import { normalizeIntegerInput } from './simulation-model';
 
 const categoryKeys = {
   personal: 'personal',
@@ -155,7 +156,16 @@ function PublicLoanTerms({
       <Text small muted>
         {t('publicCatalogNotice')}
       </Text>
-      <View style={{ alignSelf: 'flex-start' }}>
+      <View style={{ alignSelf: 'flex-start', gap: 8 }}>
+        <Button
+          label={local('Mô phỏng từ điều khoản của tôi', 'Simulate with my terms')}
+          variant="outline"
+          onPress={() => {
+            onClose();
+            // A disclosed rate is not a confirmed offer. Do not copy source terms into the inputs.
+            router.push('/simulate/custom');
+          }}
+        />
         <Button
           label={t('publicAskFin')}
           variant="soft"
@@ -281,9 +291,7 @@ export function PublicCatalogView() {
     setFilterOpen(true);
   }
   function applyFilters() {
-    const rawAmount = boundDraft.amount.trim().replace(/\s/g, '');
-    const grouped = locale === 'vi-VN' ? /^\d{1,3}(?:\.\d{3})+$/ : /^\d{1,3}(?:,\d{3})+$/;
-    const amount = grouped.test(rawAmount) ? rawAmount.replace(/[.,]/g, '') : rawAmount;
+    const amount = normalizeIntegerInput(boundDraft.amount, locale);
     const months = boundDraft.months.trim();
     const next = {
       amount: amount === '' ? undefined : /^\d{1,13}$/.test(amount) ? Number(amount) : NaN,

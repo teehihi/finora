@@ -6,6 +6,7 @@ import type {
   LoanInput,
   Estimate,
   Saved,
+  SaveCustomSimulation,
   Profile,
   Preferences,
   ChatTurn,
@@ -60,6 +61,8 @@ export function createApi(
       request<Estimate>('simulations/preview', 'POST', { productId, input }),
     save: (productId: string, input: LoanInput, requestId: string) =>
       request<Saved>('simulations', 'POST', { productId, input, requestId }),
+    saveCustom: (input: SaveCustomSimulation) =>
+      request<Saved>('simulations/custom', 'POST', input),
     saved: () => request<Saved[]>('simulations'),
     detail: (id: string) => request<Saved>('simulations/' + encodeURIComponent(id)),
     repayments: () => request<RepaymentLedger>('repayments'),

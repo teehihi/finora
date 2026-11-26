@@ -46,8 +46,94 @@ export const showcaseStrings = {
   },
 };
 
+const accessJourneyStrings = {
+  'vi-VN': {
+    offlineTitle: 'Chưa kết nối được',
+    offlineBody: 'Kiểm tra kết nối rồi thử lại. Email và mã bạn đang nhập được giữ nguyên.',
+    offlineRetry: 'Thử kết nối lại',
+    restoreTitle: 'Hoàn tất đăng nhập',
+    restoreBody: 'Thông tin đăng nhập đã được chấp nhận. Kiểm tra lại phiên trước khi nhập mã mới.',
+    restoreRetry: 'Kiểm tra lại phiên',
+    useDifferentLogin: 'Quay về đăng nhập',
+    sample: 'PHƯƠNG ÁN MINH HỌA',
+    sampleTitle: 'Khoản vay giả định',
+    term: 'Kỳ hạn',
+    months: '{count} tháng',
+    firstPayment: 'Kỳ trả đầu tiên',
+    interest: 'Lãi',
+    total: 'Tổng gốc + lãi',
+    sampleNotes:
+      'Giả định lãi suất 12%/năm trên dư nợ giảm dần, trả góp đều. Chưa tính phí và bảo hiểm; không phải đề nghị cho vay.',
+    privateSample: 'Đổi kỳ hạn để thấy số tiền thay đổi. Không cần đăng nhập.',
+    previewHeading: 'Biết rõ trước khi vay.',
+    previewHeadingWide: 'Biết rõ chi phí\ntrước khi vay.',
+    longerTerm: 'So với 12 tháng, kỳ đầu thấp hơn nhưng tổng lãi cao hơn.',
+    previewBody:
+      'Tính chi phí trước khi quyết định, đọc lại điều khoản hợp đồng và chuẩn bị cho từng kỳ trả.',
+    toolsHeading: 'Từ lúc cân nhắc đến kỳ trả cuối',
+    tools: [
+      [
+        'So sánh phương án vay',
+        'Đặt hai kỳ hạn cạnh nhau và xem khoản trả, lãi cùng những phí đã biết.',
+      ],
+      [
+        'Đọc lại hợp đồng',
+        'Đối chiếu số tiền và điều khoản ứng dụng trích được với tài liệu gốc của bạn.',
+      ],
+      [
+        'Chuẩn bị cho từng kỳ',
+        'Giữ lịch trả trong một chỗ. Chỉ đánh dấu đã trả khi chính bạn xác nhận.',
+      ],
+    ],
+    privacy: 'Finora giúp lập kế hoạch, không cấp khoản vay hay chuyển tiền.',
+  },
+  'en-US': {
+    offlineTitle: 'Connection unavailable',
+    offlineBody: 'Check your connection and try again. Your email and code stay as entered.',
+    offlineRetry: 'Retry connection',
+    restoreTitle: 'Finish signing in',
+    restoreBody:
+      'Your credentials were accepted. Check the session again before asking for a new code.',
+    restoreRetry: 'Check session again',
+    useDifferentLogin: 'Back to sign in',
+    sample: 'ILLUSTRATIVE SCENARIO',
+    sampleTitle: 'Example borrowing plan',
+    term: 'Loan term',
+    months: '{count} months',
+    firstPayment: 'First instalment',
+    interest: 'Interest',
+    total: 'Principal + interest',
+    sampleNotes:
+      'Assumes 12% p.a. on the reducing balance and equal instalments. Excludes fees and insurance; not a loan offer.',
+    privateSample: 'Change the term to see what it costs. No sign-in required.',
+    previewHeading: 'Know before you borrow.',
+    previewHeadingWide: 'Know the cost\nbefore you borrow.',
+    longerTerm:
+      'Compared with 12 months, the first instalment is lower but the total interest is higher.',
+    previewBody:
+      'Estimate the cost before deciding, review the contract terms and get ready for each repayment.',
+    toolsHeading: 'From first consideration to final repayment',
+    tools: [
+      [
+        'Compare borrowing plans',
+        'Put two terms side by side and review the instalments, interest and any known fees.',
+      ],
+      [
+        'Review the contract',
+        'Check the amounts and extracted terms against your original document.',
+      ],
+      [
+        'Prepare for repayments',
+        'Keep the schedule in one place. An instalment is marked paid only when you confirm.',
+      ],
+    ],
+    privacy: 'Finora helps you plan. It does not issue loans or transfer money.',
+  },
+} as const;
+
 export const accessStrings = {
   'vi-VN': {
+    ...accessJourneyStrings['vi-VN'],
     preview: 'Khám phá Finora',
     welcome: 'Vay thông minh. Trả chủ động.',
     intro: 'Biết chi phí và lịch trả trước khi quyết định.',
@@ -58,6 +144,7 @@ export const accessStrings = {
     completeProfile: 'Hoàn tất hồ sơ để xem khả năng trả thêm ước tính.',
   },
   'en-US': {
+    ...accessJourneyStrings['en-US'],
     preview: 'Explore Finora',
     welcome: 'Borrow smarter. Repay with a plan.',
     intro: 'See the cost and repayment schedule before you decide.',

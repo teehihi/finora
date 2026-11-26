@@ -1,8 +1,8 @@
 # Finora Intelligence 3.0
 
-This phase extends the Product Experience 2.0 branch and keeps the existing V2
-assistant and saved simulations usable. The Analysis Desk, public catalog, private
-document review, and manually tracked repayments are distinct workspace surfaces.
+Finora AI opens a structured conversation that connects to the public catalog, private
+document review, saved simulations and manually tracked repayments. Older
+text-only conversations are still accessible.
 Finora does not approve loans, apply on the user's behalf, or initiate payments.
 
 ## Local setup and demo
@@ -12,12 +12,12 @@ Finora does not approve loans, apply on the user's behalf, or initiate payments.
    migrations to your existing database; do not reset it.
 2. Sign in with Mailpit OTP. In Hồ sơ set monthly income to 15,000,000 ₫, living
    costs to 8,000,000 ₫ and existing debt payments to 1,000,000 ₫.
-3. In Finora AI, open Phân tích khoản vay. Try:
+3. Open Finora AI. Try:
    **“Vay 50 triệu tiêu dùng, lãi 12%/năm trả góp đều trong 12 và 24 tháng. Thu nhập giảm 20% thì sao?”**
    The result separates the 35% planning capacity, public products with official
    sources, and two deterministic schedules using the supplied assumptions.
    Unknown fee leaves total including fees unknown. Nothing is saved until confirmed.
-4. Ask **“Nếu vay trong 36 tháng thì sao?”** to continue from the owned saved conversation;
+4. Ask **“Nếu vay trong 36 tháng thì sao?”** to continue the private conversation;
    follow-up preserves the previous assumptions, unless the user supplied replacements.
 5. In Hồ sơ khoản vay, load the **synthetic document** or choose a locally generated
    PDF. Review page evidence, correct assumptions, leave fees unknown if omitted,
@@ -74,3 +74,38 @@ Finora does not approve loans, apply on the user's behalf, or initiate payments.
 
 See [research](INTELLIGENCE_RESEARCH.md), [provider configuration](OPENAI_PROVIDER.md),
 [loan catalog](LOAN_CATALOG.md), and [evaluation](../evaluation/README.md).
+
+## Signature conversation and follow-ups
+
+The navigation dock opens the structured conversation directly at `/assistant`.
+Existing `/intelligence` links open the same workspace, including a saved simulation
+reference. Previous text-only chats remain available under **Sources and tools → Classic
+chat history**; their separate history is not silently imported or deleted.
+
+When a borrowing request lacks nominal interest or a repayment method, Fin retains
+the explicit assumptions in the account's analysis history and asks for the
+missing terms. A clarification can complete the same scenario; a follow-up such as
+“Nếu thu nhập giảm 20% thì sao?” keeps both compared durations and applies the
+change to the income the user actually supplied, or to the authorized financial
+profile when no income was supplied. The profile is not updated implicitly.
+A separate borrowing request (new amount/purpose without an explicit continuation)
+does not inherit the preceding loan's assumptions.
+
+The comparison uses the same principal, nominal rate, method and fee assumption.
+Unknown fees stay unknown. The highlighted cash-flow value subtracts the highest
+regular installment, not contractual one-off fees, and does not determine approval.
+APR alone does not set the nominal rate. Comparing two terms does not save either:
+the user can inspect the assumptions, draft a follow-up, and explicitly confirm the
+specific amount and duration before adding a private simulation.
+
+The database JSON keeps a versioned internal context alongside verified blocks;
+legacy block-array rows remain readable, and the public response schema is unchanged.
+Neither the saved context nor the profile or documents are sent to a provider.
+A server binary older than this version cannot read the new internal JSON format;
+do not downgrade the server against a live database without a rollback plan.
+
+Regression coverage: `apps/api/test/intelligence-context.test.ts` verifies context
+scope, prior assumptions, private legacy rows, unknown fees and APR. The browser
+journey in `tests/e2e/intelligence-workspace.spec.ts` uses synthetic data and local
+analysis to verify clarification, both durations, explicit stress submission,
+review and confirmed saving.

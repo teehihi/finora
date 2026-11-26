@@ -48,7 +48,11 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   await page.goto('/loans');
   await expect(page.getByText('Chưa theo dõi khoản vay nào', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mở sổ trả nợ' })).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Bản mô phỏng', exact: true }).click();
+  await page.goto('/loans?pane=simulations');
+  await expect(page.getByRole('tab', { name: 'Bản mô phỏng', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await expect(page.getByText('Chỉ để mô phỏng', { exact: true })).toBeVisible();
   await page.goto('/saved/' + simulationId);
   await page.getByRole('button', { name: 'Theo dõi khoản vay thực tế', exact: true }).click();
@@ -95,7 +99,7 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   const repeated = await context.request.post(base + '/repayments', { data: input });
   expect((await repeated.json()).id).toBe(loanId);
   expect((await ledger()).loans).toHaveLength(1);
-  await page.getByRole('button', { name: 'Đánh dấu đã trả', exact: true }).first().click();
+  await page.getByRole('button', { name: /Xem kỳ trả của Khoản vay QA, hạn/ }).click();
   await expect(page.getByRole('button', { name: 'Xác nhận đã trả', exact: true })).toBeVisible();
   expect((await ledger()).loans[0].paidPeriods).toBe(0);
   expect(

@@ -64,7 +64,7 @@ export function PrivatePreview({ review }: { review: DocumentReview }) {
         <FileSearch size={21} color={c.primary} />
       </View>
       <View style={{ flex: 1, minWidth: 135, gap: 2 }}>
-        <Heading size={16}>{vi ? 'Tài liệu đã tải lên' : 'Uploaded document'}</Heading>
+        <Heading size={16}>{s.original}</Heading>
         <Text small muted>
           {format} · {date(review.createdAt, locale)} ·{' '}
           {Math.max(1, Math.round(review.size / 1024))} KB

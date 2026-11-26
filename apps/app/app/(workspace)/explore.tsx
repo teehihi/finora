@@ -15,7 +15,7 @@ import {
   EmptyState,
   useDesign,
 } from '@finora/ui';
-import { Columns2, SlidersHorizontal } from 'lucide-react-native';
+import { Calculator, Columns2, SlidersHorizontal } from 'lucide-react-native';
 import { numeric, percent } from '@finora/i18n';
 import { api } from '../../src/services/client';
 import { Page, Data } from '../../src/components/layout';
@@ -30,8 +30,8 @@ import {
 } from '../../src/features/catalog-model';
 
 export default function Explore() {
-  const { t } = useDesign();
-  const params = useLocalSearchParams<{ mode?: string }>();
+  const { t, colors: c, locale } = useDesign();
+  const params = useLocalSearchParams<{ mode?: string; intent?: string }>();
   const mode = params.mode === 'sample' ? 'sample' : 'public';
   return (
     <Page
@@ -46,12 +46,24 @@ export default function Explore() {
           { value: 'sample', label: t('sampleCatalogMode') },
         ]}
       />
-      {mode === 'public' ? <PublicCatalogView /> : <SampleCatalogView />}
+      <View style={{ alignSelf: 'flex-start' }}>
+        <Button
+          variant="outline"
+          label={locale === 'vi-VN' ? 'Nhập điều khoản của tôi' : 'Use my own loan terms'}
+          icon={<Calculator size={17} color={c.primary} />}
+          onPress={() => router.push('/simulate/custom')}
+        />
+      </View>
+      {mode === 'public' ? (
+        <PublicCatalogView />
+      ) : (
+        <SampleCatalogView compareIntent={params.intent === 'compare'} />
+      )}
     </Page>
   );
 }
 
-function SampleCatalogView() {
+function SampleCatalogView({ compareIntent }: { compareIntent: boolean }) {
   const { t, colors: c, locale } = useDesign();
   const { width } = useWindowDimensions();
   const desktop = width >= 1024;
@@ -119,6 +131,13 @@ function SampleCatalogView() {
   return (
     <>
       <MarketNotice title={t('catalogIndex')}>{t('catalogDisclosure')}</MarketNotice>
+      {compareIntent && (
+        <Text small bold style={{ color: c.primary }}>
+          {locale === 'vi-VN'
+            ? 'Chọn hai sản phẩm để tính với cùng số tiền và kỳ hạn.'
+            : 'Select two products to calculate with the same amount and term.'}
+        </Text>
+      )}
       <View style={{ flexDirection: desktop ? 'row' : 'column', gap: desktop ? 34 : 18 }}>
         <View style={{ width: desktop ? 216 : undefined, gap: desktop ? 18 : 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 }}>
@@ -244,7 +263,7 @@ function SampleCatalogView() {
         onClose={() => setCompareOpen(false)}
         title={t('compare')}
       >
-        {pair && <ProductComparison products={pair} />}
+        {pair && <ProductComparison key={pair.map((p) => p.id).join(':')} products={pair} />}
         <Text small muted>
           {t('noLoanApproval')}
         </Text>

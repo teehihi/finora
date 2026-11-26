@@ -1,6 +1,6 @@
 # Đọc đề nghị vay riêng tư
 
-Mở **Đọc đề nghị vay** từ Finora AI, chọn PDF/JPEG/PNG hoặc dùng đề nghị mẫu tổng hợp. Kiểm tra các dòng trích dẫn, sửa số tiền/kỳ hạn/lãi suất/cách tính/ngày đầu, rồi **Xác nhận và tính lại**. Có thể lưu kết quả vào **Khoản vay** để mở lịch trả nợ sau. Không đưa hợp đồng thật vào luồng demo.
+Mở **Đọc đề nghị vay** từ Finora AI, chọn PDF/JPEG/PNG hoặc dùng đề nghị mẫu tổng hợp. Kiểm tra các dòng trích dẫn, bổ sung điều khoản chưa đọc được hoặc sửa tiền gốc/kỳ hạn/lãi suất/cách tính/ngày đầu, rồi **Xác nhận và tính lại**. Lỗi hiển thị tại thông số liên quan; ngày kỳ đầu hỗ trợ định dạng YYYY-MM-DD và DD/MM/YYYY. Bản tính xuất hiện riêng khỏi biểu mẫu đã xác nhận, có thể sửa để tính lại. Có thể lưu kết quả vào **Khoản vay** để mở lịch trả nợ sau. Không đưa hợp đồng thật vào luồng demo.
 
 ## Trích xuất cục bộ
 
@@ -12,9 +12,9 @@ Mở **Đọc đề nghị vay** từ Finora AI, chọn PDF/JPEG/PNG hoặc dùn
 
 ## Bảo mật dữ liệu
 
-- Tối đa 5 MiB mỗi tệp, 10 tệp mỗi tài khoản. MIME phải khớp header/tính toàn vẹn cấu trúc cơ bản; ảnh có giới hạn kích thước pixel. Không dùng tên tệp từ người dùng làm đường dẫn hay tên tải xuống.
+- Tối đa 5 MiB mỗi tệp, 10 tệp mỗi tài khoản. Huỷ hộp chọn tệp trên web không tạo yêu cầu tải lên. Bộ nhớ đệm truy vấn không chứa byte tệp gốc; dữ liệu xem lại luôn đi qua phiên chủ sở hữu. MIME phải khớp header/tính toàn vẹn cấu trúc cơ bản; ảnh có giới hạn kích thước pixel. Không dùng tên tệp từ người dùng làm đường dẫn hay tên tải xuống.
 - PDF/Tesseract chạy trong tiến trình cục bộ có giới hạn thời gian, đầu ra và số tác vụ đồng thời. Giữ Poppler/Tesseract cập nhật bảo mật. Văn bản tài liệu chỉ đi qua bộ nhận dạng nhãn, không đưa vào prompt, không gửi sang AI hoặc dịch vụ ngoài. Không có action/URL được thực thi từ nội dung đã trích.
-- PostgreSQL lưu dữ liệu nguyên bản và phần trích xuất dưới quyền sở hữu tài khoản. Mọi thao tác liệt kê/đọc/tải/xóa/tính/lưu đều cần phiên và kiểm tra ID chủ sở hữu. Tệp nguyên bản chỉ gửi dạng attachment được bảo vệ, không có URL công khai hoặc trình render inline. Log không ghi byte tệp, nội dung trích hoặc thông số xác nhận. Cấu hình phát triển không hứa hẹn mã hóa ổ đĩa; tệp trong bản sao lưu phải tuân theo chính sách lưu giữ riêng.
+- PostgreSQL lưu dữ liệu nguyên bản và phần trích xuất dưới quyền sở hữu tài khoản. Mọi thao tác liệt kê/đọc/tải/xóa/tính/lưu đều cần phiên và kiểm tra ID chủ sở hữu. Tệp nguyên bản chỉ gửi dạng attachment được bảo vệ, không có URL công khai. Trình duyệt có thể tải bản PDF nguyên gốc; ứng dụng không render PDF inline. Ảnh xem trước chỉ được nạp theo yêu cầu qua tuyến bảo vệ. Log không ghi byte tệp, nội dung trích hoặc thông số xác nhận. Cấu hình phát triển không hứa hẹn mã hóa ổ đĩa; tệp trong bản sao lưu phải tuân theo chính sách lưu giữ riêng.
 - Xóa tài liệu loại bỏ byte và các trích dẫn khỏi lưu trữ hoạt động. Các bản mô phỏng đã lưu chỉ giữ thông số đã xác nhận và tham chiếu nội bộ, không giữ bản PDF/ảnh hoặc nội dung trích dẫn. Tài liệu không xuất hiện trong danh mục sản phẩm chung.
 
 Tài liệu tham khảo: [Poppler pdftotext](https://manpages.debian.org/trixie/poppler-utils/pdftotext.1.en.html), [Tesseract CLI](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html), [Expo DocumentPicker](https://docs.expo.dev/versions/latest/sdk/document-picker/), [OWASP File Upload](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html).

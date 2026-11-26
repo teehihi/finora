@@ -28,6 +28,9 @@ function parseNumber(raw: string, unit?: string): number | undefined {
         ? 1_000
         : 0;
   if (scale === 0 && !/^\d+$|^\d{1,3}(?:[.,]\d{3})+$/.test(raw)) return undefined;
+  // A scaled term such as "1.234 triệu" can mean 1.234 or 1,234 million
+  // depending on locale. Do not use an ambiguous amount in a schedule.
+  if (scale && /^[0-9]{1,3}(?:[.,][0-9]{3})+$/.test(raw)) return undefined;
   const n = Math.round(
     scale ? Number(raw.replace(',', '.')) * scale : Number(raw.replace(/[.,]/g, '')),
   );
@@ -51,6 +54,8 @@ export type Intent = {
   debt?: number;
   savings?: number;
   principal?: number;
+  principalDelta?: number;
+  aprOnly?: boolean;
   annualRate?: number;
   monthlyQuoted?: boolean;
   months?: number;
@@ -72,14 +77,17 @@ const validTerm = (v?: string) => (v && Number(v) >= 1 && Number(v) <= 360 ? Num
 export function interpret(prompt: string): Intent {
   const s = normalizeVn(prompt);
   const m =
-    /(?:\blai(?: suat)?\b|interest(?: rate)?|apr)\s*(?:la|of|:|=)?\s*(\d+(?:[.,]\d{1,4})?)\s*%\s*(?:\/\s*)?(thang|month|nam|year)?/.exec(
+    /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:la|of|:|=)?\s*(\d+(?:[.,]\d{1,4})?)\s*%\s*(?:\/\s*)?(thang|month|nam|year)?/.exec(
       s,
     );
+  const aprOnly = !m && /\b(?:apr|lai suat thuc te)\b/.test(s);
   const nominal = rates(m?.[1]);
   const percent =
     nominal === undefined ? undefined : nominal * (/month|thang/.test(m?.[2] ?? '') ? 12 : 1);
   const pair =
-    /(\d{1,3})\s*(?:va|voi|vs\.?|or|hay|\/|so voi)\s*(\d{1,3})\s*(?:thang|months?)\b/.exec(s);
+    /(?<![\d.])(\d{1,3})(?:\s*(?:thang|months?)\b)?\s*(?:va|voi|vs\.?|or|hay|\/|so voi)\s*(\d{1,3})\s*(?:thang|months?)\b/.exec(
+      s,
+    );
   const single = /(?:^|\b)(\d{1,3})\s*(?:thang|months?)\b/.exec(s);
   const yr = /\b(\d{1,2}|mot|hai|ba|bon|nam|one|two|three|four|five)\s*(?:nam|years?)\b/.exec(s);
   const writtenYears: Record<string, number> = {
@@ -96,7 +104,7 @@ export function interpret(prompt: string): Intent {
   };
   const yearsInMonths = yr ? String((writtenYears[yr[1]] ?? Number(yr[1])) * 12) : undefined;
   const incomeCut = rates(
-    /(?:thu nhap|luong|income)\s*(?:giam|mat|drops? by|falls? by|decreases? by)\s*(\d+(?:[.,]\d+)?)\s*%/.exec(
+    /(?:thu nhap|luong|income)(?:\s+(?:thang toi|thang sau|moi thang|hang thang|next month))?\s*(?:giam|mat|drops? by|falls? by|decreases? by)\s*(\d+(?:[.,]\d+)?)\s*%/.exec(
       s,
     )?.[1],
   );
@@ -135,6 +143,12 @@ export function interpret(prompt: string): Intent {
           )?.[1],
         )
     : undefined;
+  const lowerPrincipal = moneyAfter(s, 'vay it hon|giam so tien vay(?: di)?|borrow less(?: by)?');
+  const higherPrincipal = moneyAfter(
+    s,
+    'vay nhieu hon|tang so tien vay(?: them)?|borrow more(?: by)?',
+  );
+  const principalDelta = lowerPrincipal !== undefined ? -lowerPrincipal : higherPrincipal;
   return {
     income: moneyAfter(
       s,
@@ -148,13 +162,18 @@ export function interpret(prompt: string): Intent {
       ? 0
       : moneyAfter(
           s,
-          'no hien tai|tien tra no(?: hien tai)?|tra no moi thang|existing debt|debt payments',
+          'no hien tai|(?:dang )?tra no(?: moi thang| hang thang| hien tai)?|tien tra no(?: hien tai)?|existing debt|debt payments',
         ),
     savings: moneyAfter(s, 'tiet kiem du phong|quy du phong|emergency savings'),
-    principal: moneyAfter(
-      s,
-      'vay(?: khoang| them)?|khoan vay|so tien vay|tim khoan|borrow(?:ing)?|loan amount|principal',
-    ),
+    principalDelta,
+    aprOnly,
+    principal:
+      principalDelta !== undefined
+        ? undefined
+        : moneyAfter(
+            s,
+            'vay(?: khoang| them)?|khoan vay|so tien vay|tim khoan|borrow(?:ing)?|loan amount|principal',
+          ),
     annualRate: percent !== undefined && percent <= 100 ? Number(percent.toFixed(4)) : undefined,
     monthlyQuoted: /month|thang/.test(m?.[2] ?? ''),
     months: validTerm(
@@ -164,9 +183,15 @@ export function interpret(prompt: string): Intent {
     ),
     secondMonths: validTerm(pair?.[2]),
     method,
-    fee: /\b(khong phi|mien phi|no fee)\b/.test(s)
-      ? 0
-      : moneyAfter(s, 'phi mot lan|phi ho so|phi dich vu|one-time fee|fee'),
+    fee: early
+      ? moneyAfter(s, 'phi mot lan|phi ho so|phi dich vu|one-time fee')
+      : /\b(khong phi|mien phi|no fee)\b/.test(s)
+        ? 0
+        : /\b(?:chua biet|khong ro|khong biet) (?:muc )?phi\b|\b(?:fee unknown|unknown fee)\b/.test(
+              s,
+            )
+          ? null
+          : moneyAfter(s, 'phi mot lan|phi ho so|phi dich vu|one-time fee|fee'),
     incomeCut: incomeCut !== undefined && incomeCut <= 100 ? incomeCut : undefined,
     extraExpense: moneyAfter(
       s,
@@ -235,7 +260,7 @@ export function scenarioInput(
     months: months ?? intent.months ?? existing?.months,
     annualRate: intent.annualRate ?? existing?.annualRate,
     method: intent.method ?? existing?.method,
-    fee: intent.fee ?? existing?.fee ?? null,
+    fee: intent.fee !== undefined ? intent.fee : (existing?.fee ?? null),
     firstDue: existing?.firstDue ?? firstDue,
   });
 }
@@ -264,7 +289,7 @@ export function toScenario(
   intent: Intent,
   profile: Profile | null,
   snapshotId?: string,
-): IntelligenceBlock {
+): IntelligenceScenario {
   const peak = Math.max(...result.schedule.map((p) => p.payment));
   const remaining = profile ? profile.income - profile.debt - profile.expenses - peak : null;
   const stress =

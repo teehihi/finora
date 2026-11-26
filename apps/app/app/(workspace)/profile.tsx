@@ -28,6 +28,8 @@ import { profileSchema, type Profile, type Preferences } from '@finora/contracts
 import { getAccessStrings } from '@finora/i18n';
 import { Page, Data } from '../../src/components/layout';
 import { AccountIdentity } from '../../src/components/AccountIdentity';
+import { ProfileInsights } from '../../src/features/profile-insights';
+import { clearIntelligenceHistory } from '../../src/features/intelligence/transport';
 import { api, auth } from '../../src/services/client';
 import { queryClient, useAccount, usePrefs } from '../../src/providers/AppProviders';
 
@@ -159,12 +161,19 @@ export default function ProfileScreen() {
   const { appearance, set } = usePrefs();
   const [signError, error] = useState(false);
   const [signingOut, signBusy] = useState(false);
-  const [confirmClear, confirm] = useState(false);
+  const [clearKind, confirm] = useState<'fin' | 'legacy'>();
+  const uid = session.data?.user.id;
   const clear = useMutation({
-    mutationFn: api.clearHistory,
-    onSuccess: async () => {
-      confirm(false);
-      await queryClient.invalidateQueries({ queryKey: ['history'] });
+    mutationFn: (kind: 'fin' | 'legacy') =>
+      kind === 'fin'
+        ? clearIntelligenceHistory(new AbortController().signal)
+        : api.clearHistory().then(() => undefined),
+    onSuccess: async (_, kind) => {
+      confirm(undefined);
+      if (!uid) return;
+      const key = [kind === 'fin' ? 'intelligence-history' : 'history', uid];
+      await queryClient.cancelQueries({ queryKey: key, exact: true });
+      queryClient.setQueryData(key, []);
     },
   });
   const pref = useMutation({
@@ -243,7 +252,9 @@ export default function ProfileScreen() {
             <Data q={a}>
               {(data) => (
                 <>
-                  {!data.profile ? (
+                  {data.profile ? (
+                    <ProfileInsights profile={data.profile} readiness={data.readiness} />
+                  ) : (
                     <View
                       style={{
                         padding: 11,
@@ -259,7 +270,7 @@ export default function ProfileScreen() {
                         {accessCopy.completeProfile}
                       </Text>
                     </View>
-                  ) : null}
+                  )}
                   <FinancialForm profile={data.profile} />
                 </>
               )}
@@ -319,28 +330,46 @@ export default function ProfileScreen() {
             <Text muted small>
               {t('privacyText')}
             </Text>
-            <Button
-              variant="outline"
-              label={t('clearHistory')}
-              onPress={() => {
-                clear.reset();
-                confirm(true);
-              }}
-            />
-            {clear.isSuccess ? <Toast>{t('historyCleared')}</Toast> : null}
-            <Dialog visible={confirmClear} title={t('clearHistory')} onClose={() => confirm(false)}>
-              <Text>{t('confirmClear')}</Text>
+            {(['fin', 'legacy'] as const).map((kind) => (
+              <Button
+                key={kind}
+                variant={kind === 'fin' ? 'outline' : 'text'}
+                label={t(kind === 'fin' ? 'privacyClearFin' : 'privacyClearLegacy')}
+                onPress={() => {
+                  clear.reset();
+                  confirm(kind);
+                }}
+              />
+            ))}
+            {clear.isSuccess ? (
+              <Toast>
+                {t(clear.variables === 'fin' ? 'privacyFinCleared' : 'privacyLegacyCleared')}
+              </Toast>
+            ) : null}
+            <Dialog
+              visible={!!clearKind}
+              title={t(clearKind === 'fin' ? 'privacyClearFin' : 'privacyClearLegacy')}
+              onClose={() => !clear.isPending && confirm(undefined)}
+            >
+              <Text>{t('privacyHistoryScope')}</Text>
               {clear.isError ? (
                 <Text role="alert" style={{ color: c.error }}>
                   {t('error')}
                 </Text>
               ) : null}
               <Button
-                label={t('clearHistory')}
-                onPress={() => clear.mutate()}
+                label={t('privacyDeleteHistory')}
+                onPress={() => {
+                  if (clearKind && !clear.isPending) clear.mutate(clearKind);
+                }}
                 loading={clear.isPending}
               />
-              <Button variant="outline" label={t('cancel')} onPress={() => confirm(false)} />
+              <Button
+                variant="outline"
+                label={t('cancel')}
+                disabled={clear.isPending}
+                onPress={() => confirm(undefined)}
+              />
             </Dialog>
           </Panel>
           <Panel>

@@ -132,6 +132,7 @@ export function Page({
   eyebrow,
   maxWidth = tokens.breakpoints.content,
   style,
+  scrollRef,
 }: {
   children: React.ReactNode;
   title: string;
@@ -140,6 +141,7 @@ export function Page({
   eyebrow?: string;
   maxWidth?: number;
   style?: ViewStyle;
+  scrollRef?: React.Ref<React.ComponentRef<typeof ScrollView>>;
 }) {
   const { width } = useWindowDimensions();
   const dockInset = useWorkspaceDockInset();
@@ -147,6 +149,7 @@ export function Page({
   const desktop = width >= tokens.breakpoints.desktop;
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1 }}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{

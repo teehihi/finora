@@ -41,7 +41,7 @@ test('reference a saved simulation, show sourced figures, and restore history', 
     if (requestIds.length === 1) return route.abort('failed');
     return route.continue();
   });
-  await page.goto('/assistant');
+  await page.goto('/assistant?mode=legacy');
   await expect(page.getByRole('heading', { name: 'Cùng hiểu khoản vay' })).toBeVisible();
   await expect(page.getByText('Mô phỏng AI · Cục bộ')).toBeVisible();
   await page.getByRole('button', { name: 'Bản mô phỏng tham chiếu' }).click();

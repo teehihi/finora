@@ -72,6 +72,7 @@ export function VerificationField({
           onChangeText={(value) => setCode(normaliseCode(value))}
           keyboardType="number-pad"
           inputMode="numeric"
+          returnKeyType="go"
           autoComplete="one-time-code"
           textContentType={Platform.OS === 'ios' ? 'oneTimeCode' : undefined}
           autoCapitalize="none"

@@ -15,7 +15,7 @@ test('five destinations adapt at all widths and persist appearance and English',
   for (const [route, heading] of [
     ['home', 'Xin chào, Layout QA.'],
     ['explore', 'Thư viện khoản vay'],
-    ['assistant', 'Cùng hiểu khoản vay'],
+    ['assistant', 'Cùng Fin tính khoản vay'],
     ['loans', 'Khoản vay'],
     ['profile', 'Hồ sơ của bạn'],
   ]) {
@@ -50,7 +50,9 @@ test('five destinations adapt at all widths and persist appearance and English',
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
-  await page.getByRole('button', { name: 'Clear chat history' }).click();
-  await expect(page.getByText(/Delete all saved conversations/)).toBeVisible();
+  await page.getByRole('button', { name: 'Clear Finora AI history', exact: true }).click();
+  await expect(
+    page.getByText(/Only the selected history for this account is removed/),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 });

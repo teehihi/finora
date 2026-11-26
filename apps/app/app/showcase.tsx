@@ -1,135 +1,163 @@
+import { useState } from 'react';
 import { Image, ScrollView, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import {
-  ArrowRight,
-  Calculator,
-  CalendarDays,
-  FileSearch,
-  LockKeyhole,
-  Search,
-  ShieldCheck,
-} from 'lucide-react-native';
-import { Button, Heading, Text, useDesign } from '@finora/ui';
-import { showcaseStrings } from '@finora/i18n';
+import { ArrowRight, Calculator, CalendarDays, FileSearch, ShieldCheck } from 'lucide-react-native';
+import { Action, Button, Eyebrow, Heading, Text, useDesign } from '@finora/ui';
+import { simulate } from '@finora/financial-engine';
+import { getAccessStrings, showcaseStrings } from '@finora/i18n';
 import { Language, Logo } from '../src/components/layout';
 import mascot from '../assets/brand/fin-assistant.png';
+import { BrandLines } from '../src/features/auth/BrandLines';
 
-const icons = [Search, Calculator, FileSearch, CalendarDays] as const;
+const samplePrincipal = 20_000_000;
+const terms = [12, 24] as const;
+const sampleEstimates = terms.map((months) =>
+  simulate({
+    principal: samplePrincipal,
+    annualRate: 12,
+    months,
+    method: 'annuity',
+    fee: null,
+    // Only the amounts are displayed; the schedule's anchor is deliberately fixed in the demo.
+    firstDue: '2026-01-01',
+  }),
+);
+const benefits = [Calculator, FileSearch, CalendarDays] as const;
 
 function ProductPreview() {
   const { colors: c, locale, money } = useDesign();
-  const copy = showcaseStrings[locale];
+  const copy = getAccessStrings(locale);
+  const [choice, setChoice] = useState(0);
+  const estimate = sampleEstimates[choice];
+
   return (
     <View
-      style={{
-        width: '100%',
-        maxWidth: 430,
-        alignSelf: 'center',
-        backgroundColor: c.surface,
-        borderWidth: 1,
-        borderColor: c.border,
-        borderRadius: 28,
-        padding: 16,
-        gap: 14,
-      }}
+      style={{ width: '100%', backgroundColor: c.surface, borderRadius: 24, overflow: 'hidden' }}
     >
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: 7,
-        }}
-      >
-        <Heading size={19}>{copy.preview}</Heading>
-        <Text bold small style={{ color: c.primary, fontSize: 11 }}>
-          {copy.sample}
-        </Text>
-      </View>
-      <View
-        style={{
-          padding: 15,
-          borderRadius: 19,
-          backgroundColor: c.forest,
-          overflow: 'hidden',
-          gap: 6,
-        }}
-      >
-        <View
-          pointerEvents="none"
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            position: 'absolute',
-            borderWidth: 22,
-            borderRadius: 92,
-            width: 162,
-            height: 162,
-            borderColor: '#B7F68E19',
-            top: -61,
-            right: -50,
-          }}
-        />
-        <Text small style={{ color: c.onForestMuted }}>
-          {copy.capacity}
-        </Text>
-        <Heading size={30} style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}>
-          {money(5500000)}
+      <View style={{ backgroundColor: c.forest, padding: 19, gap: 8, overflow: 'hidden' }}>
+        <BrandLines />
+        <Eyebrow tone="onForest">{copy.sample}</Eyebrow>
+        <Text style={{ color: c.onForestMuted }}>{copy.sampleTitle}</Text>
+        <Heading size={31} style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}>
+          {money(samplePrincipal)}
         </Heading>
-        <Text small style={{ color: c.onForestMuted }}>
-          {copy.basis}
-        </Text>
       </View>
-      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
-        {icons.map((Icon, i) => (
-          <View key={copy.actions[i]} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
-            <View
-              style={{
-                width: 39,
-                height: 39,
-                borderRadius: 12,
-                backgroundColor: c.secondary,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon size={18} color={c.primary} />
+      <View
+        style={{
+          borderColor: c.border,
+          borderWidth: 1,
+          borderTopWidth: 0,
+          borderBottomLeftRadius: 24,
+          borderBottomRightRadius: 24,
+          padding: 17,
+          gap: 13,
+        }}
+      >
+        <View style={{ gap: 7 }}>
+          <Text small bold>
+            {copy.term}
+          </Text>
+          <View
+            accessibilityRole="radiogroup"
+            accessibilityLabel={copy.term}
+            style={{
+              flexDirection: 'row',
+              backgroundColor: c.elevated,
+              borderRadius: 13,
+              padding: 3,
+              gap: 4,
+            }}
+          >
+            {terms.map((term, index) => {
+              const label = copy.months.replace('{count}', String(term));
+              const selected = choice === index;
+              return (
+                <Action
+                  key={term}
+                  label={label}
+                  role="radio"
+                  selected={selected}
+                  onPress={() => setChoice(index)}
+                  style={{
+                    flex: 1,
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: selected ? c.borderStrong : 'transparent',
+                    backgroundColor: selected ? c.surface : 'transparent',
+                    paddingHorizontal: 4,
+                    paddingVertical: 7,
+                    minHeight: 44,
+                  }}
+                >
+                  <Text
+                    bold={selected}
+                    style={{ textAlign: 'center', color: selected ? c.primary : c.muted }}
+                  >
+                    {label}
+                  </Text>
+                </Action>
+              );
+            })}
+          </View>
+        </View>
+        <View accessibilityLiveRegion="polite" aria-live="polite" style={{ gap: 10 }}>
+          <View
+            style={{
+              borderBottomColor: c.border,
+              borderBottomWidth: 1,
+              paddingBottom: 10,
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Text muted>{copy.firstPayment}</Text>
+            <View testID="showcase-first-payment">
+              <Text bold style={{ color: c.primary, fontSize: 18, fontVariant: ['tabular-nums'] }}>
+                {money(estimate.firstPayment)}
+              </Text>
             </View>
-            <Text small bold style={{ textAlign: 'center', fontSize: 10, lineHeight: 15 }}>
-              {copy.actions[i]}
+          </View>
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              gap: 6,
+            }}
+          >
+            <Text small muted>
+              {copy.interest}
+            </Text>
+            <Text small style={{ fontVariant: ['tabular-nums'] }}>
+              {money(estimate.interest)}
             </Text>
           </View>
-        ))}
-      </View>
-      <View
-        style={{
-          borderRadius: 17,
-          backgroundColor: c.secondary,
-          padding: 12,
-          gap: 6,
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
-      >
-        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-          <Text bold style={{ color: c.primary, fontSize: 12, lineHeight: 17 }}>
-            Finora AI
-          </Text>
-          <Text bold small>
-            {copy.banner}
-          </Text>
-          <Text muted small>
-            {copy.assistant}
-          </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              gap: 6,
+            }}
+          >
+            <Text bold>{copy.total}</Text>
+            <Text bold style={{ fontVariant: ['tabular-nums'] }}>
+              {money(estimate.repayment)}
+            </Text>
+          </View>
         </View>
-        <Image
-          source={mascot}
-          accessibilityIgnoresInvertColors
-          resizeMode="contain"
-          style={{ width: 61, height: 64 }}
-        />
+        {choice === 1 ? (
+          <Text small style={{ color: c.primary }}>
+            {copy.longerTerm}
+          </Text>
+        ) : null}
+        <Text small muted>
+          {copy.sampleNotes}
+        </Text>
       </View>
     </View>
   );
@@ -138,96 +166,105 @@ function ProductPreview() {
 export default function Showcase() {
   const { colors: c, locale, t } = useDesign();
   const { width } = useWindowDimensions();
-  const wide = width >= 1024;
-  const copy = showcaseStrings[locale];
+  const wide = width >= 960;
+  const copy = getAccessStrings(locale);
+  const legacy = showcaseStrings[locale === 'en-US' ? 'en-US' : 'vi-VN'];
+  const signIn = () => router.push('/auth');
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
       <ScrollView
-        contentContainerStyle={{ alignItems: 'center', paddingHorizontal: wide ? 44 : 18 }}
+        contentContainerStyle={{ alignItems: 'center', paddingHorizontal: wide ? 44 : 19 }}
       >
-        <View style={{ width: '100%', maxWidth: 1180, paddingBottom: 46 }}>
+        <View style={{ width: '100%', maxWidth: 1100, paddingBottom: 38 }}>
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: 10,
-              minHeight: wide ? 80 : 63,
+              gap: 9,
+              minHeight: wide ? 75 : 57,
+              borderBottomWidth: 1,
+              borderColor: c.border,
             }}
           >
             <Logo small={!wide} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
               <Language />
-              <Button label={t('signIn')} variant="outline" onPress={() => router.push('/auth')} />
+              <Button label={t('signIn')} variant="text" onPress={signIn} />
             </View>
           </View>
           <View
             style={{
-              borderRadius: 29,
-              backgroundColor: c.secondary,
-              gap: wide ? 30 : 21,
-              padding: wide ? 42 : 18,
+              marginTop: wide ? 43 : 24,
               flexDirection: wide ? 'row' : 'column',
-              alignItems: wide ? 'center' : undefined,
+              alignItems: wide ? 'center' : 'stretch',
+              gap: wide ? 52 : 22,
             }}
           >
             <View style={{ flex: wide ? 1 : undefined, minWidth: 0, gap: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <ShieldCheck size={17} color={c.primary} />
-                <Text small bold style={{ color: c.primary }}>
-                  {copy.tagline}
-                </Text>
-              </View>
-              <Heading size={wide ? 47 : 34}>{copy.title}</Heading>
-              <Text muted style={{ maxWidth: 450 }}>
-                {copy.intro}
+              <Eyebrow tone="forest">{legacy.tagline}</Eyebrow>
+              <Heading size={wide ? 47 : 33} style={{ maxWidth: 410 }}>
+                {wide ? copy.previewHeadingWide : copy.previewHeading}
+              </Heading>
+              <Text muted style={{ maxWidth: 398, lineHeight: 24 }}>
+                {copy.previewBody}
               </Text>
-              <View style={{ alignSelf: wide ? 'flex-start' : 'stretch', marginTop: 5 }}>
+              <View style={{ alignSelf: wide ? 'flex-start' : 'stretch', marginTop: 3 }}>
                 <Button
-                  label={copy.start}
-                  onPress={() => router.push('/auth')}
+                  label={legacy.start}
+                  onPress={signIn}
                   icon={<ArrowRight size={18} color={c.onPrimary} />}
                 />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: 420 }}>
+                <Image
+                  source={mascot}
+                  resizeMode="contain"
+                  accessibilityIgnoresInvertColors
+                  style={{ width: 32, height: 33 }}
+                />
+                <Text small muted>
+                  {copy.privateSample}
+                </Text>
               </View>
             </View>
             <View style={{ flex: wide ? 1 : undefined, minWidth: 0 }}>
               <ProductPreview />
             </View>
           </View>
-          <View style={{ marginTop: wide ? 42 : 26, gap: 13 }}>
-            <Heading size={25}>{copy.benefits}</Heading>
-            <View style={{ flexDirection: wide ? 'row' : 'column', gap: 10 }}>
-              {copy.explain.map(([title, description], i) => {
-                const Icon = icons[i + 1];
+          <View style={{ marginTop: wide ? 42 : 29, gap: 11 }}>
+            <Heading size={23}>{copy.toolsHeading}</Heading>
+            <View style={{ flexDirection: wide ? 'row' : 'column', gap: wide ? 24 : 0 }}>
+              {copy.tools.map(([title, description], i) => {
+                const Icon = benefits[i];
                 return (
                   <View
                     key={title}
                     style={{
                       flex: wide ? 1 : undefined,
                       minWidth: 0,
-                      borderRadius: 17,
-                      backgroundColor: c.surface,
-                      borderWidth: 1,
+                      borderTopWidth: 1,
                       borderColor: c.border,
-                      padding: 13,
+                      paddingVertical: 11,
                       flexDirection: 'row',
                       alignItems: 'flex-start',
-                      gap: 11,
+                      gap: 12,
                     }}
                   >
                     <View
                       style={{
-                        backgroundColor: c.secondary,
-                        borderRadius: 11,
-                        width: 37,
-                        height: 37,
                         alignItems: 'center',
                         justifyContent: 'center',
+                        backgroundColor: c.secondary,
+                        borderRadius: 11,
+                        width: 36,
+                        height: 36,
                       }}
                     >
-                      <Icon size={19} color={c.primary} />
+                      <Icon size={18} color={c.primary} />
                     </View>
-                    <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                    <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                       <Text bold>{title}</Text>
                       <Text small muted>
                         {description}
@@ -238,8 +275,8 @@ export default function Showcase() {
               })}
             </View>
           </View>
-          <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center', marginTop: 18 }}>
-            <LockKeyhole size={15} color={c.primary} />
+          <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center', marginTop: 11 }}>
+            <ShieldCheck size={16} color={c.primary} />
             <Text small muted>
               {copy.privacy}
             </Text>

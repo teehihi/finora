@@ -72,3 +72,70 @@ describe('monthly VND ledger', () => {
     expect(() => affordability({ income: 0, debt: 0, expenses: 0 })).toThrow();
   });
 });
+
+describe('financial cap, fee, and calendar audit', () => {
+  it.each(['flat', 'annuity', 'equalPrincipal'] as Method[])(
+    'does not spread one-time fees into the payment schedule for %s',
+    (method) => {
+      const terms = { ...base, method, principal: 1_200, months: 12, annualRate: 0 };
+      const unknown = simulate(terms);
+      const noFee = simulate({ ...terms, fee: 0 });
+      const known = simulate({ ...terms, fee: 150 });
+      expect(known.schedule).toEqual(unknown.schedule);
+      expect(known.firstPayment).toBe(100);
+      expect(known.interest).toBe(0);
+      expect(unknown.total).toBeNull();
+      expect(noFee.total).toBe(1_200);
+      expect(known.total).toBe(1_350);
+    },
+  );
+
+  it('preserves UTC date-only anchors through rollover and non-leap February', () => {
+    expect(
+      simulate({ ...base, months: 4, firstDue: '2026-12-31' }).schedule.map((x) => x.date),
+    ).toEqual(['2026-12-31', '2027-01-31', '2027-02-28', '2027-03-31']);
+  });
+
+  it('keeps safe integer VND at the accepted principal/rate/term bounds', () => {
+    const input = {
+      ...base,
+      principal: 1_000_000_000_000,
+      annualRate: 0.0001,
+      months: 360,
+      fee: 1_000_000_000_000,
+      method: 'annuity' as const,
+    };
+    const result = simulate(input);
+    expect(result.schedule[0].interest).toBe(83_333);
+    expect(result.schedule).toHaveLength(360);
+    expect(result.schedule.every((row) => Number.isSafeInteger(row.payment))).toBe(true);
+    expect(result.schedule.at(-1)?.balance).toBe(0);
+    expect(result.total).toBe(result.repayment + input.fee);
+  });
+
+  it('discloses through the ledger when a rounded tiny installment ends with a larger final payment', () => {
+    const result = simulate({ ...base, principal: 1, annualRate: 0, method: 'annuity', months: 2 });
+    // The rounded first installment consumes the full balance; the final payment is zero here.
+    expect(result.schedule.map((row) => row.payment)).toEqual([1, 0]);
+    const firstBelowHalf = simulate({
+      ...base,
+      principal: 1,
+      annualRate: 0,
+      method: 'annuity',
+      months: 3,
+    });
+    expect(firstBelowHalf.schedule.map((row) => row.payment)).toEqual([0, 0, 1]);
+  });
+
+  it('never claims target debt headroom that cannot be covered after expenses', () => {
+    expect(
+      affordability({ income: 16_000_000, expenses: 13_000_000, debt: 4_000_000 }),
+    ).toMatchObject({
+      monthlyBudget: 0,
+      debtToIncome: 25,
+    });
+    expect(() =>
+      affordability({ income: 16_000_000, expenses: 4_000_000, debt: 0 }, 1.01),
+    ).toThrow();
+  });
+});
