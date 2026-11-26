@@ -18,6 +18,10 @@ import {
   Check,
   ChevronDown,
   CircleHelp,
+  Calculator,
+  FileSearch,
+  ReceiptText,
+  WalletCards,
   Paperclip,
   Square,
 } from 'lucide-react-native';
@@ -28,6 +32,12 @@ import { Action, BottomSheet, Heading, SourceAttribution, Text, useDesign } from
 import { Data, useWorkspaceDockInset } from '../../src/components/layout';
 import { api, auth } from '../../src/services/client';
 import { requestId } from '../../src/services/request-id';
+import {
+  FinancePrompt,
+  FinAvatar,
+  FinIntro,
+  ModeMark,
+} from '../../src/features/intelligence/presentation';
 
 type PendingTurn = {
   request: ChatRequest;
@@ -71,7 +81,7 @@ function AssistantWorkspace({ uid, simulationId }: { uid: string; simulationId?:
     lastStored.answer === turn.answer
       ? null
       : turn;
-  const compactConversation = !twoColumns && Boolean(visibleTurn || history.data?.length);
+  const engaged = Boolean(visibleTurn || history.data?.length);
 
   useEffect(() => {
     if (typeof simulationId === 'string') choose(simulationId);
@@ -161,52 +171,31 @@ function AssistantWorkspace({ uid, simulationId }: { uid: string; simulationId?:
       }}
     >
       <View style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
-        <View
-          style={{
-            paddingTop: twoColumns ? 25 : 14,
-            paddingBottom: 12,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            columnGap: 12,
-            rowGap: 2,
-            borderBottomWidth: 1,
-            borderColor: c.border,
-          }}
-        >
-          {compactConversation ? (
-            <Heading size={21}>{t('assistantTitle')}</Heading>
-          ) : (
-            <Text bold style={{ color: c.primary, fontSize: 12, letterSpacing: 1.3 }}>
-              {t('ai').toUpperCase()}
-            </Text>
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-            <View style={{ backgroundColor: c.accent, width: 6, height: 6, borderRadius: 3 }} />
-            <Text small muted>
-              {t('mock')}
-            </Text>
+        {engaged ? (
+          <View
+            style={{
+              paddingVertical: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+              <FinAvatar />
+              <Heading size={19}>{t('assistantTitle')}</Heading>
+            </View>
+            <ModeMark label={t('mock')} />
           </View>
-        </View>
-        <Action
-          label={t('intelligenceOpen')}
-          onPress={() => router.push('/intelligence')}
-          style={{
-            gap: 8,
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 3,
-            borderBottomWidth: 1,
-            borderColor: c.border,
-            borderRadius: 0,
-          }}
-        >
-          <Text small bold style={{ flex: 1, color: c.primary }}>
-            {t('intelligenceOpen')}
-          </Text>
-          <ArrowRight size={15} color={c.primary} />
-        </Action>
+        ) : null}
+        {engaged ? (
+          <FinancePrompt
+            label={t('intelligenceOpen')}
+            icon={<Calculator size={16} color={c.primary} />}
+            onPress={() => router.push('/intelligence')}
+          />
+        ) : null}
         <ScrollView
           ref={feed}
           style={{ flex: 1, minHeight: 0 }}
@@ -226,47 +215,58 @@ function AssistantWorkspace({ uid, simulationId }: { uid: string; simulationId?:
             if (followFeed.current) feed.current?.scrollToEnd({ animated: false });
           }}
           contentContainerStyle={{
-            gap: 22,
-            paddingTop: twoColumns ? 27 : 18,
+            gap: 15,
+            paddingTop: twoColumns ? 12 : 14,
             paddingBottom: 20,
             paddingRight: twoColumns ? 12 : 0,
           }}
         >
-          {!compactConversation ? (
-            <View style={{ gap: 7, maxWidth: 550 }}>
-              <Heading size={twoColumns ? 53 : 35}>{t('assistantTitle')}</Heading>
-              <Text muted>{t('assistantHint')}</Text>
+          {!engaged ? (
+            <FinIntro
+              title={t('assistantTitle')}
+              description={t('assistantHint')}
+              wide={twoColumns}
+              mode={t('mock')}
+            />
+          ) : null}
+          {!engaged ? (
+            <View style={{ flexDirection: width >= 730 ? 'row' : 'column', gap: 7 }}>
+              <FinancePrompt
+                label={t('intelligenceOpen')}
+                icon={<Calculator size={16} color={c.primary} />}
+                onPress={() => router.push('/intelligence')}
+                style={{ flex: width >= 730 ? 1 : undefined }}
+              />
+              <FinancePrompt
+                label={t('intelligenceDocuments')}
+                icon={<FileSearch size={16} color={c.primary} />}
+                onPress={() => router.push('/documents')}
+                style={{ flex: width >= 730 ? 1 : undefined }}
+              />
             </View>
           ) : null}
           <Data q={{ ...history, isError: history.isError && history.data === undefined }}>
             {(all) => (
               <>
                 {!all.length && !visibleTurn ? (
-                  <View style={{ gap: 5, marginTop: twoColumns ? 36 : 12 }}>
-                    <Text small bold muted style={{ letterSpacing: 0.7 }}>
+                  <View style={{ gap: 7, marginTop: 1 }}>
+                    <Heading size={17} style={{ marginBottom: 2 }}>
                       {t('assistantStartingPoints')}
-                    </Text>
-                    {(['askInterest', 'askFee', 'assistantAskPlanning'] as const).map(
-                      (key, index) => (
-                        <Action
-                          key={key}
-                          label={t(key)}
-                          onPress={() => void send(t(key))}
-                          style={{
-                            ...actionRow,
-                            borderTopWidth: 1,
-                            borderColor: c.border,
-                            borderRadius: 0,
-                          }}
-                        >
-                          <Text small muted style={{ width: 24, fontVariant: ['tabular-nums'] }}>
-                            0{index + 1}
-                          </Text>
-                          <Text style={{ flex: 1, fontSize: 15 }}>{t(key)}</Text>
-                          <ArrowRight size={17} color={c.primary} />
-                        </Action>
-                      ),
-                    )}
+                    </Heading>
+                    {(
+                      [
+                        ['askInterest', Calculator],
+                        ['askFee', ReceiptText],
+                        ['assistantAskPlanning', WalletCards],
+                      ] as const
+                    ).map(([key, Icon]) => (
+                      <FinancePrompt
+                        key={key}
+                        label={t(key)}
+                        onPress={() => void send(t(key))}
+                        icon={<Icon size={16} color={c.primary} />}
+                      />
+                    ))}
                   </View>
                 ) : null}
                 {all.map((row, index) => {
@@ -349,11 +349,10 @@ function AssistantWorkspace({ uid, simulationId }: { uid: string; simulationId?:
         ) : null}
         <View
           style={{
-            paddingVertical: 9,
-            gap: 6,
+            paddingTop: 5,
+            paddingBottom: 2,
+            gap: 4,
             backgroundColor: c.background,
-            borderTopWidth: 1,
-            borderColor: c.border,
           }}
         >
           {!twoColumns ? (
@@ -391,7 +390,7 @@ function AssistantWorkspace({ uid, simulationId }: { uid: string; simulationId?:
               backgroundColor: c.surface,
               borderWidth: 1,
               borderColor: composerFocused ? c.focus : c.border,
-              borderRadius: 14,
+              borderRadius: 18,
             }}
           >
             <TextInput
@@ -447,17 +446,20 @@ function AssistantWorkspace({ uid, simulationId }: { uid: string; simulationId?:
       {twoColumns ? (
         <View
           style={{
-            marginLeft: 26,
-            borderLeftWidth: 1,
+            marginTop: 14,
+            marginLeft: 20,
+            alignSelf: 'flex-start',
+            backgroundColor: c.surface,
+            borderWidth: 1,
             borderColor: c.border,
-            width: width >= 1440 ? 298 : 238,
-            paddingLeft: 22,
-            paddingTop: 29,
-            gap: 15,
+            borderRadius: 19,
+            width: width >= 1440 ? 282 : 224,
+            padding: 15,
+            gap: 11,
           }}
         >
           <BookOpen size={20} color={c.primary} />
-          <Heading size={28}>{t('context')}</Heading>
+          <Heading size={19}>{t('context')}</Heading>
           <Text small muted>
             {t('assistantContextHint')}
           </Text>
@@ -567,9 +569,17 @@ function TurnContent({
         <Text style={{ fontSize: 15 }}>{prompt}</Text>
       </View>
       {answer ? (
-        <View style={{ alignItems: 'flex-start', gap: 8 }}>
+        <View
+          style={{
+            alignItems: 'flex-start',
+            gap: 8,
+            padding: 13,
+            borderRadius: 16,
+            backgroundColor: c.surface,
+          }}
+        >
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: 7 }}>
-            <BookOpen size={14} color={c.primary} />
+            <FinAvatar />
             <Text small bold style={{ color: c.primary }}>
               {t('ai')}
             </Text>
@@ -648,9 +658,8 @@ function FactsLedger({
       style={{
         width: '100%',
         maxWidth: 520,
-        borderLeftWidth: 2,
-        borderColor: c.accent,
-        backgroundColor: c.elevated,
+        borderRadius: 12,
+        backgroundColor: c.secondary,
         paddingHorizontal: 12,
         paddingVertical: 10,
         marginTop: 4,

@@ -3,6 +3,8 @@ import { View } from 'react-native';
 import { Text, Heading, Button, RiskIndicator, useDesign } from '@finora/ui';
 import { date } from '@finora/i18n';
 import type { Estimate, LoanInput } from '@finora/contracts';
+import { CalendarDays } from 'lucide-react-native';
+import { MarketPanel } from './market-ui';
 
 export function Breakdown({
   input,
@@ -18,8 +20,12 @@ export function Breakdown({
   const { t, money, colors: c, locale } = useDesign();
   const local = (vi: string, en: string) => (locale === 'vi-VN' ? vi : en);
   const [limit, more] = useState(6);
-  const principalShare =
-    result.repayment > 0 ? Math.max(0, Math.min(1, input.principal / result.repayment)) : 0;
+  const chartTotal = result.total ?? result.repayment;
+  const costParts = [
+    { color: c.chartPrincipal, value: input.principal },
+    { color: c.chartInterest, value: result.interest },
+    ...(input.fee === null ? [] : [{ color: c.chartFee, value: input.fee }]),
+  ];
   const highest = Math.max(0, ...result.schedule.map((row) => row.payment));
   const ledger = [
     [t('principal'), money(input.principal)],
@@ -29,19 +35,17 @@ export function Breakdown({
     [t('total'), result.total === null ? t('unknown') : money(result.total)],
   ];
   return (
-    <View style={{ gap: 24 }}>
-      <View style={{ gap: 16 }} accessibilityLiveRegion="polite">
-        <View style={{ backgroundColor: c.forest, borderRadius: 18, padding: 22, gap: 9 }}>
-          <Text small bold style={{ color: c.onForestMuted, letterSpacing: 1.2 }}>
-            {local('02 / KẾT QUẢ MÔ PHỎNG', '02 / SIMULATION RESULTS')}
-          </Text>
-          <Heading size={27} style={{ color: c.onForest }}>
+    <View style={{ gap: 18 }}>
+      <View style={{ gap: 12 }} accessibilityLiveRegion="polite">
+        <View style={{ backgroundColor: c.forest, borderRadius: 20, padding: 18, gap: 8 }}>
+          <Heading size={21} style={{ color: c.onForest }}>
             {t('breakdown')}
           </Heading>
           <Text small style={{ color: c.onForestMuted }}>
             {t('firstPayment')}
           </Text>
           <Text
+            bold
             style={{
               color: c.onForest,
               fontSize: 34,
@@ -57,58 +61,68 @@ export function Breakdown({
             </Text>
           ) : null}
         </View>
-        <View
-          accessible={false}
-          style={{
-            height: 8,
-            borderRadius: 4,
-            overflow: 'hidden',
-            flexDirection: 'row',
-            backgroundColor: c.chartInterest,
-          }}
-        >
+        <MarketPanel>
+          <Heading size={17}>{local('Cơ cấu chi phí', 'Cost breakdown')}</Heading>
           <View
+            accessible={false}
             style={{
-              width: (100 * principalShare + '%') as `${number}%`,
-              height: 8,
-              backgroundColor: c.chartPrincipal,
+              height: 10,
+              borderRadius: 5,
+              overflow: 'hidden',
+              flexDirection: 'row',
+              gap: 2,
             }}
-          />
-        </View>
-        <View style={{ gap: 0 }}>
-          {ledger.map(([label, value], i) => (
-            <View
-              key={label}
-              style={{
-                paddingVertical: 8,
-                borderBottomWidth: 1,
-                borderColor: c.border,
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                gap: 10,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
-                {i <= 1 ? (
-                  <View
-                    style={{
-                      height: 7,
-                      width: 7,
-                      borderRadius: 2,
-                      backgroundColor: i === 0 ? c.chartPrincipal : c.chartInterest,
-                    }}
-                  />
-                ) : null}
-                <Text small muted>
-                  {label}
+          >
+            {costParts
+              .filter((part) => part.value > 0)
+              .map((part) => (
+                <View
+                  key={part.color}
+                  style={{
+                    flexGrow: chartTotal > 0 ? part.value / chartTotal : 0,
+                    flexBasis: 0,
+                    height: 10,
+                    backgroundColor: part.color,
+                  }}
+                />
+              ))}
+          </View>
+          <View style={{ gap: 5 }}>
+            {ledger.map(([label, value], i) => (
+              <View
+                key={label}
+                style={{
+                  paddingVertical: i === 5 ? 9 : 4,
+                  paddingHorizontal: i === 5 ? 8 : 0,
+                  borderRadius: 8,
+                  backgroundColor: i === 5 ? c.elevated : undefined,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
+                  {i < 2 || (i === 3 && input.fee !== null) ? (
+                    <View
+                      style={{
+                        height: 8,
+                        width: 8,
+                        borderRadius: 3,
+                        backgroundColor: costParts[i === 3 ? 2 : i].color,
+                      }}
+                    />
+                  ) : null}
+                  <Text small muted>
+                    {label}
+                  </Text>
+                </View>
+                <Text small bold style={{ fontVariant: ['tabular-nums'], textAlign: 'right' }}>
+                  {value}
                 </Text>
               </View>
-              <Text small bold style={{ fontVariant: ['tabular-nums'], textAlign: 'right' }}>
-                {value}
-              </Text>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        </MarketPanel>
         {input.fee === null ? <RiskIndicator>{t('unknownFee')}</RiskIndicator> : null}
         {budget !== undefined ? (
           <Text small muted>
@@ -119,33 +133,50 @@ export function Breakdown({
         ) : null}
         {actions}
       </View>
-      <View style={{ gap: 11 }}>
-        <Heading size={25}>{t('schedule')}</Heading>
-        <View style={{ borderTopWidth: 1, borderColor: c.border }}>
+      <MarketPanel style={{ gap: 11 }}>
+        <Heading size={20}>{t('schedule')}</Heading>
+        <View style={{ gap: 3 }}>
           {result.schedule.slice(0, limit).map((row) => (
             <View
               key={row.period}
-              style={{ gap: 5, paddingVertical: 11, borderBottomWidth: 1, borderColor: c.border }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: 9,
+                backgroundColor: row.period === 1 ? c.secondary : c.elevated,
+                padding: 10,
+                borderRadius: 10,
+              }}
             >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
-                <Text bold>
-                  {t('period')} {row.period} · {date(row.date, locale)}
-                </Text>
-                <Text bold style={{ fontVariant: ['tabular-nums'], textAlign: 'right' }}>
-                  {money(row.payment)}
+              <CalendarDays size={16} color={c.primary} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    gap: 5,
+                  }}
+                >
+                  <Text bold small>
+                    {t('period')} {row.period} · {date(row.date, locale)}
+                  </Text>
+                  <Text bold small style={{ fontVariant: ['tabular-nums'] }}>
+                    {money(row.payment)}
+                  </Text>
+                </View>
+                <Text small muted style={{ fontVariant: ['tabular-nums'] }}>
+                  {t('principal')} {money(row.principal)} · {t('interest')} {money(row.interest)} ·{' '}
+                  {t('balance')} {money(row.balance)}
                 </Text>
               </View>
-              <Text small muted style={{ fontVariant: ['tabular-nums'] }}>
-                {t('principal')} {money(row.principal)} · {t('interest')} {money(row.interest)} ·{' '}
-                {t('balance')} {money(row.balance)}
-              </Text>
             </View>
           ))}
         </View>
         {limit < result.schedule.length ? (
-          <Button label={t('more')} variant="outline" onPress={() => more((n) => n + 12)} />
+          <Button label={t('more')} variant="soft" onPress={() => more((n) => n + 12)} />
         ) : null}
-      </View>
+      </MarketPanel>
     </View>
   );
 }

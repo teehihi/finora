@@ -65,7 +65,7 @@ Native dùng Expo SecureStore và plugin Expo của Better Auth, web dùng cooki
 
 ### Mã nguồn và tài liệu
 
-- `apps/app` chứa Expo Router, ứng dụng di động và React Native Web. Mở `/showcase` trong Metro để xem hệ thống thiết kế.
+- `apps/app` chứa Expo Router, ứng dụng di động và React Native Web. Mở `/showcase` trên web để xem trang giới thiệu FINORA. Ứng dụng vẫn mở màn đăng nhập khi chưa có phiên.
 - `apps/api` chứa NestJS, Better Auth, kiểm tra quyền, lưu trữ private và trợ lý SSE.
 - `packages` chứa hợp đồng Zod, bộ tính, Prisma, API client, bản dịch, design token và thành phần giao diện.
 - [Kiến trúc](docs/architecture/ARCHITECTURE.md) · [Cơ sở dữ liệu](docs/architecture/DATABASE.md) · [Trợ lý AI](docs/architecture/AI_ARCHITECTURE.md) · [Công thức](docs/architecture/CALCULATIONS.md).
@@ -80,3 +80,7 @@ Public lender terms are sourced and separate from the sample catalog. AI uses a
 clearly labeled local mode by default; external interpretation is optional,
 server-configured and requires consent for each question. No service deployment
 or lender application is part of the demo.
+
+### Consumer Fintech 4.0
+
+[Xem hướng thiết kế, bản thử và bằng chứng kiểm tra giao diện](docs/design-system/FINORA_V4.md).

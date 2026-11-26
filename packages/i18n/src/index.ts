@@ -599,3 +599,4 @@ export const date = (value: string | Date, locale: Locale) =>
   }).format(new Date(value));
 
 export { documentStrings } from './document';
+export { accessStrings, showcaseStrings } from './access';

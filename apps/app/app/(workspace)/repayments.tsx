@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, CircleCheck } from 'lucide-react-native';
-import { Button, Dialog, Heading, Progress, Text, useDesign } from '@finora/ui';
+import { CalendarClock, CalendarDays, CircleCheck, CreditCard } from 'lucide-react-native';
+import { Button, Dialog, EmptyState, Heading, Progress, Text, useDesign } from '@finora/ui';
 import { date, numeric } from '@finora/i18n';
 import type { DueRepayment, TrackedPayment, TrackedRepayment } from '@finora/contracts';
 import { Back, Data, Page } from '../../src/components/layout';
@@ -33,7 +33,6 @@ export default function Repayments() {
   return (
     <Page
       title={t('repaymentsTitle')}
-      eyebrow={t('repaymentsKicker')}
       description={t('repaymentsIntro')}
       top={<Back to={() => router.navigate('/loans')} />}
     >
@@ -41,6 +40,18 @@ export default function Repayments() {
         {(value) =>
           value.loans.length ? (
             <>
+              <View style={{ backgroundColor: c.forest, borderRadius: 24, padding: 20, gap: 7 }}>
+                <CreditCard size={22} color={c.onForestMuted} />
+                <Text small style={{ color: c.onForestMuted }}>
+                  {t('repaymentsRemainingTotal')}
+                </Text>
+                <Heading size={35} style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}>
+                  {money(value.loans.reduce((sum, loan) => sum + loan.remainingRepayment, 0))}
+                </Heading>
+                <Text small style={{ color: c.onForestMuted }}>
+                  {t('repaymentsManualNotice')}
+                </Text>
+              </View>
               <View style={{ flexDirection: width >= 1024 ? 'row' : 'column', gap: 14 }}>
                 <DuePanel
                   heading={t('repaymentsDueNext')}
@@ -70,22 +81,18 @@ export default function Repayments() {
               ))}
             </>
           ) : (
-            <View
-              style={{
-                gap: 12,
-                alignItems: 'flex-start',
-                paddingVertical: 20,
-                borderTopWidth: 1,
-                borderColor: c.border,
-              }}
-            >
-              <CalendarClock size={21} color={c.primary} />
-              <Heading size={24}>{t('emptyActive')}</Heading>
-              <Text muted>{t('repaymentsUntrackedNote')}</Text>
-              <Button
-                variant="outline"
-                label={t('saved')}
-                onPress={() => router.navigate('/loans')}
+            <View style={{ backgroundColor: c.surface, borderRadius: 24, padding: 20 }}>
+              <EmptyState
+                title={t('emptyActive')}
+                body={t('repaymentsUntrackedNote')}
+                icon={<CalendarClock size={25} color={c.primary} />}
+                action={
+                  <Button
+                    variant="outline"
+                    label={t('saved')}
+                    onPress={() => router.navigate('/loans')}
+                  />
+                }
               />
             </View>
           )
@@ -149,27 +156,24 @@ function DuePanel({
         flex: 1,
         minWidth: 0,
         gap: 8,
-        borderRadius: 14,
+        borderRadius: 20,
         padding: 18,
-        backgroundColor: overdue ? c.elevated : c.forest,
+        backgroundColor: overdue ? c.surface : c.secondary,
       }}
     >
-      <Text bold small style={{ color: overdue ? c.warning : c.onForestMuted }}>
+      <Text bold small style={{ color: overdue ? c.warning : c.primary }}>
         {heading}
       </Text>
-      <Heading
-        size={30}
-        style={{ color: overdue ? c.foreground : c.onForest, fontVariant: ['tabular-nums'] }}
-      >
+      <Heading size={30} style={{ color: c.foreground, fontVariant: ['tabular-nums'] }}>
         {money(total)}
       </Heading>
       {range ? (
-        <Text small style={{ color: c.onForestMuted }}>
+        <Text small style={{ color: c.muted }}>
           {range}
         </Text>
       ) : null}
       {!items.length ? (
-        <Text small style={{ color: overdue ? c.muted : c.onForestMuted }}>
+        <Text small style={{ color: c.muted }}>
           {t('repaymentsNoDue')}
         </Text>
       ) : null}
@@ -181,18 +185,14 @@ function DuePanel({
             gap: 9,
             alignItems: 'baseline',
             borderTopWidth: 1,
-            borderColor: overdue ? c.border : 'rgba(218,229,217,0.25)',
+            borderColor: c.border,
             paddingVertical: 7,
           }}
         >
-          <Text small style={{ flex: 1, color: overdue ? c.foreground : c.onForest }}>
+          <Text small style={{ flex: 1, color: c.foreground }}>
             {item.title} · {date(item.date, locale)}
           </Text>
-          <Text
-            small
-            bold
-            style={{ color: overdue ? c.foreground : c.onForest, fontVariant: ['tabular-nums'] }}
-          >
+          <Text small bold style={{ color: c.foreground, fontVariant: ['tabular-nums'] }}>
             {money(item.payment)}
           </Text>
         </View>
@@ -200,7 +200,7 @@ function DuePanel({
       {items.length > shown ? (
         <View style={{ alignSelf: 'flex-start' }}>
           <Button
-            variant={overdue ? 'outline' : 'onForest'}
+            variant="outline"
             label={t('repaymentsMorePeriods')}
             onPress={() => setShown((current) => current + 8)}
           />
@@ -223,8 +223,22 @@ function LoanArticle({
     .replace('{paid}', numeric(loan.paidPeriods, locale))
     .replace('{total}', numeric(loan.schedule.length, locale));
   return (
-    <View style={{ paddingTop: 19, borderTopWidth: 1, borderColor: c.border, gap: 12 }}>
-      <Heading size={25}>{loan.title}</Heading>
+    <View style={{ backgroundColor: c.surface, borderRadius: 22, padding: 18, gap: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 13,
+            backgroundColor: c.secondary,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <CalendarDays size={19} color={c.primary} />
+        </View>
+        <Heading size={23}>{loan.title}</Heading>
+      </View>
       <Text small bold>
         {progress}
       </Text>
@@ -252,8 +266,10 @@ function LoanArticle({
           <View
             key={payment.period}
             style={{
-              borderTopWidth: 1,
-              borderColor: c.border,
+              borderRadius: 12,
+              backgroundColor: c.background,
+              marginBottom: 6,
+              paddingHorizontal: 9,
               flexDirection: 'row',
               alignItems: 'center',
               flexWrap: 'wrap',
@@ -261,6 +277,22 @@ function LoanArticle({
               paddingVertical: 8,
             }}
           >
+            <View
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 10,
+                backgroundColor: payment.paid ? c.secondary : c.surface,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {payment.paid ? (
+                <CircleCheck size={16} color={c.success} />
+              ) : (
+                <CalendarDays size={15} color={c.muted} />
+              )}
+            </View>
             <View style={{ flex: 1, minWidth: 133, gap: 2 }}>
               <Text bold small>
                 {t('repaymentsPeriod').replace('{n}', numeric(payment.period, locale))} ·{' '}

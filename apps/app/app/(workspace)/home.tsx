@@ -1,29 +1,30 @@
-import { ScrollView, View, useWindowDimensions } from 'react-native';
+import { Image, ScrollView, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import {
   ArrowRight,
   ArrowUpRight,
-  BookOpen,
+  Calculator,
   CalendarDays,
-  Compass,
+  ChevronRight,
+  FileScan,
   Info,
-  MessageCircle,
-  ShieldCheck,
-  Sparkles,
+  Search,
+  Wallet,
 } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
-import { Action, Button, Heading, Text, useDesign } from '@finora/ui';
+import { Action, Button, Heading, IconTile, Text, useDesign } from '@finora/ui';
 import { date, percent } from '@finora/i18n';
 import { api, auth } from '../../src/services/client';
 import { useAccount } from '../../src/providers/AppProviders';
 import { useRepaymentLedger } from '../../src/features/repayments';
-import { Page, Data, Columns, LinkRow } from '../../src/components/layout';
+import { Data, useWorkspaceDockInset } from '../../src/components/layout';
+import fin from '../../assets/brand/fin-assistant.png';
 
 export default function Home() {
   const { t, colors: c, money, locale } = useDesign();
   const { width } = useWindowDimensions();
-  const session = auth.useSession();
-  const user = session.data?.user;
+  const dockInset = useWorkspaceDockInset();
+  const user = auth.useSession().data?.user;
   const account = useAccount();
   const { ledger } = useRepaymentLedger();
   const saved = useQuery({
@@ -32,471 +33,370 @@ export default function Home() {
     enabled: !!user?.id,
   });
   const vi = locale === 'vi-VN';
-  const choose = (vn: string, en: string) => (vi ? vn : en);
-  const large = width >= 1024;
-  if (width < 768) {
-    const name = user?.name?.trim().split(/\s+/).at(-1);
-    return (
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 118 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ gap: 6 }}>
-          <Text role="header" style={{ fontSize: 27, lineHeight: 34, letterSpacing: -0.7 }}>
-            {name ? choose(`Chào, ${name}`, `Hello, ${name}`) : choose('Chào bạn', 'Hello there')}
-          </Text>
-          <Text muted>
-            {choose(
-              'Mình cùng xem kế hoạch tài chính của bạn nhé.',
-              "Let's look at your financial plan.",
-            )}
-          </Text>
-        </View>
+  const tr = (vn: string, en: string) => (vi ? vn : en);
+  const desktop = width >= 1024;
+  const name = user?.name?.trim();
+  const panel = { backgroundColor: c.surface, borderRadius: 21, padding: 16, gap: 10 } as const;
+  const shortcut = [
+    [tr('Tìm khoản vay', 'Find a loan'), '/explore', Search, c.secondary, c.primary],
+    [
+      tr('Mô phỏng', 'Simulate'),
+      '/explore?mode=sample',
+      Calculator,
+      c.actionBlueSurface,
+      c.actionBlue,
+    ],
+    [
+      tr('Đọc hợp đồng', 'Read a contract'),
+      '/documents',
+      FileScan,
+      c.actionAmberSurface,
+      c.actionAmber,
+    ],
+    [
+      tr('Lịch trả nợ', 'Repayment'),
+      '/repayments',
+      CalendarDays,
+      c.actionVioletSurface,
+      c.actionViolet,
+    ],
+  ] as const;
 
-        <View style={{ marginTop: 30, gap: 8 }}>
-          <Text small muted>
-            {choose('Khả năng trả thêm mỗi tháng', 'Estimated room to repay each month')}
-          </Text>
-          <Data q={account}>
-            {(a) => (
-              <View style={{ gap: 8 }}>
-                {a.readiness ? (
-                  <Text
-                    style={{
-                      fontSize: 35,
-                      lineHeight: 43,
-                      fontVariant: ['tabular-nums'],
-                      letterSpacing: -1.1,
-                      color: c.primary,
-                    }}
-                  >
-                    {money(a.readiness.monthlyBudget)}
+  const capacity = (
+    <View
+      style={{
+        ...panel,
+        position: 'relative',
+        overflow: 'hidden',
+        backgroundColor: c.forest,
+        padding: desktop ? 23 : 18,
+      }}
+    >
+      <View
+        pointerEvents="none"
+        accessible={false}
+        style={{ position: 'absolute', top: -72, right: -37 }}
+      >
+        {[180, 142, 104].map((size) => (
+          <View
+            key={size}
+            style={{
+              position: 'absolute',
+              top: (180 - size) / 2,
+              right: (180 - size) / 2,
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              borderWidth: 1,
+              borderColor: 'rgba(217,255,222,0.23)',
+            }}
+          />
+        ))}
+      </View>
+      <Text bold small style={{ color: c.onForestMuted }}>
+        {tr('Khả năng trả thêm mỗi tháng', 'Estimated room to repay each month')}
+      </Text>
+      <Data q={account}>
+        {(a) => (
+          <>
+            {a.readiness ? (
+              <>
+                <Heading
+                  size={desktop ? 43 : 33}
+                  style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}
+                >
+                  {money(a.readiness.monthlyBudget)}
+                </Heading>
+                <View style={{ gap: 5 }}>
+                  <Text small style={{ color: c.onForestMuted, maxWidth: 375 }}>
+                    {tr(
+                      'Ước tính từ hồ sơ, theo ngưỡng trả nợ 35%. Không phải hạn mức tín dụng.',
+                      'A profile-based estimate using a 35% debt planning cap. Not a credit limit.',
+                    )}
                   </Text>
-                ) : (
-                  <Text
-                    role="header"
-                    style={{ fontSize: 22, lineHeight: 29, letterSpacing: -0.45 }}
-                  >
-                    {choose('Bắt đầu từ thông tin của bạn', 'Start with your financial details')}
-                  </Text>
-                )}
-                <Text muted style={{ fontSize: 14, lineHeight: 21 }}>
-                  {a.readiness
-                    ? choose(
-                        'Ước tính từ thu nhập, chi phí và khoản trả nợ bạn đã nhập. Dùng ngưỡng kế hoạch 35%, không phải hạn mức được duyệt.',
-                        'Estimated from the income, expenses and repayments you entered. Uses a 35% planning cap; it is not an approved credit limit.',
-                      )
-                    : choose(
-                        'Thêm thu nhập, chi phí và khoản trả nợ để xem mức tham khảo. Finora chưa có đủ thông tin để ước tính.',
-                        'Add your income, expenses and repayments to see a planning estimate. There is not enough information to calculate one yet.',
-                      )}
-                </Text>
-                {!a.readiness ? (
                   <Action
-                    label={t(a.profile ? 'editProfile' : 'addProfile')}
                     onPress={() => router.navigate('/profile')}
+                    label={t('editProfile')}
                     style={{
                       alignSelf: 'flex-start',
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 7,
-                      marginTop: 2,
                     }}
                   >
-                    <Text bold style={{ color: c.primary }}>
-                      {t(a.profile ? 'editProfile' : 'addProfile')}
+                    <Info size={15} color={c.onForestMuted} />
+                    <Text small bold style={{ color: c.onForest }}>
+                      {tr('Tỷ lệ trả nợ hiện tại', 'Current debt-to-income')}:{' '}
+                      {percent(a.readiness.debtToIncome, locale)}
                     </Text>
-                    <ArrowUpRight size={16} color={c.primary} />
-                  </Action>
-                ) : null}
-              </View>
-            )}
-          </Data>
-        </View>
-
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
-          <Action
-            label={choose('Thử mô phỏng vay', 'Try a loan simulation')}
-            onPress={() => router.navigate('/explore?mode=sample')}
-            style={{
-              flex: 1,
-              minHeight: 50,
-              borderRadius: 14,
-              backgroundColor: c.primary,
-              paddingHorizontal: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-            }}
-          >
-            <Compass size={18} color={c.onPrimary} />
-            <Text small bold style={{ color: c.onPrimary }}>
-              {choose('Mô phỏng', 'Simulate')}
-            </Text>
-          </Action>
-          <Action
-            label={t('ai')}
-            onPress={() => router.navigate('/assistant')}
-            style={{
-              flex: 1,
-              minHeight: 50,
-              borderRadius: 14,
-              backgroundColor: c.secondary,
-              paddingHorizontal: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-            }}
-          >
-            <Sparkles size={18} color={c.primary} />
-            <Text small bold style={{ color: c.primary }}>
-              Finora AI
-            </Text>
-          </Action>
-        </View>
-
-        <View style={{ marginTop: 30 }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 8,
-            }}
-          >
-            <Text role="header" style={{ fontSize: 18, lineHeight: 25, letterSpacing: -0.3 }}>
-              {choose('Mô phỏng gần đây', 'Recent simulations')}
-            </Text>
-            <Action label={t('seeAll')} onPress={() => router.navigate('/loans')}>
-              <Text small bold style={{ color: c.primary }}>
-                {t('seeAll')}
-              </Text>
-            </Action>
-          </View>
-          <Data q={saved}>
-            {(rows) =>
-              rows.length ? (
-                <View>
-                  {rows.slice(0, 3).map((row) => (
-                    <Action
-                      key={row.id}
-                      label={`${vi ? row.product.name : row.product.nameEn}, ${money(row.input.principal)}`}
-                      onPress={() => router.push('/saved/' + row.id)}
-                      style={{
-                        minHeight: 66,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 12,
-                        borderTopWidth: 1,
-                        borderColor: c.border,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 12,
-                          backgroundColor: c.secondary,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <BookOpen size={17} color={c.primary} />
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-                        <Text bold style={{ flexShrink: 1 }}>
-                          {vi ? row.product.name : row.product.nameEn}
-                        </Text>
-                        <Text small muted>
-                          {money(row.input.principal)} · {date(row.createdAt, locale)}
-                        </Text>
-                      </View>
-                      <ArrowRight size={17} color={c.muted} />
-                    </Action>
-                  ))}
-                </View>
-              ) : (
-                <View
-                  style={{
-                    borderTopWidth: 1,
-                    borderColor: c.border,
-                    paddingTop: 14,
-                    paddingBottom: 8,
-                    gap: 5,
-                  }}
-                >
-                  <Text bold>{t('emptySaved')}</Text>
-                  <Text small muted>
-                    {t('emptySavedText')}
-                  </Text>
-                  <Action
-                    label={t('learn')}
-                    onPress={() => router.navigate('/explore?mode=sample')}
-                    style={{
-                      alignSelf: 'flex-start',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                      marginTop: 3,
-                    }}
-                  >
-                    <Text small bold style={{ color: c.primary }}>
-                      {t('learn')}
-                    </Text>
-                    <ArrowUpRight size={15} color={c.primary} />
+                    <ChevronRight size={15} color={c.onForestMuted} />
                   </Action>
                 </View>
-              )
-            }
-          </Data>
-        </View>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: 9,
-            marginTop: 22,
-            paddingTop: 15,
-            borderTopWidth: 1,
-            borderColor: c.border,
-          }}
-        >
-          <Info size={17} color={c.muted} style={{ marginTop: 2 }} />
-          <View style={{ flex: 1, gap: 5 }}>
-            <Text small bold>
-              {t('upcoming')}
-            </Text>
-            <Data q={ledger}>
-              {(value) => {
-                const next = value.upcoming[0];
-                return (
-                  <View style={{ gap: 4 }}>
-                    {next ? (
-                      <Action
-                        label={`${next.title}, ${date(next.date, locale)}, ${money(next.payment)}`}
-                        onPress={() => router.push('/repayments')}
-                        style={{
-                          alignSelf: 'flex-start',
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 8,
-                        }}
-                      >
-                        <CalendarDays size={16} color={c.primary} />
-                        <Text small bold>
-                          {next.title}
-                        </Text>
-                        <Text small muted>
-                          {date(next.date, locale)} · {money(next.payment)}
-                        </Text>
-                        <ArrowRight size={15} color={c.muted} />
-                      </Action>
-                    ) : (
-                      <Text small muted>
-                        {value.loans.length ? t('repaymentsNoDue') : t('repaymentsUntrackedNote')}
-                      </Text>
-                    )}
-                    {value.overdue.length ? (
-                      <Text small style={{ color: c.warning }}>
-                        {t('repaymentsLate')}: {money(value.overdueTotal)}
-                      </Text>
-                    ) : null}
-                  </View>
-                );
-              }}
-            </Data>
-          </View>
-        </View>
-      </ScrollView>
-    );
-  }
-  return (
-    <Page
-      title={user?.name?.trim() ? t('greet') + ', ' + user.name.trim() + '.' : t('greet') + '!'}
-      description={choose(
-        'Hiểu mình trả được bao nhiêu, trước khi chọn vay.',
-        'Know what you can repay before deciding to borrow.',
-      )}
-    >
-      <Columns style={{ gap: large ? 32 : 24 }}>
-        <View style={{ flex: large ? 1.7 : undefined, minWidth: 0 }}>
-          <Data q={account}>
-            {(a) => (
-              <View
-                style={{
-                  backgroundColor: c.forest,
-                  borderRadius: 22,
-                  padding: large ? 34 : 20,
-                  gap: large ? 17 : 12,
-                }}
-              >
-                <View style={{ gap: 6 }}>
-                  <Text small bold style={{ color: c.onForestMuted, letterSpacing: 1.2 }}>
-                    {choose('KHẢ NĂNG TRẢ THÊM HẰNG THÁNG', 'ESTIMATED MONTHLY ROOM TO REPAY')}
-                  </Text>
-                  {a.readiness ? (
-                    <Text
-                      style={{
-                        color: c.onForest,
-                        fontSize: large ? 52 : 35,
-                        lineHeight: large ? 61 : 45,
-                        fontVariant: ['tabular-nums'],
-                        letterSpacing: -1,
-                      }}
-                    >
-                      {money(a.readiness.monthlyBudget)}
-                    </Text>
-                  ) : (
-                    <Heading size={large ? 37 : 30} style={{ color: c.onForest }}>
-                      {choose('Bắt đầu từ ngân sách của bạn.', 'Start with your budget.')}
-                    </Heading>
+              </>
+            ) : (
+              <>
+                <Heading size={25} style={{ color: c.onForest }}>
+                  {tr('Bạn có thể trả bao nhiêu?', 'What could you afford?')}
+                </Heading>
+                <Text small style={{ color: c.onForestMuted }}>
+                  {tr(
+                    'Thêm thu nhập, chi phí và khoản trả nợ để FINORA ước tính.',
+                    'Add income, expenses and repayments for a FINORA estimate.',
                   )}
-                  <Text style={{ color: c.onForestMuted, lineHeight: 24, maxWidth: 520 }}>
-                    {a.readiness
-                      ? choose(
-                          'Ước tính từ thu nhập, chi phí và tiền trả nợ bạn đã nhập.',
-                          'Estimated from the income, expenses and repayments you entered.',
-                        )
-                      : t('readinessHint')}
-                  </Text>
-                </View>
-                {a.readiness ? (
-                  <View
-                    style={{
-                      paddingTop: large ? 14 : 10,
-                      borderTopWidth: 1,
-                      borderColor: 'rgba(220,230,215,0.30)',
-                      gap: 4,
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'baseline',
-                        gap: 10,
-                      }}
-                    >
-                      <Text small style={{ color: c.onForestMuted }}>
-                        {t('ratio')}
-                      </Text>
-                      <Text small bold style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}>
-                        {percent(a.readiness.debtToIncome, locale)}
-                      </Text>
-                    </View>
-                    <Text small style={{ color: c.onForestMuted }}>
-                      {choose(
-                        'Dùng ngưỡng trả nợ 35% để lập kế hoạch. Đây không phải hạn mức được duyệt.',
-                        'Uses a 35% debt-to-income planning cap, not an approved credit limit.',
-                      )}
-                    </Text>
-                  </View>
-                ) : null}
-                <View style={{ alignSelf: 'flex-start' }}>
+                </Text>
+                <View style={{ alignSelf: 'flex-start', marginTop: 4 }}>
                   <Button
-                    variant="onForest"
                     label={t(a.profile ? 'editProfile' : 'addProfile')}
+                    variant="onForest"
                     onPress={() => router.navigate('/profile')}
-                    icon={<ArrowUpRight size={16} color={c.forest} />}
                   />
                 </View>
-              </View>
+              </>
             )}
-          </Data>
-        </View>
-        <View
-          style={{ flex: large ? 1 : undefined, minWidth: 0, paddingTop: large ? 8 : 0, gap: 6 }}
-        >
-          <Text small bold muted style={{ letterSpacing: 1.2 }}>
-            {choose('ĐI TIẾP TỪ ĐÂY', 'CONTINUE FROM HERE')}
+          </>
+        )}
+      </Data>
+    </View>
+  );
+
+  const actions = (
+    <View style={{ ...panel, flexDirection: 'row', gap: 6, padding: 12 }}>
+      {shortcut.map(([label, href, Icon, bg, fg]) => (
+        <IconTile
+          key={label}
+          label={label}
+          onPress={() => router.navigate(href)}
+          background={bg}
+          icon={<Icon size={22} color={fg} strokeWidth={1.9} />}
+        />
+      ))}
+    </View>
+  );
+
+  const ai = (
+    <Action
+      label={tr('Hỏi Fin ngay', 'Ask Fin')}
+      onPress={() => router.navigate('/assistant')}
+      style={{
+        ...panel,
+        backgroundColor: c.secondary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 13,
+        gap: 8,
+      }}
+    >
+      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+        <Text small bold style={{ color: c.primary }}>
+          Finora AI
+        </Text>
+        <Heading size={19}>{tr('Đang có kế hoạch vay?', 'Planning to borrow?')}</Heading>
+        <Text small muted>
+          {tr('So sánh chi phí, hiểu điều khoản.', 'Compare costs and understand terms.')}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingTop: 3 }}>
+          <Text bold small style={{ color: c.primary }}>
+            {tr('Hỏi Fin ngay', 'Ask Fin')}
           </Text>
-          <Heading size={27}>{choose('Hai cách để bắt đầu', 'Two ways to get started')}</Heading>
-          <View style={{ borderBottomWidth: 1, borderColor: c.border }}>
-            <LinkRow
-              title={t('learn')}
-              body={choose(
-                'Thử lãi suất và kỳ hạn trước khi quyết định.',
-                'Try a rate and term before making a decision.',
-              )}
-              icon={<Compass size={20} color={c.primary} />}
-              onPress={() => router.navigate('/explore?mode=sample')}
-            />
-          </View>
-          <LinkRow
-            title={t('ai')}
-            body={choose(
-              'Hỏi kỹ hơn về gốc, lãi và phí.',
-              'Get a clearer answer about principal, interest and fees.',
-            )}
-            icon={<MessageCircle size={20} color={c.primary} />}
-            onPress={() => router.navigate('/assistant')}
-          />
+          <ArrowUpRight size={15} color={c.primary} />
         </View>
-      </Columns>
-      <View style={{ marginTop: large ? 16 : 4, gap: 10 }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-          }}
-        >
-          <Heading size={28}>{t('saved')}</Heading>
-          <Action label={t('seeAll')} onPress={() => router.navigate('/loans')}>
-            <Text small bold style={{ color: c.primary }}>
-              {t('seeAll')}
-            </Text>
-          </Action>
-        </View>
-        <Data q={saved}>
-          {(rows) => (
-            <View style={{ borderTopWidth: 1, borderColor: c.border }}>
-              {rows.length ? (
-                rows.slice(0, 3).map((r) => (
-                  <View key={r.id} style={{ borderBottomWidth: 1, borderColor: c.border }}>
-                    <LinkRow
-                      title={vi ? r.product.name : r.product.nameEn}
-                      body={money(r.input.principal) + '  ·  ' + date(r.createdAt, locale)}
-                      icon={<BookOpen size={18} color={c.primary} />}
-                      onPress={() => router.push('/saved/' + r.id)}
-                    />
-                  </View>
-                ))
-              ) : (
-                <LinkRow
-                  title={t('emptySaved')}
-                  body={t('emptySavedText')}
-                  icon={<BookOpen size={18} color={c.primary} />}
-                  onPress={() => router.navigate('/explore?mode=sample')}
-                />
-              )}
-            </View>
-          )}
-        </Data>
       </View>
+      <Image
+        source={fin}
+        accessible={false}
+        resizeMode="contain"
+        style={{ width: desktop ? 100 : 75, height: desktop ? 100 : 75 }}
+      />
+    </Action>
+  );
+
+  const activity = (
+    <View style={panel}>
       <View
         style={{
-          borderTopWidth: 1,
-          borderColor: c.border,
-          paddingTop: 16,
           flexDirection: 'row',
-          alignItems: 'flex-start',
-          gap: 11,
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 9,
         }}
       >
-        <ShieldCheck size={19} color={c.primary} />
-        <View style={{ gap: 4, flex: 1 }}>
-          <Text bold>{t('upcoming')}</Text>
-          <Text muted small>
-            {t('emptyActive')}
+        <Heading size={20}>{tr('Khoản vay của bạn', 'Your loans')}</Heading>
+        <Action label={t('seeAll')} onPress={() => router.navigate('/loans')}>
+          <Text small bold style={{ color: c.primary }}>
+            {t('seeAll')}
           </Text>
-        </View>
+        </Action>
       </View>
-    </Page>
+      <Data q={ledger}>
+        {(value) => {
+          const next = value.upcoming[0];
+          const row = (title: string, detail: string, amount?: number) => (
+            <ActivityRow
+              title={title}
+              detail={detail}
+              amount={amount}
+              icon={CalendarDays}
+              onPress={() => router.navigate('/repayments')}
+            />
+          );
+          return (
+            <>
+              {value.overdue.length
+                ? row(
+                    t('repaymentsLate'),
+                    tr('Cần xem lại lịch thanh toán', 'Review your payment schedule'),
+                    value.overdueTotal,
+                  )
+                : null}
+              {next
+                ? row(t('upcoming'), next.title + ' · ' + date(next.date, locale), next.payment)
+                : row(t('upcoming'), value.loans.length ? t('repaymentsNoDue') : t('emptyActive'))}
+            </>
+          );
+        }}
+      </Data>
+      <Data q={saved}>
+        {(rows) => (
+          <>
+            {rows.length ? (
+              rows
+                .slice(0, 3)
+                .map((row) => (
+                  <ActivityRow
+                    key={row.id}
+                    title={vi ? row.product.name : row.product.nameEn}
+                    detail={
+                      tr('Mô phỏng đã lưu', 'Saved simulation') +
+                      ' · ' +
+                      date(row.createdAt, locale)
+                    }
+                    amount={row.input.principal}
+                    icon={Wallet}
+                    onPress={() => router.push('/saved/' + row.id)}
+                  />
+                ))
+            ) : (
+              <ActivityRow
+                title={t('emptySaved')}
+                detail={tr(
+                  'Thử một phương án vay để bắt đầu.',
+                  'Try a borrowing scenario to get started.',
+                )}
+                icon={Wallet}
+                onPress={() => router.navigate('/explore?mode=sample')}
+              />
+            )}
+          </>
+        )}
+      </Data>
+    </View>
+  );
+
+  return (
+    <ScrollView
+      style={{ flex: 1 }}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
+        alignItems: 'center',
+        paddingHorizontal: desktop ? 38 : 16,
+        paddingTop: desktop ? 24 : 15,
+        paddingBottom: dockInset + 25,
+      }}
+    >
+      <View style={{ width: '100%', maxWidth: 1056, gap: 15 }}>
+        <View style={{ gap: 3, paddingHorizontal: 2 }}>
+          <Text small muted>
+            {tr('Tài chính của bạn', 'Your finances')}
+          </Text>
+          <Heading size={desktop ? 31 : 26}>
+            {name
+              ? width < 768
+                ? tr('Chào, ', 'Hello, ') + name.split(/\s+/).at(-1)
+                : t('greet') + ', ' + name + '.'
+              : t('greet') + '!'}
+          </Heading>
+        </View>
+        {desktop ? (
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 18 }}>
+            <View style={{ flex: 1.35, minWidth: 0, gap: 15 }}>
+              {capacity}
+              {actions}
+              {ai}
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>{activity}</View>
+          </View>
+        ) : (
+          <>
+            {capacity}
+            {actions}
+            {ai}
+            {activity}
+          </>
+        )}
+      </View>
+    </ScrollView>
+  );
+}
+
+function ActivityRow({
+  title,
+  detail,
+  amount,
+  icon: Icon,
+  onPress,
+}: {
+  title: string;
+  detail: string;
+  amount?: number;
+  icon: typeof Wallet | typeof CalendarDays;
+  onPress: () => void;
+}) {
+  const { colors: c, money } = useDesign();
+  return (
+    <Action
+      label={amount === undefined ? title : title + ', ' + money(amount)}
+      onPress={onPress}
+      style={{
+        minHeight: 64,
+        padding: 9,
+        backgroundColor: c.background,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 9,
+      }}
+    >
+      <View
+        style={{
+          width: 35,
+          height: 35,
+          borderRadius: 12,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: c.secondary,
+        }}
+      >
+        <Icon size={17} color={c.primary} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text bold small>
+          {title}
+        </Text>
+        <Text small muted>
+          {detail}
+        </Text>
+      </View>
+      {amount !== undefined ? (
+        <Text
+          small
+          bold
+          style={{ maxWidth: '37%', textAlign: 'right', fontVariant: ['tabular-nums'] }}
+        >
+          {money(amount)}
+        </Text>
+      ) : (
+        <ArrowRight size={15} color={c.muted} />
+      )}
+    </Action>
   );
 }

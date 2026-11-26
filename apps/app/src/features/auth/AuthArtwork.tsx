@@ -1,94 +1,100 @@
-import { View, useWindowDimensions } from 'react-native';
-import { Text, useDesign } from '@finora/ui';
-import { tokens } from '@finora/design-tokens';
+import { Image, View } from 'react-native';
+import { CalendarDays, Calculator, FileSearch } from 'lucide-react-native';
+import { Heading, Text, useDesign } from '@finora/ui';
+import { accessStrings } from '@finora/i18n';
+import mascot from '../../../assets/brand/fin-assistant.png';
 
-const ledger = ['authEditorialPrincipal', 'authEditorialCost', 'authEditorialSchedule'] as const;
-
-export function AuthArtwork({
-  wide,
-  verification = false,
-}: {
-  wide: boolean;
-  verification?: boolean;
-}) {
-  const { colors: c, locale, t } = useDesign();
-  const { width } = useWindowDimensions();
-  const editorialSize = width >= 1280 ? 57 : 43;
-  if (!wide)
-    return (
-      <View style={{ gap: 6, paddingBottom: 15, borderBottomWidth: 1, borderColor: c.border }}>
-        <Text bold style={{ fontSize: 10, lineHeight: 16, letterSpacing: 1.5, color: c.muted }}>
-          {t(verification ? 'authOtpStep' : 'authEditorialLabel')}
-        </Text>
-        {!verification ? (
-          <Text style={{ fontSize: 15, color: c.primary }}>{t('welcome').replace('\n', ' ')}</Text>
-        ) : null}
-      </View>
-    );
+export function AuthArtwork({ wide }: { wide: boolean }) {
+  const { colors: c, locale } = useDesign();
+  const copy = accessStrings[locale];
   return (
     <View
       style={{
-        flex: 1,
+        flex: wide ? 1 : undefined,
         minWidth: 0,
-        minHeight: 520,
-        padding: width >= 1280 ? 44 : 28,
-        borderRadius: 20,
+        minHeight: wide ? 540 : 134,
         backgroundColor: c.forest,
+        borderRadius: wide ? 30 : 23,
+        overflow: 'hidden',
         justifyContent: 'space-between',
-        gap: 31,
+        padding: wide ? 30 : 17,
+        paddingBottom: wide ? 24 : 17,
+        gap: wide ? 21 : 0,
       }}
     >
-      <View style={{ gap: 19 }}>
-        <Text
-          bold
-          style={{ color: c.onForestMuted, fontSize: 11, lineHeight: 16, letterSpacing: 2 }}
-        >
-          {t('authEditorialLabel')}
-        </Text>
-        <Text
-          style={{
-            color: c.onForest,
-            fontFamily: locale === 'vi-VN' ? tokens.font.serifVi : tokens.font.serifEn,
-            fontSize: editorialSize,
-            lineHeight: Math.ceil(editorialSize * 1.14),
-            letterSpacing: -editorialSize * 0.034,
-            maxWidth: 510,
-          }}
-        >
-          {t('welcome')}
-        </Text>
-        <Text style={{ color: c.onForestMuted, maxWidth: 330, lineHeight: 24 }}>
-          {t('authEditorialNote')}
-        </Text>
+      <View
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{
+          position: 'absolute',
+          width: wide ? 300 : 190,
+          height: wide ? 300 : 190,
+          right: wide ? -52 : -55,
+          top: -108,
+          borderWidth: 34,
+          borderColor: '#B7F68E1A',
+          borderRadius: 200,
+        }}
+      />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+          <Text bold small style={{ color: '#BDEF9B' }}>
+            Finora
+          </Text>
+          <Heading size={wide ? 37 : 23} style={{ color: c.onForest }}>
+            {copy.welcome}
+          </Heading>
+          {wide ? <Text style={{ color: c.onForestMuted }}>{copy.intro}</Text> : null}
+        </View>
+        {!wide ? (
+          <Image
+            source={mascot}
+            accessibilityIgnoresInvertColors
+            resizeMode="contain"
+            style={{ width: 91, height: 95 }}
+          />
+        ) : null}
       </View>
-      <View accessibilityRole="list">
-        {ledger.map((label, index) => (
-          <View
-            accessibilityRole="listitem"
-            key={label}
-            style={{
-              borderTopWidth: 1,
-              borderColor: 'rgba(218,229,217,0.25)',
-              flexDirection: 'row',
-              alignItems: 'center',
-              columnGap: 20,
-              paddingVertical: 13,
-            }}
-          >
-            <Text
-              style={{
-                color: c.onForestMuted,
-                fontSize: 11,
-                fontVariant: ['tabular-nums'],
-                letterSpacing: 1,
-              }}
-            >
-              0{index + 1}
-            </Text>
-            <Text style={{ color: c.onForest, flex: 1 }}>{t(label)}</Text>
+      {wide ? (
+        <>
+          <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+            <Image
+              source={mascot}
+              accessibilityIgnoresInvertColors
+              resizeMode="contain"
+              style={{ width: 208, height: 180 }}
+            />
           </View>
-        ))}
-      </View>
+          <View accessibilityRole="list" style={{ gap: 8 }}>
+            {(
+              [
+                [Calculator, copy.cost],
+                [FileSearch, copy.terms],
+                [CalendarDays, copy.schedule],
+              ] as const
+            ).map(([Icon, label]) => (
+              <View
+                key={label}
+                accessibilityRole="listitem"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 11,
+                  borderRadius: 13,
+                  backgroundColor: '#FFFFFF14',
+                  padding: 11,
+                }}
+              >
+                <Icon size={18} color="#BDEF9B" />
+                <Text small bold style={{ color: c.onForest }}>
+                  {label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
     </View>
   );
 }

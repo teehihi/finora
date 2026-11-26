@@ -92,8 +92,7 @@ test('an authenticated legacy user verifies their own email without losing passw
   await expect(page.getByText('Email đã xác minh', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
-  await expect(page).toHaveURL(/\/$/);
-  await page.goto('/auth');
+  await expect(page).toHaveURL(/\/auth$/);
   await signIn();
   await expect(page).toHaveURL(/\/home$/);
   await page.getByRole('tab', { name: 'Hồ sơ' }).click();

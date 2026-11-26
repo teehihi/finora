@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurTargetView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import {
-  BookOpen,
+  House,
   ChevronRight,
   Compass,
   Sparkle,
@@ -31,7 +31,7 @@ import { auth } from '../../src/services/client';
 import { date } from '@finora/i18n';
 
 const links = [
-  ['home', '/home', BookOpen],
+  ['home', '/home', House],
   ['explore', '/explore', Compass],
   ['ai', '/assistant', Sparkle],
   ['loans', '/loans', Wallet],
@@ -169,6 +169,110 @@ export default function Workspace() {
     });
   }, [indicatorX, reduceMotion]);
 
+  // RN Web's touch-history PanResponder can lose part of a mouse drag when
+  // taking over from a pressed tab. Track actual pointer travel on web only.
+  // Native still uses the original PanResponder and Liquid Glass indicator.
+  const userId = data?.user.id;
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !showDock || !userId) return;
+    const node = dock.current as unknown as HTMLElement | null;
+    if (!node?.getBoundingClientRect) return;
+    let start: { id: number; x: number; y: number; index: number; step: number } | null = null;
+    let skipClick = false;
+    let skipTimer: ReturnType<typeof setTimeout> | undefined;
+    const previousTouch = node.style.touchAction;
+    const previousSelect = node.style.userSelect;
+    node.style.touchAction = 'pan-y';
+    node.style.userSelect = 'none';
+
+    const snap = (index: number, step: number) => {
+      const toValue = index * step;
+      if (reduceMotion) indicatorX.setValue(toValue);
+      else
+        Animated.timing(indicatorX, {
+          toValue,
+          duration: tokens.motion.navigation,
+          useNativeDriver: false,
+        }).start();
+    };
+    const down = (event: PointerEvent) => {
+      if (!event.isPrimary || event.button !== 0) return;
+      skipClick = false;
+      clearTimeout(skipTimer);
+      const { left, width: dockWidth } = node.getBoundingClientRect();
+      const step = dockWidth / links.length;
+      const index = selectedIndex.current;
+      if (step <= 0 || Math.floor((event.clientX - left) / step) !== index) return;
+      start = { id: event.pointerId, x: event.clientX, y: event.clientY, index, step };
+    };
+    const move = (event: PointerEvent) => {
+      if (!start || event.pointerId !== start.id) return;
+      const dx = event.clientX - start.x;
+      if (!isDragging.current) {
+        const dy = event.clientY - start.y;
+        if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) {
+          start = null;
+          return;
+        }
+        if (Math.abs(dx) <= 8 || Math.abs(dx) <= Math.abs(dy)) return;
+        isDragging.current = true;
+        indicatorX.stopAnimation();
+      }
+      if (event.cancelable) event.preventDefault();
+      const last = links.length - 1;
+      indicatorX.setValue(Math.max(0, Math.min(last * start.step, start.index * start.step + dx)));
+    };
+    const finish = (event?: PointerEvent) => {
+      const pending = start;
+      if (!pending || (event && pending.id !== event.pointerId)) return;
+      start = null;
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      skipClick = true;
+      skipTimer = setTimeout(() => {
+        skipClick = false;
+      }, 400);
+      const next =
+        event?.type === 'pointerup'
+          ? Math.max(
+              0,
+              Math.min(
+                links.length - 1,
+                Math.round(pending.index + (event.clientX - pending.x) / pending.step),
+              ),
+            )
+          : pending.index;
+      snap(next, pending.step);
+      if (next !== pending.index) router.replace(links[next][1]);
+    };
+    const click = (event: MouseEvent) => {
+      // Keyboard and assistive/programmatic activation have no pointer count.
+      if (!skipClick || event.detail === 0) return;
+      skipClick = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const blur = () => finish();
+    node.addEventListener('pointerdown', down);
+    node.addEventListener('click', click, true);
+    window.addEventListener('pointermove', move, { capture: true, passive: false });
+    window.addEventListener('pointerup', finish, true);
+    window.addEventListener('pointercancel', finish, true);
+    window.addEventListener('blur', blur);
+    return () => {
+      clearTimeout(skipTimer);
+      isDragging.current = false;
+      node.style.touchAction = previousTouch;
+      node.style.userSelect = previousSelect;
+      node.removeEventListener('pointerdown', down);
+      node.removeEventListener('click', click, true);
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', finish, true);
+      window.removeEventListener('pointercancel', finish, true);
+      window.removeEventListener('blur', blur);
+    };
+  }, [indicatorX, reduceMotion, showDock, userId]);
+
   if (isPending) return <LoadingState />;
   if (error) return <ErrorState retry={() => refetch()} />;
   if (!data) return <Redirect href={{ pathname: '/auth', params: { returnTo: path } }} />;
@@ -242,7 +346,7 @@ export default function Workspace() {
               <View
                 style={{
                   width: full ? 222 : 88,
-                  backgroundColor: c.elevated,
+                  backgroundColor: c.surface,
                   paddingHorizontal: full ? 18 : 10,
                   paddingTop: 21,
                   paddingBottom: 24,
@@ -293,6 +397,7 @@ export default function Workspace() {
                       ? tokens.layout.tabletGutter
                       : tokens.layout.gutter,
                   minHeight: rail ? 66 : 58,
+                  backgroundColor: c.surface,
                   borderBottomWidth: 1,
                   borderColor: c.border,
                   flexDirection: 'row',
@@ -370,7 +475,7 @@ export default function Workspace() {
                     dockX.current = x;
                   });
                 }}
-                {...navPan.panHandlers}
+                {...(Platform.OS === 'web' ? {} : navPan.panHandlers)}
                 style={{ flexDirection: 'row', alignItems: 'center', minHeight: 56 }}
               >
                 {navWidth > 0 ? (

@@ -99,7 +99,7 @@ export function PublicPage({
                   <Logo small={width < 768} />
                 </View>
               ) : (
-                <Action label="Finora" onPress={() => router.replace('/')}>
+                <Action label="Finora" onPress={() => router.replace('/showcase')}>
                   <Logo small={width < 768} />
                 </Action>
               )}
@@ -156,15 +156,15 @@ export function Page({
           : tablet
             ? tokens.layout.tabletGutter
             : tokens.layout.gutter,
-        paddingTop: tablet ? 36 : 23,
+        paddingTop: tablet ? 28 : 18,
         paddingBottom: dockInset + 28,
       }}
     >
-      <View style={[{ width: '100%', maxWidth, gap: tablet ? 30 : 22 }, style]}>
+      <View style={[{ width: '100%', maxWidth, gap: tablet ? 25 : 19 }, style]}>
         {top}
         <View style={{ gap: 6 }}>
           {eyebrow ? <Eyebrow tone="forest">{eyebrow}</Eyebrow> : null}
-          <Heading size={desktop ? 49 : 36}>{title}</Heading>
+          <Heading size={desktop ? 38 : 29}>{title}</Heading>
           {description ? (
             <Text muted style={{ maxWidth: tokens.layout.reading }}>
               {description}

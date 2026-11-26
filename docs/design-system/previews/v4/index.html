@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="vi">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  /><title>FINORA · Mobile Home concepts</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #f5f7fa;
+      font:
+        15px system-ui,
+        sans-serif;
+      color: #14231c;
+    }
+    main {
+      width: min(390px, 100%);
+      margin: auto;
+      min-height: 844px;
+      padding: 20px 18px 86px;
+      position: relative;
+    }
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+    h1 {
+      font-size: 23px;
+    }
+    h2 {
+      font-size: 17px;
+    }
+    .label,
+    p {
+      color: #5a6b62;
+      font-size: 13px;
+    }
+    .header,
+    .row,
+    .grid,
+    .dock {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(354px, calc(100% - 36px));
+      padding: 8px;
+      background: #fff;
+      border: 1px solid #e1ebe5;
+      border-radius: 24px;
+      box-shadow: 0 8px 26px #1139201c;
+      font-size: 10px;
+      color: #50685b;
+    }
+    .dock div {
+      text-align: center;
+      flex: 1;
+    }
+    .dock div:first-child {
+      background: #e7f6ec;
+      border-radius: 16px;
+      padding: 4px;
+      color: #126047;
+    }
+    .dock svg {
+      display: block;
+      margin: 0 auto 3px;
+    }
+    section h2 {
+      margin-bottom: 8px;
+    }
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .timeline div {
+      padding-top: 8px;
+      border-top: 3px solid #a5de64;
+    }
+    .timeline div:nth-child(2),
+    .timeline div:nth-child(3) {
+      border-top-color: #ffffff56;
+    }
+    .metric {
+      font-size: 21px;
+      font-weight: 700;
+    }
+    .hint {
+      font-size: 11px;
+      margin-top: 8px;
+    }
+    .list {
+      padding: 9px 0;
+    }
+    .list + .list {
+      border-top: 1px solid #e3ebe7;
+    }
+    svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .tag {
+      font-size: 10px;
+      font-weight: 700;
+      color: #096b45;
+      background: #dcf3e3;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    b {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+  <main id="phone"></main>
+  <script>
+    const shapes = [
+      '<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',
+      '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M8 7h8m-7 5h1m4 0h1m-6 4h1m4 0h1"/>',
+      '<path d="M6 3h8l4 4v14H6zM9 12h6m-6 4h6"/>',
+      '<rect x="4" y="6" width="16" height="14" rx="3"/><path d="M8 3v6m8-6v6M4 11h16"/>',
+      '<path d="M3 11l9-8 9 8v9h-6v-6H9v6H3z"/>',
+      '<path d="M12 3c1 6 3 8 9 9-6 1-8 3-9 9-1-6-3-8-9-9 6-1 8-3 9-9z"/>',
+      '<rect x="3" y="6" width="18" height="14" rx="4"/><path d="M15 12h6"/>',
+      '<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
+    ];
+    const icon = (i) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + shapes[i] + '</svg>';
+    const actions =
+      '<div class="grid">' +
+      ['Tìm khoản vay', 'Mô phỏng', 'Đọc hợp đồng', 'Lịch trả nợ']
+        .map((x, i) => '<div class="tile"><div class="icon">' + icon(i) + '</div>' + x + '</div>')
+        .join('') +
+      '</div>';
+    const estimate =
+      '<span class="label">Khả năng trả thêm mỗi tháng</span><div class="amount">4.250.000 ₫</div><p>Ước tính từ hồ sơ · Không phải hạn mức tín dụng</p>';
+    const ai =
+      '<section class="card green"><div class="row"><div><span class="tag">Finora AI</span><h2 style="margin-top:7px">Đang có kế hoạch vay?</h2><p>Tìm hiểu chi phí trước khi quyết định.</p></div>' +
+      '<img src="../../../../apps/app/assets/brand/fin-assistant.png" width="66" height="66" alt="" />' +
+      '</div><span class="cta">Hỏi Finora</span></section>';
+    const list =
+      '<section class="card"><h2>Hoạt động khoản vay</h2><div class="row list"><div><b>Kế hoạch mua xe</b><p>Mô phỏng đã lưu · 24 tháng</p></div><b>50.000.000 ₫</b></div><div class="row list"><div><b>Khoản trả sắp tới</b><p>18 thg 12 · Kế hoạch theo dõi</p></div><b>2.420.000 ₫</b></div></section>';
+    const mode = new URLSearchParams(location.search).get('v') || 'a';
+    const chip = '<span class="tag">Dữ liệu mẫu</span>';
+    const header =
+      '<div class="header"><div><p>Chào buổi sáng, Thiên</p><h1>Tài chính của bạn</h1></div><span class="avatar">T</span></div>';
+    const dock =
+      '<div class="dock">' +
+      ['Tổng quan', 'Khám phá', 'Finora AI', 'Khoản vay', 'Cá nhân']
+        .map((x, i) => '<div>' + icon([4, 0, 5, 6, 7][i]) + x + '</div>')
+        .join('') +
+      '</div>';
+    const allocation =
+      '<section class="card">' +
+      chip +
+      '<h2 style="margin-top:10px">Phân bổ thu nhập tháng</h2><div class="amount">15.000.000 ₫</div><div class="track"><i style="width:53%"></i><i style="width:7%"></i><i style="width:40%"></i></div><div class="row"><p>Chi phí <b>8 triệu</b></p><p>Nợ <b>1 triệu</b></p><p>Còn <b>6 triệu</b></p></div><p class="hint">Từ hồ sơ đã nhập, không phải lịch sử giao dịch.</p></section>';
+    const due =
+      '<section class="card hero"><p>Kỳ trả tiếp theo · Kế hoạch mua xe</p><div class="amount">2.420.000 ₫</div><div class="timeline"><div><b>18/12</b><p>Kỳ 4</p></div><div><b>18/01</b><p>Kỳ 5</p></div><div><b>18/02</b><p>Kỳ 6</p></div></div><p>Kế hoạch đang theo dõi · Dữ liệu mẫu</p></section>';
+    document.getElementById('phone').innerHTML =
+      header +
+      (mode === 'b'
+        ? allocation +
+          actions +
+          '<section class="card green">' +
+          estimate +
+          '</section>' +
+          ai +
+          list
+        : mode === 'c'
+          ? due + actions + '<section class="card">' + estimate + '</section>' + list + ai
+          : '<section class="card hero">' +
+            estimate +
+            '<p class="hint">Dữ liệu mẫu</p></section>' +
+            actions +
+            ai +
+            list) +
+      dock;
+  </script>
+</html>

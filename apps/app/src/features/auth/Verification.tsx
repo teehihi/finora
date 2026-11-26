@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
-import { Action, Field, Text, useDesign } from '@finora/ui';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
+import { Action, Text, useDesign } from '@finora/ui';
 import { normaliseCode } from './identity';
 
 export const resendDelay = 30_000;
@@ -16,25 +16,73 @@ export function VerificationField({
   onSubmit: () => void;
   editable: boolean;
 }) {
-  const { t } = useDesign();
+  const { colors: c, t } = useDesign();
+  const [focused, setFocused] = useState(false);
+  const label = t('authCodeLabel');
   return (
-    <Field
-      label={t('authCodeLabel')}
-      value={code}
-      autoFocus
-      onChangeText={(value) => setCode(normaliseCode(value))}
-      keyboardType="number-pad"
-      inputMode="numeric"
-      autoComplete="one-time-code"
-      textContentType={Platform.OS === 'ios' ? 'oneTimeCode' : undefined}
-      autoCapitalize="none"
-      autoCorrect={false}
-      // Normalize rather than truncating before normalization so formatted pastes work.
-      style={{ letterSpacing: 7, fontSize: 24, textAlign: 'center', fontVariant: ['tabular-nums'] }}
-      placeholder="000000"
-      editable={editable}
-      onSubmitEditing={onSubmit}
-    />
+    <View style={{ gap: 7 }}>
+      <Text small bold>
+        {label}
+      </Text>
+      <View>
+        <View
+          pointerEvents="none"
+          aria-hidden
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{ flexDirection: 'row', gap: 6 }}
+        >
+          {Array.from({ length: 6 }, (_, index) => {
+            const active = editable && focused && index === Math.min(code.length, 5);
+            return (
+              <View
+                key={index}
+                style={{
+                  flex: 1,
+                  minHeight: 53,
+                  borderRadius: 11,
+                  borderWidth: active ? 2 : 1,
+                  borderColor: active ? c.focus : c.borderStrong,
+                  backgroundColor: active ? c.secondary : c.input,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text
+                  bold
+                  style={{
+                    color: code[index] ? c.foreground : c.muted,
+                    fontSize: 21,
+                    lineHeight: 29,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  {code[index] ?? '·'}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+        <TextInput
+          accessibilityLabel={label}
+          value={code}
+          autoFocus
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onChangeText={(value) => setCode(normaliseCode(value))}
+          keyboardType="number-pad"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          textContentType={Platform.OS === 'ios' ? 'oneTimeCode' : undefined}
+          autoCapitalize="none"
+          autoCorrect={false}
+          // A single input keeps OS autofill, formatted paste and accessible editing.
+          style={[StyleSheet.absoluteFill, { opacity: 0, fontSize: 16 }]}
+          editable={editable}
+          onSubmitEditing={onSubmit}
+        />
+      </View>
+    </View>
   );
 }
 

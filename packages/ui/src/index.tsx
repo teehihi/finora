@@ -72,17 +72,17 @@ export function Heading({
   size?: number;
   style?: TextStyle;
 }) {
-  const { colors, locale } = useDesign();
+  const { colors } = useDesign();
   return (
     <RNText
       accessibilityRole="header"
       style={[
         {
-          fontFamily: locale === 'vi-VN' ? tokens.font.serifVi : tokens.font.serifEn,
+          fontFamily: tokens.font.heading,
           fontSize: size,
           lineHeight: Math.ceil(size * (size >= 32 ? 1.18 : 1.24)),
           color: colors.foreground,
-          letterSpacing: -size * 0.034,
+          letterSpacing: -size * 0.026,
         },
         style,
       ]}
@@ -108,7 +108,6 @@ export function Eyebrow({
       style={{
         ...tokens.type.label,
         color: tone === 'onForest' ? c.onForestMuted : tone === 'forest' ? c.primary : c.muted,
-        textTransform: 'uppercase',
         ...style,
       }}
     >
@@ -269,6 +268,51 @@ export function Button({
     </Action>
   );
 }
+export function IconTile({
+  icon,
+  label,
+  onPress,
+  background,
+}: {
+  icon: ReactNode;
+  label: string;
+  onPress: () => void;
+  background?: string;
+}) {
+  const { colors: c } = useDesign();
+  return (
+    <Action
+      label={label}
+      onPress={onPress}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        minHeight: 76,
+        padding: 3,
+        gap: 6,
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+      }}
+    >
+      <View
+        style={{
+          width: 45,
+          height: 45,
+          borderRadius: 15,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: background || c.secondary,
+        }}
+      >
+        {icon}
+      </View>
+      <Text bold small style={{ textAlign: 'center', fontSize: 12, lineHeight: 16 }}>
+        {label}
+      </Text>
+    </Action>
+  );
+}
+
 export function IconButton({
   label,
   icon,
@@ -652,9 +696,41 @@ export function Skeleton() {
 export function LoadingState() {
   const { t, colors } = useDesign();
   return (
-    <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-      <ActivityIndicator color={colors.primary} />
-      <Text muted>{t('loading')}</Text>
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={t('loading')}
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: tokens.radius.card,
+        padding: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+      }}
+    >
+      <View
+        accessible={false}
+        style={{
+          width: 34,
+          height: 34,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.secondary,
+          borderRadius: 12,
+        }}
+      >
+        <ActivityIndicator color={colors.primary} />
+      </View>
+      <View style={{ flex: 1, gap: 6 }}>
+        <Text small muted>
+          {t('loading')}
+        </Text>
+        <View
+          accessible={false}
+          style={{ width: '62%', backgroundColor: colors.elevated, height: 5, borderRadius: 3 }}
+        />
+      </View>
     </View>
   );
 }
@@ -662,23 +738,31 @@ export function EmptyState({
   title,
   body,
   action,
+  icon,
 }: {
   title: string;
   body?: string;
   action?: ReactNode;
+  icon?: ReactNode;
 }) {
   const { colors: c } = useDesign();
   return (
-    <View
-      style={{
-        borderTopWidth: 1,
-        borderBottomWidth: 1,
-        borderColor: c.border,
-        paddingVertical: 21,
-        gap: 8,
-      }}
-    >
-      <Heading size={23}>{title}</Heading>
+    <View style={{ alignItems: 'flex-start', paddingVertical: 10, gap: 9 }}>
+      {icon ? (
+        <View
+          style={{
+            width: 46,
+            height: 46,
+            borderRadius: 15,
+            backgroundColor: c.secondary,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {icon}
+        </View>
+      ) : null}
+      <Heading size={22}>{title}</Heading>
       {body ? <Text muted>{body}</Text> : null}
       {action ? <View style={{ alignSelf: 'flex-start' }}>{action}</View> : null}
     </View>
@@ -687,7 +771,16 @@ export function EmptyState({
 export function ErrorState({ retry }: { retry: () => void }) {
   const { t, colors: c } = useDesign();
   return (
-    <View style={{ borderLeftWidth: 2, borderColor: c.error, padding: 16, gap: 10 }}>
+    <View
+      style={{
+        borderWidth: 1,
+        borderRadius: tokens.radius.card,
+        borderColor: c.border,
+        backgroundColor: c.surface,
+        padding: 16,
+        gap: 10,
+      }}
+    >
       <Text role="alert" style={{ color: c.error }}>
         {t('error')}
       </Text>

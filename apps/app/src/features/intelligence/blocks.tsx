@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { Link, router } from 'expo-router';
-import { ArrowUpRight } from 'lucide-react-native';
+import { ArrowUpRight, CircleAlert, Info, Landmark } from 'lucide-react-native';
 import type { IntelligenceBlock } from '@finora/contracts';
-import { Action, Button, Dialog, Eyebrow, Heading, Text, useDesign } from '@finora/ui';
+import { Action, Button, Dialog, Heading, Text, useDesign } from '@finora/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { date } from '@finora/i18n';
 import { auth } from '../../services/client';
@@ -17,7 +17,7 @@ export function AnalysisLedger({ rows }: { rows: Metric[] }) {
   const { colors: c } = useDesign();
   return (
     <View>
-      {rows.map(({ label, value, warning }) => (
+      {rows.map(({ label, value, warning }, index) => (
         <View
           key={label}
           style={{
@@ -27,8 +27,8 @@ export function AnalysisLedger({ rows }: { rows: Metric[] }) {
             alignItems: 'baseline',
             columnGap: 14,
             rowGap: 2,
-            paddingVertical: 8,
-            borderTopWidth: 1,
+            paddingVertical: 6,
+            borderTopWidth: index ? 1 : 0,
             borderColor: c.border,
           }}
         >
@@ -63,24 +63,42 @@ function Receipt({
   return (
     <View
       style={{
-        backgroundColor: c.elevated,
+        backgroundColor: c.surface,
         padding: 15,
-        gap: 9,
-        borderLeftWidth: 2,
-        borderColor: c.accent,
-        borderTopRightRadius: 9,
-        borderBottomRightRadius: 9,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: c.border,
+        borderRadius: 18,
+        flexShrink: 0,
       }}
     >
-      {label ? <Eyebrow>{label}</Eyebrow> : null}
-      <Heading size={25}>{title}</Heading>
-      {figure ? (
-        <Text
-          bold
-          style={{ fontSize: 28, lineHeight: 36, fontVariant: ['tabular-nums'], color: c.primary }}
-        >
-          {figure}
+      {label ? (
+        <Text small bold style={{ color: c.primary }}>
+          {label}
         </Text>
+      ) : null}
+      <Heading size={19}>{title}</Heading>
+      {figure ? (
+        <View
+          style={{
+            backgroundColor: c.secondary,
+            paddingHorizontal: 10,
+            paddingVertical: 7,
+            borderRadius: 10,
+          }}
+        >
+          <Text
+            bold
+            style={{
+              fontSize: 26,
+              lineHeight: 34,
+              fontVariant: ['tabular-nums'],
+              color: c.primary,
+            }}
+          >
+            {figure}
+          </Text>
+        </View>
       ) : null}
       {children}
     </View>
@@ -369,8 +387,16 @@ function Block({ value, save }: { value: IntelligenceBlock; save?: Save }) {
             />
           ) : null}
           {(value.items.length <= 2 || offersExpanded ? value.items : []).map((item) => (
-            <View key={item.id} style={{ gap: 5, paddingTop: 9 }}>
-              <Eyebrow>{item.institution}</Eyebrow>
+            <View
+              key={item.id}
+              style={{ gap: 5, padding: 11, backgroundColor: c.elevated, borderRadius: 12 }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Landmark size={17} color={c.primary} />
+                <Text small bold style={{ color: c.primary }}>
+                  {item.institution}
+                </Text>
+              </View>
               <Text bold>{item.name}</Text>
               <AnalysisLedger
                 rows={[
@@ -395,16 +421,22 @@ function Block({ value, save }: { value: IntelligenceBlock; save?: Save }) {
       return (
         <View
           style={{
-            paddingLeft: 13,
-            paddingVertical: 7,
-            borderLeftWidth: 2,
-            borderColor: value.kind === 'missing' ? c.accent : c.borderStrong,
+            padding: 12,
+            backgroundColor: value.kind === 'missing' ? c.secondary : c.elevated,
+            borderRadius: 13,
             gap: 4,
           }}
         >
-          <Text small bold style={{ color: c.primary }}>
-            {t(value.kind === 'missing' ? 'intelligenceMissing' : 'intelligenceNotice')}
-          </Text>
+          <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center' }}>
+            {value.kind === 'missing' ? (
+              <CircleAlert size={16} color={c.warning} />
+            ) : (
+              <Info size={16} color={c.primary} />
+            )}
+            <Text small bold style={{ color: value.kind === 'missing' ? c.warning : c.primary }}>
+              {t(value.kind === 'missing' ? 'intelligenceMissing' : 'intelligenceNotice')}
+            </Text>
+          </View>
           <Text>{value.message}</Text>
         </View>
       );
