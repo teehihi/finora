@@ -115,6 +115,53 @@ test('an authenticated legacy user verifies their own email without losing passw
   await expect(page.getByText('Email đã xác minh', { exact: true })).toBeVisible();
 });
 
+test('email OTP returns to the sample comparison requested before sign-in', async ({
+  page,
+  request,
+}) => {
+  const email = `finora-otp-return-${randomUUID()}@example.test`;
+  const destination = '/explore?mode=sample&intent=compare';
+  await page.goto(destination);
+  await expect(page).toHaveURL((url) => {
+    return url.pathname === '/auth' && url.searchParams.get('returnTo') === destination;
+  });
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByRole('button', { name: 'Tiếp tục bằng email' }).click();
+  await expect.poll(() => receivedCode(request, email)).toMatch(/^\d{6}$/);
+  const code = await receivedCode(request, email);
+  if (!code) throw new Error('Mailpit never returned a verification code');
+  await page.getByLabel('Mã xác minh 6 số').fill(code);
+  await page.getByRole('button', { name: 'Xác minh và tiếp tục' }).click();
+  await expect(page).toHaveURL((url) => url.pathname + url.search === destination);
+  await expect(
+    page.getByText('Chọn hai sản phẩm để tính với cùng số tiền và kỳ hạn.'),
+  ).toBeVisible();
+});
+
+test('password sign-in returns to the saved simulations tab requested before sign-in', async ({
+  page,
+  request,
+}) => {
+  const email = `finora-password-return-${randomUUID()}@example.test`;
+  const password = randomUUID();
+  const created = await createLegacyAccount(request, { name: 'An', email, password });
+  expect(created.ok()).toBe(true);
+  const destination = '/loans?pane=simulations';
+  await page.goto(destination);
+  await expect(page).toHaveURL((url) => {
+    return url.pathname === '/auth' && url.searchParams.get('returnTo') === destination;
+  });
+  await page.getByRole('button', { name: 'Dùng mật khẩu hiện có' }).click();
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname + url.search === destination);
+  await expect(page.getByRole('tab', { name: 'Bản mô phỏng', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+});
+
 const fixtureCors = {
   'access-control-allow-origin': 'http://localhost:8081',
   'access-control-allow-credentials': 'true',

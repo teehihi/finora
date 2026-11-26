@@ -1,10 +1,18 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Keyboard, Platform, View, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react';
+import {
+  AccessibilityInfo,
+  Keyboard,
+  Platform,
+  ScrollView,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Action, Button, Dialog, Field, Heading, Text, useDesign } from '@finora/ui';
 import {
+  ArrowUpRight,
   Calculator,
   Check,
   CircleAlert,
@@ -25,6 +33,7 @@ import { Back, Data, Page } from '../../../src/components/layout';
 import { Breakdown } from '../../../src/features/breakdown';
 import { DocumentApiError, docApi } from '../../../src/features/documents/client';
 import { PrivatePreview } from '../../../src/features/documents/PrivatePreview';
+import { prepareSimulationHandoff } from '../../../src/features/simulation-handoff';
 
 import {
   documentMethods,
@@ -56,6 +65,19 @@ function Review({
   const queryClient = useQueryClient();
   const [showSources, setShowSources] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmingSave, setConfirmingSave] = useState(false);
+  const [handoffFailed, setHandoffFailed] = useState(false);
+  const [edited, setEdited] = useState<Set<EditableField | 'method'>>(new Set());
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const estimate = useRef<ComponentRef<typeof View>>(null);
+  const attached = useRef(true);
+  const announcedEstimate = useRef<string | null>(null);
+  useEffect(() => {
+    attached.current = true;
+    return () => {
+      attached.current = false;
+    };
+  }, []);
   const [invalid, setInvalid] = useState<Set<EditableField | 'method'>>(new Set());
   const [checked, setChecked] = useState<{
     body: DocumentReviewInput;
@@ -83,6 +105,21 @@ function Review({
     }
     AccessibilityInfo.announceForAccessibility(s.estimated);
   }, [checked, estimateId, s.estimated]);
+  function revealNativeEstimate() {
+    if (Platform.OS === 'web' || !checked || announcedEstimate.current === checked.requestId)
+      return;
+    const frame = scroll.current;
+    const content = frame?.getInnerViewRef();
+    if (!frame || !content) return;
+    estimate.current?.measureLayout(
+      content,
+      (_, y) => {
+        announcedEstimate.current = checked.requestId;
+        frame.scrollTo({ y: Math.max(0, y - 12), animated: false });
+      },
+      () => {},
+    );
+  }
   const modeMessage =
     documentReview.mode === 'pdf-text'
       ? s.textReview
@@ -106,14 +143,14 @@ function Review({
       docApi.save(documentReview.id, body, requestId),
     onSuccess: ({ id }) => {
       void queryClient.invalidateQueries({ queryKey: ['saved', userId] });
-      router.replace({ pathname: '/saved/[id]', params: { id } });
+      if (attached.current) router.replace({ pathname: '/saved/[id]', params: { id } });
     },
   });
   const remove = useMutation({
     mutationFn: () => docApi.remove(documentReview.id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['privateDocuments', userId] });
-      router.replace('/documents');
+      if (attached.current) router.replace('/documents');
       queryClient.removeQueries({ queryKey: ['privateDocument', userId, documentReview.id] });
     },
   });
@@ -127,6 +164,7 @@ function Review({
     'insuranceFee',
   ];
   function clearError(name: EditableField | 'method') {
+    setEdited((previous) => (previous.has(name) ? previous : new Set([...previous, name])));
     setInvalid((previous) => {
       if (!previous.has(name)) return previous;
       const next = new Set(previous);
@@ -155,6 +193,7 @@ function Review({
       return;
     }
     Keyboard.dismiss();
+    setHandoffFailed(false);
     setChecked(null);
     preview.mutate(result.body);
   }
@@ -174,6 +213,8 @@ function Review({
               : name === 'lender'
                 ? s.optionalLender
                 : undefined;
+    const isPrefilled = documentReview.fields[name].state === 'found';
+    const evidence = edited.has(name) ? s.enteredByYou : isPrefilled ? s.copiedForReview : '';
     return (
       <Field
         key={name}
@@ -184,7 +225,7 @@ function Review({
         editable={!busy}
         maxLength={name === 'lender' ? 160 : name === 'principal' || name === 'totalFees' ? 32 : 16}
         error={invalid.has(name) ? s.reviewInputError[name] : undefined}
-        hint={hint}
+        hint={[evidence, hint].filter(Boolean).join(' · ') || undefined}
         keyboardType={
           name === 'annualRate' || numericOnly.includes(name) ? 'decimal-pad' : 'default'
         }
@@ -210,9 +251,11 @@ function Review({
       ) : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 6 }}>
         <Text small bold style={{ color: requiredAttention ? c.actionAmber : c.primary }}>
-          {requiredAttention
-            ? requiredAttention + ' ' + s.requiredAttention
-            : s.extractedUnconfirmed}
+          {documentReview.mode === 'manual'
+            ? s.needsManual
+            : requiredAttention
+              ? requiredAttention + ' ' + s.requiredAttention
+              : s.extractedUnconfirmed}
         </Text>
         {!showSources && documentReview.mode === 'pdf-text' ? (
           <Text small muted>
@@ -278,6 +321,11 @@ function Review({
         label={showSources ? s.hideSources : s.showSources}
         onPress={() => setShowSources(!showSources)}
       />
+      {showSources ? (
+        <Text small muted>
+          {s.evidenceOnly}
+        </Text>
+      ) : null}
       {showSources
         ? documentFieldNames.map((field) => {
             const value = documentReview.fields[field];
@@ -365,6 +413,11 @@ function Review({
           <Text bold small>
             {s.fields.method}
           </Text>
+          {edited.has('method') || documentReview.fields.method.state === 'found' ? (
+            <Text small muted>
+              {edited.has('method') ? s.enteredByYou : s.copiedForReview}
+            </Text>
+          ) : null}
           <View
             nativeID={fieldAnchor + 'method'}
             accessibilityRole="radiogroup"
@@ -434,6 +487,7 @@ function Review({
       title={s.reviewTitle}
       description={s.reviewDescription}
       style={{ gap: split ? 17 : 13 }}
+      scrollRef={scroll}
       top={<Back to={() => router.navigate('/documents')} />}
     >
       <View
@@ -472,7 +526,14 @@ function Review({
         </View>
       ) : null}
       {checked ? (
-        <View nativeID={estimateId} accessibilityLiveRegion="polite" style={{ gap: 10 }}>
+        <View
+          ref={estimate}
+          collapsable={false}
+          onLayout={revealNativeEstimate}
+          nativeID={estimateId}
+          accessibilityLiveRegion="polite"
+          style={{ gap: 10 }}
+        >
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <Calculator size={21} color={c.primary} />
             <View style={{ flex: 1, minWidth: 160 }}>
@@ -486,29 +547,54 @@ function Review({
                 setChecked(null);
                 preview.reset();
                 save.reset();
+                setHandoffFailed(false);
               }}
             />
           </View>
           <Text muted small>
             {s.calculationNote}
           </Text>
-          <Breakdown
-            input={checked.body.input}
-            result={checked.result}
-            actions={
-              <Button
-                label={s.save}
-                loading={save.isPending}
-                disabled={busy}
-                onPress={() => save.mutate(checked)}
-              />
-            }
-          />
-          {save.isError ? (
-            <Text role="alert" style={{ color: c.error }}>
-              {s.requestError}
-            </Text>
-          ) : null}
+          <ReviewPanel>
+            <View style={{ gap: 11 }}>
+              <Text small muted>
+                {s.handoffNote}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <Button
+                  label={s.openSimulator}
+                  leading={<ArrowUpRight size={17} color={c.onPrimary} />}
+                  disabled={busy}
+                  onPress={() => {
+                    const handoff = prepareSimulationHandoff(
+                      userId,
+                      checked.body.input,
+                      'document',
+                    );
+                    if (!handoff) return setHandoffFailed(true);
+                    router.push({
+                      pathname: '/simulate/[id]',
+                      params: { id: 'custom', handoff },
+                    });
+                  }}
+                />
+                <Button
+                  label={s.save}
+                  variant="outline"
+                  disabled={busy}
+                  onPress={() => {
+                    save.reset();
+                    setConfirmingSave(true);
+                  }}
+                />
+              </View>
+              {handoffFailed ? (
+                <Text role="alert" style={{ color: c.error }}>
+                  {s.handoffFailed}
+                </Text>
+              ) : null}
+            </View>
+          </ReviewPanel>
+          <Breakdown input={checked.body.input} result={checked.result} />
         </View>
       ) : null}
       <View
@@ -534,7 +620,41 @@ function Review({
           </Text>
         </Action>
       </View>
-      <Dialog visible={deleting} title={s.remove} onClose={() => !busy && setDeleting(false)}>
+      <Dialog
+        visible={confirmingSave && !!checked}
+        bottom={width < 620}
+        title={s.confirmSaveTitle}
+        onClose={() => !busy && setConfirmingSave(false)}
+      >
+        <Text>{s.confirmSaveBody}</Text>
+        {save.isError ? (
+          <Text role="alert" style={{ color: c.error }}>
+            {s.requestError}
+          </Text>
+        ) : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <Button
+            label={s.confirmSaveAction}
+            loading={save.isPending}
+            disabled={busy || !checked}
+            onPress={() => {
+              if (checked) save.mutate(checked);
+            }}
+          />
+          <Button
+            label={s.cancelSaveAction}
+            variant="text"
+            disabled={busy}
+            onPress={() => setConfirmingSave(false)}
+          />
+        </View>
+      </Dialog>
+      <Dialog
+        visible={deleting}
+        bottom={width < 620}
+        title={s.remove}
+        onClose={() => !busy && setDeleting(false)}
+      >
         <Text>{s.confirmDelete}</Text>
         {remove.isError ? (
           <Text role="alert" style={{ color: c.error }}>

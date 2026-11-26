@@ -26,6 +26,10 @@ test('analyze verified assumptions, explicitly save, and revisit the repayment s
   );
   await expect(page.getByRole('heading', { name: 'Cùng Fin tính khoản vay' })).toBeVisible();
   await expect(page.getByText('Cục bộ · mặc định')).toBeVisible();
+  await page.getByRole('button', { name: 'So sánh 12 và 24 tháng', exact: true }).click();
+  await expect(page.getByLabel('Bạn đang cân nhắc khoản vay nào?')).toHaveValue(/50 triệu/);
+  expect(await (await context.request.get(api + '/api/intelligence/history')).json()).toEqual([]);
+
   if (captures) {
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 960 });
@@ -122,13 +126,18 @@ test('analyze verified assumptions, explicitly save, and revisit the repayment s
   const save = page.getByRole('button', { name: 'Lưu mô phỏng này' }).last();
   await expect(save).toBeVisible();
   await save.click();
+  const confirmation = page.getByRole('dialog', { name: 'Xác nhận lưu mô phỏng' });
+  await expect(confirmation.getByText(/Lưu riêng lịch trả và kết quả biến động/)).toBeVisible();
   await expect(
-    page.getByText('Lưu các giả định và lịch trả nợ để xem lại.', { exact: false }),
+    confirmation.getByText(/Không sửa hồ sơ tài chính hay bản đã lưu trước đó/),
   ).toBeVisible();
   expect(await (await context.request.get(api + '/api/simulations')).json()).toEqual([]);
-  await page.getByRole('button', { name: 'Xác nhận lưu mô phỏng' }).click();
+  await confirmation.getByRole('button', { name: 'Xác nhận lưu mô phỏng' }).click();
   await expect(page).toHaveURL(/\/saved\/[a-f0-9-]+$/i);
   await expect(page.getByText('Lịch trả nợ', { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Giả định biến động', exact: true }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Phân tích mô phỏng này' }).click();
   await expect(page).toHaveURL(/\/intelligence\?simulationId=[a-f0-9-]+$/i);
   await expect(page.getByRole('button', { name: 'Bỏ tham chiếu' })).toBeVisible();
@@ -136,9 +145,10 @@ test('analyze verified assumptions, explicitly save, and revisit the repayment s
   await page.getByRole('button', { name: 'Mở mô phỏng với giả định này' }).last().click();
   await expect(page).toHaveURL(/\/simulate\/custom\?handoff=[a-f0-9-]+$/i);
   await expect(page.getByText('Giả định từ Finora AI', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Số tiền vay', { exact: true })).toHaveValue('50000000');
+  await expect(page.getByLabel('Số tiền vay', { exact: true })).toHaveValue('50.000.000');
   await expect(page.getByLabel('Kỳ hạn', { exact: true })).toHaveValue('24');
   await expect(page.getByLabel('Lãi suất năm', { exact: true })).toHaveValue('12');
+  await page.getByRole('button', { name: 'Ngày trả và phí', exact: true }).click();
   await expect(page.getByLabel('Tổng phí một lần (VND)', { exact: true })).toHaveValue('');
   await page.getByRole('button', { name: 'Tính lịch trả nợ', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Chi tiết trả nợ' })).toBeVisible();

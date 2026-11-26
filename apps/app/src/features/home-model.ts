@@ -26,3 +26,14 @@ export function firstUpcomingPayment(ledger: RepaymentLedger): DueRepayment | un
   }
   return first;
 }
+
+export type HomeStress = 'income' | 'expenses' | 'both';
+
+/** Two independent, explicitly illustrative 20% shocks. Profile is never mutated. */
+export function homeStressPreview(profile: Profile, mode: HomeStress) {
+  const baseline = profile.income - profile.expenses - profile.debt;
+  const income = mode === 'expenses' ? profile.income : Math.round(profile.income * 0.8);
+  const expenses =
+    mode === 'income' ? profile.expenses : profile.expenses + Math.round(profile.expenses / 5);
+  return { baseline, stressed: income - expenses - profile.debt };
+}

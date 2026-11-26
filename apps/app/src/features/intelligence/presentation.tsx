@@ -223,3 +223,40 @@ export function FinancePrompt({
     </Action>
   );
 }
+
+type Metric = { label: string; value: string; warning?: boolean };
+
+export function AnalysisLedger({ rows }: { rows: Metric[] }) {
+  const { colors: c } = useDesign();
+  return (
+    <View>
+      {rows.map(({ label, value, warning }, index) => (
+        <View
+          key={label}
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            columnGap: 14,
+            rowGap: 2,
+            paddingVertical: 6,
+            borderTopWidth: index ? 1 : 0,
+            borderColor: c.border,
+          }}
+        >
+          <Text small muted>
+            {label}
+          </Text>
+          <Text
+            small
+            bold
+            style={{ color: warning ? c.warning : c.foreground, fontVariant: ['tabular-nums'] }}
+          >
+            {value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}

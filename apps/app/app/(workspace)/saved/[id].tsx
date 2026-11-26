@@ -1,14 +1,15 @@
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Badge, SourceAttribution, Text, useDesign } from '@finora/ui';
-import { date, documentStrings, percent } from '@finora/i18n';
-import { reviewedDocumentSource } from '@finora/contracts';
+import { Button, Badge, Heading, SourceAttribution, Text, useDesign } from '@finora/ui';
+import { date, documentStrings, intelligenceDecision, percent } from '@finora/i18n';
+import { reviewedDocumentSource, savedStressAnalysisSchema } from '@finora/contracts';
 import { api, auth } from '../../../src/services/client';
 import { Page, Data, Back } from '../../../src/components/layout';
 import { Breakdown } from '../../../src/features/breakdown';
 import { TrackRepaymentCta } from '../../../src/features/repayments';
 import { MarketPanel, ProductIcon } from '../../../src/features/market-ui';
+import { AnalysisLedger } from '../../../src/features/intelligence/presentation';
 export default function Saved() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { locale, t, money, colors: c } = useDesign();
@@ -85,6 +86,7 @@ export default function Saved() {
               <SourceAttribution source={s.product.source} />
             ) : null}
           </MarketPanel>
+          <SavedStress value={s.result.stressAnalysis} />
           <Breakdown
             input={s.input}
             result={s.result}
@@ -101,5 +103,47 @@ export default function Saved() {
         </Page>
       )}
     </Data>
+  );
+}
+
+function SavedStress({ value }: { value: unknown }) {
+  const { locale, money, colors: c } = useDesign();
+  const parsed = savedStressAnalysisSchema.safeParse(value);
+  if (!parsed.success) return null;
+  const stress = parsed.data;
+  const words = intelligenceDecision(locale);
+  return (
+    <MarketPanel style={{ backgroundColor: c.elevated }}>
+      <Heading size={20}>{words.stressTitle}</Heading>
+      <AnalysisLedger
+        rows={[
+          {
+            label:
+              words.incomeLoss +
+              (stress.incomeReductionPercent === null
+                ? ''
+                : ' · ' + percent(stress.incomeReductionPercent, locale)),
+            value: money(stress.monthlyIncomeLoss),
+          },
+          {
+            label:
+              words.expenseIncrease +
+              (stress.expenseIncreasePercent === null
+                ? ''
+                : ' · ' + percent(stress.expenseIncreasePercent, locale)),
+            value: money(stress.monthlyExpenseIncrease),
+          },
+          { label: words.baseCash, value: money(stress.remainingCash) },
+          {
+            label: words.stressedCash,
+            value: money(stress.stressRemainingCash),
+            warning: stress.stressRemainingCash <= 0,
+          },
+        ]}
+      />
+      <Text small muted>
+        {words.planningRule}
+      </Text>
+    </MarketPanel>
   );
 }

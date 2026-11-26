@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Image, View, useWindowDimensions, type TextStyle, type ViewStyle } from 'react-native';
 import { tokens } from '@finora/design-tokens';
 import {
+  Activity,
   ArrowRight,
   ArrowUpRight,
   Calculator,
@@ -9,17 +11,18 @@ import {
   Columns2,
   FileScan,
   Search,
+  Sparkles,
   WalletCards,
   type LucideIcon,
 } from 'lucide-react-native';
 import { router, type Href } from 'expo-router';
-import { Action, Button, Heading, Text, useDesign } from '@finora/ui';
+import { Action, Button, Choices, Dialog, Heading, Text, useDesign } from '@finora/ui';
 import { date, homeCopy } from '@finora/i18n';
 import type { AccountData, DueRepayment, Profile } from '@finora/contracts';
 import type { Readiness } from '@finora/api-client';
 import { Data } from '../components/layout';
 import { SignatureIcon, SignatureSweep } from '../components/signature';
-import { homeCashFlow } from './home-model';
+import { homeCashFlow, homeStressPreview, type HomeStress } from './home-model';
 import fin from '../../assets/brand/fin-assistant.png';
 
 const amountInk: TextStyle = { fontVariant: ['tabular-nums'] };
@@ -133,13 +136,14 @@ export function HomeCapacity({
   const copy = homeCopy(locale);
   const { width, fontScale } = useWindowDimensions();
   const compact = width < 370 || fontScale > 1.25;
+  const [stressOpen, setStressOpen] = useState(false);
   return (
     <View
       style={{
-        backgroundColor: c.forest,
+        backgroundColor: c.signatureStart,
         position: 'relative',
         overflow: 'hidden',
-        borderRadius: tokens.signature.radius,
+        borderRadius: tokens.signature.radius + 3,
       }}
     >
       <SignatureSweep name="finora-home-signature" />
@@ -148,13 +152,13 @@ export function HomeCapacity({
           <View
             style={{
               paddingHorizontal: desktop ? 28 : tokens.signature.inset,
-              paddingVertical: desktop ? 25 : 17,
-              gap: 6,
+              paddingVertical: desktop ? 25 : 16,
+              gap: 7,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-              <SignatureIcon icon={WalletCards} tone="lime" size={30} />
-              <Text small bold style={{ color: c.onForestMuted }}>
+              <SignatureIcon icon={WalletCards} tone="lime" size={33} />
+              <Text bold style={{ color: c.onForest, fontSize: 15, flexShrink: 1 }}>
                 {copy.capacity}
               </Text>
             </View>
@@ -168,7 +172,7 @@ export function HomeCapacity({
                         : 34
                       : desktop
                         ? tokens.signature.heroDesktop
-                        : tokens.signature.heroMobile
+                        : 47
                   }
                   style={{ ...amountInk, color: c.onForest }}
                 >
@@ -178,6 +182,45 @@ export function HomeCapacity({
                   {copy.estimate}
                 </Text>
                 <MoneyFlow profile={data.profile} />
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 8,
+                    marginTop: 4,
+                  }}
+                >
+                  <Action
+                    label={locale === 'vi-VN' ? 'Thử biến động dòng tiền' : 'Stress-test cash flow'}
+                    onPress={() => setStressOpen(true)}
+                    style={{
+                      flexDirection: 'row',
+                      paddingHorizontal: 11,
+                      gap: 7,
+                      alignItems: 'center',
+                      backgroundColor: c.signatureLime,
+                      borderRadius: 14,
+                    }}
+                  >
+                    <Activity size={16} color={c.signatureInk} />
+                    <Text small bold style={{ color: c.signatureInk }}>
+                      {locale === 'vi-VN' ? 'Thử biến động dòng tiền' : 'Stress-test cash flow'}
+                    </Text>
+                  </Action>
+                  <Action
+                    label={t('editProfile')}
+                    onPress={() => router.navigate('/profile')}
+                    style={{ paddingHorizontal: 8 }}
+                  >
+                    <Text small bold style={{ color: c.onForest }}>
+                      {t('editProfile')}
+                    </Text>
+                  </Action>
+                </View>
+                {stressOpen ? (
+                  <HomeStressSheet profile={data.profile} close={() => setStressOpen(false)} />
+                ) : null}
               </>
             ) : (
               <>
@@ -203,14 +246,85 @@ export function HomeCapacity({
   );
 }
 
+function HomeStressSheet({ profile, close }: { profile: Profile; close: () => void }) {
+  const { locale, colors: c, money } = useDesign();
+  const { width } = useWindowDimensions();
+  const vi = locale === 'vi-VN';
+  const [mode, choose] = useState<HomeStress>('income');
+  const { baseline, stressed } = homeStressPreview(profile, mode);
+  return (
+    <Dialog
+      title={vi ? 'Thử biến động dòng tiền' : 'Stress-test cash flow'}
+      visible
+      bottom={width < 768}
+      onClose={close}
+    >
+      <Text muted>
+        {vi
+          ? 'Thử trên hồ sơ hiện tại; không đổi dữ liệu đã lưu và chưa tính khoản vay mới.'
+          : 'Uses your existing profile without changing it, before any new loan.'}
+      </Text>
+      <Choices
+        value={mode}
+        onChange={choose}
+        options={[
+          { value: 'income', label: vi ? 'Thu nhập giảm 20%' : 'Income down 20%' },
+          { value: 'expenses', label: vi ? 'Chi phí tăng 20%' : 'Expenses up 20%' },
+          { value: 'both', label: vi ? 'Cả hai' : 'Both' },
+        ]}
+      />
+      <View
+        style={{ backgroundColor: c.secondary, borderRadius: 17, padding: 16, gap: 7 }}
+        accessibilityLiveRegion="polite"
+      >
+        <Text small muted>
+          {vi ? 'Dòng tiền trước khoản vay mới' : 'Cash flow before new borrowing'}
+        </Text>
+        <Heading size={30} style={{ ...amountInk, color: stressed < 0 ? c.warning : c.foreground }}>
+          {money(stressed)}
+        </Heading>
+        <Text small bold>
+          {stressed < 0
+            ? vi
+              ? 'Thiếu ngay cả khi chưa vay thêm.'
+              : 'Shortfall even without new borrowing.'
+            : vi
+              ? 'Số còn lại, không phải mức trả khuyến nghị.'
+              : 'Remaining cash, not a suggested payment.'}
+        </Text>
+      </View>
+      <Text small muted>
+        {vi ? 'Hiện tại: ' : 'Current: '}
+        {money(baseline)} · {vi ? 'Thay đổi: ' : 'Change: '}
+        {money(stressed - baseline)}
+      </Text>
+    </Dialog>
+  );
+}
+
 export function HomeTools() {
-  const { locale } = useDesign();
-  const { width, fontScale } = useWindowDimensions();
-  const expanded = width < 370 || fontScale >= 1.35;
+  const { colors: c, locale } = useDesign();
+  const { fontScale } = useWindowDimensions();
+  const expanded = fontScale >= 1.35;
   const copy = homeCopy(locale);
-  const entries = [
-    [copy.find, '/explore', Search, 'emerald'],
-    [copy.simulate, '/simulate/personal-flex', Calculator, 'blue'],
+  const vi = locale === 'vi-VN';
+  const main = [
+    [
+      copy.find,
+      vi ? 'Tra điều kiện công bố' : 'Browse published terms',
+      '/explore',
+      Search,
+      'emerald',
+    ],
+    [
+      copy.simulate,
+      vi ? 'Tính tiền theo từng kỳ' : 'Estimate each payment',
+      '/simulate/personal-flex',
+      Calculator,
+      'blue',
+    ],
+  ] as const;
+  const quick = [
     [copy.compare, '/explore?mode=sample&intent=compare', Columns2, 'violet'],
     [copy.documents, '/documents', FileScan, 'amber'],
     [copy.repayments, '/repayments', CalendarDays, 'lime'],
@@ -218,26 +332,64 @@ export function HomeTools() {
   return (
     <View style={{ gap: 10 }}>
       <Heading size={20}>{copy.tools}</Heading>
-      <View style={{ flexDirection: 'row', flexWrap: expanded ? 'wrap' : 'nowrap', gap: 4 }}>
-        {entries.map(([label, href, Icon, tone]) => (
+      <View style={{ flexDirection: expanded ? 'column' : 'row', gap: 8 }}>
+        {main.map(([label, detail, href, Icon, tone]) => (
           <Action
             key={href}
             label={label}
             onPress={() => router.navigate(href as Href)}
             style={{
               flex: expanded ? undefined : 1,
-              width: expanded ? '31%' : undefined,
               minWidth: 0,
-              minHeight: 79,
-              alignItems: 'center',
+              minHeight: 88,
               justifyContent: 'flex-start',
-              paddingVertical: 1,
-              gap: 6,
-              borderRadius: 12,
+              backgroundColor: c.surface,
+              borderRadius: 18,
+              borderWidth: 1,
+              borderColor: c.border,
+              paddingHorizontal: 10,
+              paddingVertical: 9,
+              gap: 5,
             }}
           >
-            <SignatureIcon icon={Icon} tone={tone} />
-            <Text small bold style={{ fontSize: 12, lineHeight: 16, textAlign: 'center' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <SignatureIcon icon={Icon} size={31} tone={tone} />
+              <ArrowUpRight size={14} color={c.muted} />
+            </View>
+            <Text small bold>
+              {label}
+            </Text>
+            <Text small muted style={{ fontSize: 12, lineHeight: 17 }}>
+              {detail}
+            </Text>
+          </Action>
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', gap: 4 }}>
+        {quick.map(([label, href, Icon, tone]) => (
+          <Action
+            key={href}
+            label={label}
+            onPress={() => router.navigate(href as Href)}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 71,
+              paddingVertical: 5,
+              gap: 5,
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              borderRadius: 13,
+            }}
+          >
+            <SignatureIcon icon={Icon} size={38} tone={tone} />
+            <Text small bold style={{ fontSize: 12, lineHeight: 17, textAlign: 'center' }}>
               {label}
             </Text>
           </Action>
@@ -255,26 +407,30 @@ export function HomeFin() {
       label={copy.finButton}
       onPress={() => router.navigate('/assistant')}
       style={{
-        backgroundColor: c.elevated,
-        borderWidth: 1,
-        borderColor: c.border,
-        borderRadius: 21,
+        backgroundColor: c.secondary,
+        borderRadius: 23,
         paddingLeft: 16,
         paddingRight: 12,
-        paddingVertical: 10,
+        paddingVertical: 12,
         flexDirection: 'row',
         gap: 8,
         alignItems: 'center',
       }}
     >
-      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Sparkles size={13} color={c.primary} />
+          <Text small bold style={{ color: c.primary }}>
+            Finora AI
+          </Text>
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text bold style={{ color: c.primary, fontSize: 15, lineHeight: 19 }}>
+          <Text bold style={{ color: c.primary, fontSize: 18, lineHeight: 23, flexShrink: 1 }}>
             {copy.finTitle}
           </Text>
           <ArrowUpRight size={15} color={c.primary} />
         </View>
-        <Text small muted style={{ fontSize: 12, lineHeight: 17 }}>
+        <Text small muted style={{ fontSize: 13, lineHeight: 18 }}>
           {copy.finBody}
         </Text>
       </View>
@@ -283,7 +439,7 @@ export function HomeFin() {
         accessible={false}
         source={fin}
         resizeMode="contain"
-        style={{ width: 62, height: 60 }}
+        style={{ width: 71, height: 67 }}
       />
     </Action>
   );

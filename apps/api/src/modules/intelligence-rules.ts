@@ -16,7 +16,8 @@ export const normalizeVn = (value: string) =>
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
-    .replace(/đ/g, 'd');
+    .replace(/đ/g, 'd')
+    .replace(/−/g, '-');
 const amountPattern =
   '((?:[0-9]{1,3}(?:[.,][0-9]{3}){1,3}|[0-9]+(?:[.,][0-9]+)?))\\s*(trieu|tr\\b|million\\b|nghin|ngan|k\\b|thousand\\b|ty\\b|billion\\b)?';
 function parseNumber(raw: string, unit?: string): number | undefined {
@@ -47,6 +48,7 @@ function moneyAfter(prompt: string, label: string) {
 }
 const purposeKeys = ['personal', 'education', 'home', 'vehicle', 'business'] as const;
 export type IntentPurpose = (typeof purposeKeys)[number];
+export type InputIssue = 'annualRate' | 'months' | 'method' | 'incomeCut' | 'extraExpense';
 export const approvedPurposes = purposeKeys;
 export type Intent = {
   income?: number;
@@ -64,6 +66,9 @@ export type Intent = {
   fee?: number | null;
   incomeCut?: number;
   extraExpense?: number;
+  expenseRisePercent?: number;
+  resetStress?: boolean;
+  inputIssues?: InputIssue[];
   knownPayment?: number;
   payoffAfter?: number;
   payoffFeeRate?: number;
@@ -76,19 +81,36 @@ const rates = (value?: string) => (value ? Number(value.replace(',', '.')) : und
 const validTerm = (v?: string) => (v && Number(v) >= 1 && Number(v) <= 360 ? Number(v) : undefined);
 export function interpret(prompt: string): Intent {
   const s = normalizeVn(prompt);
-  const m =
-    /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:la|of|:|=)?\s*(\d+(?:[.,]\d{1,4})?)\s*%\s*(?:\/\s*)?(thang|month|nam|year)?/.exec(
-      s,
-    );
+  const inputIssues: InputIssue[] = [];
+  const quotedRates = [
+    ...s.matchAll(
+      /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:la|of|doi thanh|doi sang|sang|change to|set to|:|=)?\s*(-?\d+(?:[.,]\d+)?)\s*%\s*(?:\/\s*)?(thang|month|nam|year)?/g,
+    ),
+  ];
+  const m = quotedRates[0];
   const aprOnly = !m && /\b(?:apr|lai suat thuc te)\b/.test(s);
-  const nominal = rates(m?.[1]);
-  const percent =
-    nominal === undefined ? undefined : nominal * (/month|thang/.test(m?.[2] ?? '') ? 12 : 1);
-  const pair =
-    /(?<![\d.])(\d{1,3})(?:\s*(?:thang|months?)\b)?\s*(?:va|voi|vs\.?|or|hay|\/|so voi)\s*(\d{1,3})\s*(?:thang|months?)\b/.exec(
+  const annualRates = quotedRates.map(([_, quote, period]) =>
+    Number(
+      (Number(quote.replace(',', '.')) * (/month|thang/.test(period ?? '') ? 12 : 1)).toFixed(4),
+    ),
+  );
+  const rateRange =
+    /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:la|of|:|=|tu|from)?\s*-?\d+(?:[.,]\d+)?\s*%?\s*(?:(?:\/\s*)?(?:thang|months?|nam|years?)\s*)?(?:va|hay|hoac|or|vs\.?|den|to|[-–—])\s*\d+(?:[.,]\d+)?\s*%/.test(
       s,
     );
-  const single = /(?:^|\b)(\d{1,3})\s*(?:thang|months?)\b/.exec(s);
+  if (
+    rateRange ||
+    quotedRates.some(([, quote]) => (quote.split(/[.,]/)[1]?.length ?? 0) > 4) ||
+    annualRates.some((rate) => rate < 0 || rate > 100) ||
+    new Set(annualRates).size > 1
+  )
+    inputIssues.push('annualRate');
+  const percent = inputIssues.includes('annualRate') ? undefined : annualRates[0];
+  const pair =
+    /(?<![\d.,-])(-?\d{1,6})(?:\s*(?:thang|months?)\b)?\s*(?:va|voi|vs\.?|or|hay|hoac|\/|so voi)\s*(-?\d{1,6})\s*(?:thang|months?)\b/.exec(
+      s,
+    );
+  const single = /(?<![\d.,-])(-?\d{1,6})\s*(?:thang|months?)\b/.exec(s);
   const yr = /\b(\d{1,2}|mot|hai|ba|bon|nam|one|two|three|four|five)\s*(?:nam|years?)\b/.exec(s);
   const writtenYears: Record<string, number> = {
     mot: 1,
@@ -103,11 +125,38 @@ export function interpret(prompt: string): Intent {
     five: 5,
   };
   const yearsInMonths = yr ? String((writtenYears[yr[1]] ?? Number(yr[1])) * 12) : undefined;
-  const incomeCut = rates(
-    /(?:thu nhap|luong|income)(?:\s+(?:thang toi|thang sau|moi thang|hang thang|next month))?\s*(?:giam|mat|drops? by|falls? by|decreases? by)\s*(\d+(?:[.,]\d+)?)\s*%/.exec(
-      s,
-    )?.[1],
+  const incomeShock =
+    '\\b(?:thu nhap|luong|income)(?:\\s+(?:thang toi|thang sau|moi thang|hang thang|next month))?\\s*(?:giam|mat|drops?|falls?|decreases?)\\b';
+  const incomeCuts = [
+    ...s.matchAll(new RegExp(incomeShock + '\\s*(?:by\\s*)?(-?\\d+(?:[.,]\\d+)?)\\s*%', 'g')),
+  ].map((match) => Number(match[1].replace(',', '.')));
+  if (
+    (!incomeCuts.length && new RegExp(incomeShock).test(s)) ||
+    incomeCuts.some((cut) => cut < 0 || cut > 100) ||
+    new Set(incomeCuts).size > 1
+  )
+    inputIssues.push('incomeCut');
+  const expenseLabel =
+    'chi phi(?: sinh hoat| thiet yeu| moi thang)? tang(?: them)?|chi tieu(?: hang thang| moi thang)? tang(?: them)?|extra monthly costs|(?:living |monthly )?expenses increase by';
+  const expenseRaises = [
+    ...s.matchAll(
+      new RegExp('(?:^|[^a-z0-9])(?:' + expenseLabel + ')\\s*(-?\\d+(?:[.,]\\d+)?)\\s*%', 'g'),
+    ),
+  ].map((match) => Number(match[1].replace(',', '.')));
+  const extraExpense = moneyAfter(
+    s.replace(new RegExp('(?:' + expenseLabel + ')\\s*-?\\d+(?:[.,]\\d+)?\\s*%', 'g'), ''),
+    expenseLabel,
   );
+  if (
+    (!expenseRaises.length &&
+      extraExpense === undefined &&
+      new RegExp('\\b(?:' + expenseLabel + ')\\b').test(s)) ||
+    expenseRaises.some((increase) => increase < 0 || increase > 1000) ||
+    new RegExp('(?:' + expenseLabel + ')\\s*-\\d+').test(s) ||
+    new Set(expenseRaises).size > 1 ||
+    (expenseRaises.length > 0 && extraExpense !== undefined)
+  )
+    inputIssues.push('extraExpense');
   const purpose = /\b(mua xe|xe may|o to|vehicle|car|motorbike)\b/.test(s)
     ? 'vehicle'
     : /\b(hoc phi|hoc tap|study|tuition|education)\b/.test(s)
@@ -119,13 +168,14 @@ export function interpret(prompt: string): Intent {
           : /\b(tieu dung|ca nhan|personal)\b/.test(s)
             ? 'personal'
             : undefined;
-  const method = /\b(tra gop deu|annuity|equal installments)\b/.test(s)
-    ? 'annuity'
-    : /\b(goc deu|equal principal)\b/.test(s)
-      ? 'equalPrincipal'
-      : /\b(lai phang|du no ban dau|flat(?: interest| rate)?)\b/.test(s)
-        ? 'flat'
-        : undefined;
+  const methods = [
+    [/\b(tra gop deu|annuity|equal installments)\b/, 'annuity'],
+    [/\b(goc deu|equal principal)\b/, 'equalPrincipal'],
+    [/\b(lai phang|du no ban dau|flat(?: interest| rate)?)\b/, 'flat'],
+  ] as const;
+  const mentionedMethods = methods.filter(([pattern]) => pattern.test(s));
+  if (mentionedMethods.length > 1) inputIssues.push('method');
+  const method = mentionedMethods.length === 1 ? mentionedMethods[0][1] : undefined;
   const early = /tra truoc han|tat toan som|early repayment|repay early/.test(s);
   const payoffAfter = early
     ? validTerm(
@@ -149,6 +199,16 @@ export function interpret(prompt: string): Intent {
     'vay nhieu hon|tang so tien vay(?: them)?|borrow more(?: by)?',
   );
   const principalDelta = lowerPrincipal !== undefined ? -lowerPrincipal : higherPrincipal;
+  const rawTerm =
+    pair?.[1] ??
+    (early && validTerm(single?.[1]) === payoffAfter ? undefined : single?.[1]) ??
+    yearsInMonths;
+  if (
+    (rawTerm !== undefined && !validTerm(rawTerm)) ||
+    (pair?.[2] !== undefined && !validTerm(pair[2])) ||
+    /\b\d+[.,]\d+\s*(?:thang|months?)\b/.test(s)
+  )
+    inputIssues.push('months');
   return {
     income: moneyAfter(
       s,
@@ -176,11 +236,7 @@ export function interpret(prompt: string): Intent {
           ),
     annualRate: percent !== undefined && percent <= 100 ? Number(percent.toFixed(4)) : undefined,
     monthlyQuoted: /month|thang/.test(m?.[2] ?? ''),
-    months: validTerm(
-      pair?.[1] ??
-        (early && validTerm(single?.[1]) === payoffAfter ? undefined : single?.[1]) ??
-        yearsInMonths,
-    ),
+    months: validTerm(rawTerm),
     secondMonths: validTerm(pair?.[2]),
     method,
     fee: early
@@ -192,11 +248,14 @@ export function interpret(prompt: string): Intent {
             )
           ? null
           : moneyAfter(s, 'phi mot lan|phi ho so|phi dich vu|one-time fee|fee'),
-    incomeCut: incomeCut !== undefined && incomeCut <= 100 ? incomeCut : undefined,
-    extraExpense: moneyAfter(
-      s,
-      'chi phi tang(?: them)?|chi tieu tang(?: them)?|extra monthly costs|expenses increase by',
-    ),
+    incomeCut: inputIssues.includes('incomeCut') ? undefined : incomeCuts[0],
+    extraExpense: inputIssues.includes('extraExpense') ? undefined : extraExpense,
+    expenseRisePercent: inputIssues.includes('extraExpense') ? undefined : expenseRaises[0],
+    resetStress:
+      /\b(?:bo (?:gia dinh|kich ban) bien dong|khong ap dung bien dong|reset stress|remove stress|without stress)\b/.test(
+        s,
+      ),
+    ...(inputIssues.length ? { inputIssues } : {}),
     knownPayment: moneyAfter(s, 'khoan tra|tra them|tra hang thang|monthly payment|payment of'),
     payoffAfter,
     payoffFeeRate: payoffFeeRate !== undefined && payoffFeeRate <= 100 ? payoffFeeRate : undefined,
@@ -283,6 +342,26 @@ export function toAffordability(
         : null,
   };
 }
+export function stressBudget(profile: Profile, intent: Intent) {
+  if (
+    intent.incomeCut === undefined &&
+    intent.extraExpense === undefined &&
+    intent.expenseRisePercent === undefined
+  )
+    return null;
+  const stressedIncome = Math.round(profile.income * (1 - (intent.incomeCut ?? 0) / 100));
+  const monthlyExpenseIncrease =
+    intent.extraExpense ?? Math.round((profile.expenses * (intent.expenseRisePercent ?? 0)) / 100);
+  return {
+    cashFlow: stressedIncome - profile.debt - profile.expenses - monthlyExpenseIncrease,
+    basis: {
+      incomeReductionPercent: intent.incomeCut ?? null,
+      expenseIncreasePercent: intent.expenseRisePercent ?? null,
+      monthlyIncomeLoss: profile.income - stressedIncome,
+      monthlyExpenseIncrease,
+    },
+  };
+}
 export function toScenario(
   input: LoanInput,
   result: Estimate,
@@ -292,14 +371,7 @@ export function toScenario(
 ): IntelligenceScenario {
   const peak = Math.max(...result.schedule.map((p) => p.payment));
   const remaining = profile ? profile.income - profile.debt - profile.expenses - peak : null;
-  const stress =
-    profile && (intent.incomeCut !== undefined || intent.extraExpense !== undefined)
-      ? Math.round(profile.income * (1 - (intent.incomeCut ?? 0) / 100)) -
-        profile.debt -
-        profile.expenses -
-        (intent.extraExpense ?? 0) -
-        peak
-      : null;
+  const stress = profile ? stressBudget(profile, intent) : null;
   return {
     kind: 'scenario',
     principal: input.principal,
@@ -313,7 +385,11 @@ export function toScenario(
     repayment: result.repayment,
     total: result.total,
     remainingCash: remaining,
-    stressRemainingCash: stress,
+    stressRemainingCash: stress ? stress.cashFlow - peak : null,
+    ...(profile
+      ? { planningCapacity: financialTools.analyzeFinancialProfile(profile).monthlyBudget }
+      : {}),
+    ...(stress ? { stressBasis: stress.basis } : {}),
     source: snapshotId ? 'saved_simulation' : 'user_assumptions',
     ...(snapshotId ? { simulationId: snapshotId } : {}),
   };

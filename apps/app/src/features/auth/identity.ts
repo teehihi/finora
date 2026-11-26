@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useQuery } from '@tanstack/react-query';
 import { base } from '../../services/client';
+export { allowedAuthReturn } from './return-path';
 
 export const authProviderKey = ['auth-providers'] as const;
 
@@ -36,16 +37,6 @@ export function useIdentityOptions() {
     },
   });
 }
-
-// Never pass arbitrary query input to either the app router or an OAuth callback.
-export const allowedAuthReturn = (value: unknown): string =>
-  typeof value === 'string' &&
-  value === value.trim() &&
-  /^\/(?:home|explore|assistant|intelligence|documents|repayments|loans|profile|(?:saved|simulate|documents)\/[A-Za-z0-9_-]{1,80})$/.test(
-    value,
-  )
-    ? value
-    : '/home';
 
 export const oauthCallback = (path: string) =>
   Platform.OS === 'web' && typeof location !== 'undefined'

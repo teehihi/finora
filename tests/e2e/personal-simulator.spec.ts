@@ -56,8 +56,15 @@ test('personal simulator never inherits public advertised terms and saves only a
   await principal.fill('12.000.000');
   await rate.fill('12');
   await page.getByLabel('Kỳ hạn', { exact: true }).fill('12');
-  await page.getByLabel('Ngày trả kỳ đầu (YYYY-MM-DD)', { exact: true }).fill(input.firstDue);
+  const timing = page.getByRole('button', { name: 'Ngày trả và phí', exact: true });
+  const dueDate = page.getByLabel('Ngày trả kỳ đầu (YYYY-MM-DD)', { exact: true });
+  await expect(dueDate).toHaveCount(0);
+  await timing.click();
+  await dueDate.fill(input.firstDue);
   await page.getByRole('radio', { name: 'Gốc đều, dư nợ giảm dần' }).click();
+  await expect(principal).toHaveValue('12.000.000');
+  await expect(page.getByText('Ước tính kỳ đầu', { exact: true })).toBeVisible();
+  await expect(page.getByText(/1\.120\.000/)).toBeVisible();
   await page.getByRole('button', { name: 'Tính lịch trả nợ' }).click();
   const resultHeading = page.getByRole('heading', { name: 'Chi tiết trả nợ' });
   await expect(resultHeading).toBeVisible();
@@ -139,7 +146,8 @@ test('sample comparison updates only for a shared amount and term with no total-
   }
   await page.getByRole('button', { name: 'Mô phỏng A', exact: true }).click();
   await expect(page).toHaveURL(/\/simulate\/personal-flex\?/);
-  await expect(page.getByLabel('Số tiền vay', { exact: true })).toHaveValue('25000000');
+  await expect(page.getByRole('dialog', { name: 'So sánh điều kiện' })).toBeHidden();
+  await expect(page.getByLabel('Số tiền vay', { exact: true })).toHaveValue('25.000.000');
   await expect(page.getByLabel('Kỳ hạn', { exact: true })).toHaveValue('24');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

@@ -24,6 +24,9 @@ const contextSchema = z
     secondMonths: term.optional(),
     method: loanSchema.shape.method.optional(),
     fee: loanSchema.shape.fee.optional(),
+    incomeCut: z.number().min(0).max(100).optional(),
+    extraExpense: amount.optional(),
+    expenseRisePercent: z.number().min(0).max(1000).optional(),
     purpose: z.enum(['personal', 'education', 'home', 'vehicle', 'business']).optional(),
     firstDue: loanSchema.shape.firstDue.optional(),
   })
@@ -112,6 +115,8 @@ export function continueIntent(
     /\b(neu|thi sao|what if|instead|giam them|tang them|follow[- ]?up)\b/.test(normalized) ||
     current.incomeCut !== undefined ||
     current.extraExpense !== undefined ||
+    current.expenseRisePercent !== undefined ||
+    current.resetStress ||
     current.principalDelta !== undefined ||
     current.early;
   const definitionQuestion = /\b(?:la gi|nghia la gi|giai thich|how does|what is|what does)\b/.test(
@@ -137,12 +142,20 @@ export function continueIntent(
         (previous.months !== undefined || previous.annualRate !== undefined))),
   );
   const prior = continues ? previous : undefined;
+  const priorStress = current.resetStress ? undefined : prior;
+  const updatesExpenseStress =
+    current.extraExpense !== undefined || current.expenseRisePercent !== undefined;
   const intent: Intent = {
     ...current,
     income: current.income ?? prior?.income,
     expenses: current.expenses ?? prior?.expenses,
     debt: current.debt ?? prior?.debt,
     savings: current.savings ?? prior?.savings,
+    incomeCut: current.incomeCut ?? priorStress?.incomeCut,
+    extraExpense: updatesExpenseStress ? current.extraExpense : priorStress?.extraExpense,
+    expenseRisePercent: updatesExpenseStress
+      ? current.expenseRisePercent
+      : priorStress?.expenseRisePercent,
     principal: current.principal ?? prior?.principal ?? attached?.principal,
     annualRate: current.annualRate ?? prior?.annualRate ?? attached?.annualRate,
     monthlyQuoted:

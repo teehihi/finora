@@ -6,6 +6,23 @@ const id = z.string().min(1).max(100);
 const method = z.enum(['flat', 'equalPrincipal', 'annuity']);
 const text = z.string().min(1).max(600);
 const url = z.url({ protocol: /^https$/ });
+const stressBasis = z
+  .object({
+    incomeReductionPercent: z.number().min(0).max(100).nullable(),
+    expenseIncreasePercent: z.number().min(0).max(1000).nullable(),
+    monthlyIncomeLoss: outputMoney,
+    monthlyExpenseIncrease: outputMoney,
+  })
+  .strict();
+
+// Optional metadata in an owner-confirmed schedule snapshot, not a profile update.
+export const savedStressAnalysisSchema = stressBasis
+  .extend({
+    remainingCash: signedMoney,
+    stressRemainingCash: signedMoney,
+  })
+  .strict();
+export type SavedStressAnalysis = z.infer<typeof savedStressAnalysisSchema>;
 
 export const intelligenceRequestSchema = z
   .object({
@@ -32,6 +49,9 @@ export const intelligenceScenarioSchema = z
     total: outputMoney.nullable(),
     remainingCash: signedMoney.nullable(),
     stressRemainingCash: signedMoney.nullable(),
+    // Optional for portable history created before decision guidance.
+    planningCapacity: outputMoney.optional(),
+    stressBasis: stressBasis.optional(),
     source: z.enum(['user_assumptions', 'saved_simulation']),
     simulationId: z.uuid().optional(),
   })

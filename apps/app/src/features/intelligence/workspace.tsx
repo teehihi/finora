@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import {
   ArrowDown,
+  ArrowUpRight,
   MessagesSquare,
   ArrowUp,
   BookOpen,
@@ -443,44 +444,64 @@ function Desk({
                 />
                 <View style={{ gap: 10 }}>
                   <Heading size={18}>{t('intelligenceStarter')}</Heading>
+                  {!scoped ? (
+                    <Action
+                      label={vi ? 'So sánh 12 và 24 tháng' : 'Compare 12 and 24 months'}
+                      onPress={() =>
+                        fill(
+                          vi
+                            ? 'Tôi muốn vay 50 triệu để mua xe. Nếu trả trong 12 hay 24 tháng thì khác nhau thế nào?'
+                            : 'I want to borrow 50 million VND to buy a vehicle. How do 12 and 24 months compare?',
+                        )
+                      }
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: 12,
+                        borderRadius: 19,
+                        backgroundColor: c.secondary,
+                      }}
+                    >
+                      <SignatureIcon icon={Scale} tone="emerald" size={38} />
+                      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                        <Text bold style={{ color: c.foreground }}>
+                          {vi ? 'So sánh 12 và 24 tháng' : 'Compare 12 and 24 months'}
+                        </Text>
+                        <Text small muted>
+                          {vi
+                            ? 'Ví dụ 50 triệu ₫. Bạn sửa trước khi gửi.'
+                            : 'Example: VND 50 million. Edit before sending.'}
+                        </Text>
+                      </View>
+                      <ArrowUpRight size={17} color={c.primary} />
+                    </Action>
+                  ) : null}
                   <View
                     style={{
-                      flexDirection: compactStarters ? 'row' : 'column',
+                      flexDirection: scoped && compactStarters ? 'row' : 'column',
                       alignItems: 'stretch',
                       gap: 7,
                     }}
                   >
                     {starters.map(([question, title], index) => {
+                      if (!scoped && question === 'intelligencePromptCompare') return null;
+                      const tile = scoped && compactStarters;
                       const Icon = [CircleDollarSign, Scale, ChartNoAxesCombined][index]!;
-                      const journeyStarter = !scoped && question === 'intelligencePromptCompare';
                       return (
                         <FinancePrompt
                           key={question}
-                          label={
-                            journeyStarter
-                              ? vi
-                                ? 'So sánh 12 và 24 tháng'
-                                : 'Compare 12 and 24 months'
-                              : t(title)
-                          }
-                          tile={compactStarters}
-                          style={compactStarters ? { flex: 1, minWidth: 0 } : undefined}
+                          label={t(title)}
+                          tile={tile}
+                          style={tile ? { flex: 1, minWidth: 0 } : undefined}
                           icon={
                             <SignatureIcon
                               icon={Icon}
-                              size={compactStarters ? 36 : 31}
+                              size={tile ? 36 : 31}
                               tone={(['emerald', 'blue', 'amber'] as const)[index]}
                             />
                           }
-                          onPress={() =>
-                            fill(
-                              journeyStarter
-                                ? vi
-                                  ? 'Tôi muốn vay 50 triệu để mua xe. Nếu trả trong 12 hay 24 tháng thì khác nhau thế nào?'
-                                  : 'I want to borrow 50 million VND to buy a vehicle. How do 12 and 24 months compare?'
-                                : t(question),
-                            )
-                          }
+                          onPress={() => fill(t(question))}
                         />
                       );
                     })}

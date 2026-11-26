@@ -9,55 +9,21 @@ import {
   Info,
   Landmark,
   TrendingDown,
+  TrendingUp,
+  RotateCcw,
 } from 'lucide-react-native';
 import type { IntelligenceBlock, IntelligenceScenario } from '@finora/contracts';
 import { Action, Button, Dialog, Heading, Text, useDesign } from '@finora/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { date } from '@finora/i18n';
+import { date, intelligenceDecision } from '@finora/i18n';
 import { tokens } from '@finora/design-tokens';
 import { SignatureIcon } from '../../components/signature';
 import { auth } from '../../services/client';
 import { requestId } from '../../services/request-id';
 import { saveIntelligenceScenario } from './transport';
-import { safeSource } from './model';
+import { compareIntelligenceDurations, safeSource, scenarioPressure } from './model';
+import { AnalysisLedger } from './presentation';
 import { prepareSimulationHandoff } from '../simulation-handoff';
-
-type Metric = { label: string; value: string; warning?: boolean };
-
-export function AnalysisLedger({ rows }: { rows: Metric[] }) {
-  const { colors: c } = useDesign();
-  return (
-    <View>
-      {rows.map(({ label, value, warning }, index) => (
-        <View
-          key={label}
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            columnGap: 14,
-            rowGap: 2,
-            paddingVertical: 6,
-            borderTopWidth: index ? 1 : 0,
-            borderColor: c.border,
-          }}
-        >
-          <Text small muted>
-            {label}
-          </Text>
-          <Text
-            small
-            bold
-            style={{ color: warning ? c.warning : c.foreground, fontVariant: ['tabular-nums'] }}
-          >
-            {value}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-}
 
 function Receipt({
   label,
@@ -178,8 +144,8 @@ export function AnalysisBlocks({
       entry.block.kind === 'scenario',
   );
   const { locale, colors: c } = useDesign();
-  const vi = locale === 'vi-VN';
-  const stressPrompt = vi ? 'Nếu thu nhập giảm 20% thì sao?' : 'What if my income drops by 20%?';
+  const words = intelligenceDecision(locale);
+  const canReset = scenarios.some(({ block }) => block.stressBasis !== undefined);
   const paired = scenarios.length === 2;
   const render = ({ block, index }: (typeof sorted)[number]) => (
     <Block
@@ -191,17 +157,48 @@ export function AnalysisBlocks({
   );
   return (
     <View style={{ gap: 14 }}>
-      {scenarios.length &&
-      followUp &&
-      !scenarios.some(({ block }) => block.stressRemainingCash !== null) ? (
-        <Button
-          label={vi ? 'Thử thu nhập giảm 20%' : 'Try 20% lower income'}
-          leading={<TrendingDown size={16} color={c.primary} />}
-          variant="outline"
-          onPress={() => followUp(stressPrompt)}
-        />
-      ) : null}
       {paired ? <CompareStrip scenarios={[scenarios[0].block, scenarios[1].block]} /> : null}
+      {scenarios.length > 0 && followUp ? (
+        <View
+          style={{
+            padding: 13,
+            gap: 8,
+            borderRadius: 16,
+            borderWidth: 1,
+            backgroundColor: c.surface,
+            borderColor: c.border,
+          }}
+        >
+          <Heading size={18}>{words.whatIf}</Heading>
+          <Text small muted>
+            {words.whatIfHint}
+          </Text>
+          <View
+            style={{ gap: 7, flexDirection: width >= 850 ? 'row' : 'column', flexWrap: 'wrap' }}
+          >
+            <Button
+              label={words.incomeAction}
+              leading={<TrendingDown size={16} color={c.primary} />}
+              variant="outline"
+              onPress={() => followUp(words.incomePrompt)}
+            />
+            <Button
+              label={words.expenseAction}
+              leading={<TrendingUp size={16} color={c.primary} />}
+              variant="outline"
+              onPress={() => followUp(words.expensePrompt)}
+            />
+            {canReset ? (
+              <Button
+                label={words.resetAction}
+                leading={<RotateCcw size={16} color={c.primary} />}
+                variant="text"
+                onPress={() => followUp(words.resetPrompt)}
+              />
+            ) : null}
+          </View>
+        </View>
+      ) : null}
       {sorted.map((item) => {
         if (!paired || item.block.kind !== 'scenario') return render(item);
         if (item.index !== scenarios[0].index) return null;
@@ -232,6 +229,8 @@ export function AnalysisBlocks({
 function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, IntelligenceScenario] }) {
   const { colors: c, locale, t, money } = useDesign();
   const vi = locale === 'vi-VN';
+  const words = intelligenceDecision(locale);
+  const trade = compareIntelligenceDurations(...scenarios);
   const feesKnown = scenarios.every((scenario) => scenario.total !== null);
   const stressed = scenarios.some((scenario) => scenario.stressRemainingCash !== null);
   const moneyOf = (value: number | null) => (value === null ? t('unknown') : money(value));
@@ -277,15 +276,15 @@ function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, Intelli
             {vi ? 'So sánh theo kỳ hạn' : 'Compare both terms'}
           </Heading>
           <Text small style={{ color: c.onForestMuted }}>
-            {vi ? 'Cùng số tiền vay, lãi suất và cách tính' : 'Same loan amount, rate and method'}
+            {trade.comparable ? words.sameBasis : words.mismatched}
           </Text>
         </View>
       </View>
       <View style={{ paddingHorizontal: 14, paddingVertical: 9, gap: 7 }}>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          {scenarios.map((s) => (
+          {scenarios.map((s, index) => (
             <Text
-              key={s.months}
+              key={s.months + ':' + index}
               bold
               style={{ flex: 1, color: c.primary, fontVariant: ['tabular-nums'] }}
             >
@@ -303,7 +302,7 @@ function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, Intelli
             </Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               {scenarios.map((s, index) => (
-                <View key={s.months} style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                <View key={s.months + ':' + index} style={{ flex: 1, minWidth: 0, gap: 4 }}>
                   <Text
                     small
                     bold
@@ -314,7 +313,7 @@ function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, Intelli
                   >
                     {moneyOf(amount(s))}
                   </Text>
-                  {label === t('intelligencePeak') && maxPayment > 0 ? (
+                  {trade.comparable && label === t('intelligencePeak') && maxPayment > 0 ? (
                     <View
                       accessible={false}
                       importantForAccessibility="no-hide-descendants"
@@ -336,6 +335,26 @@ function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, Intelli
             </View>
           </View>
         ))}
+        {trade.comparable ? (
+          <View style={{ backgroundColor: c.elevated, gap: 5, padding: 9, borderRadius: 10 }}>
+            {trade.peak ? (
+              <Text small>
+                {words.peakLower}: {trade.peak.months} {t('months')} · {money(trade.peak.amount)}
+              </Text>
+            ) : null}
+            {trade.allIn || trade.principalAndInterest ? (
+              <Text small>
+                {trade.allIn ? words.allInLower : words.principalInterestLower}
+                {': '}
+                {(trade.allIn ?? trade.principalAndInterest)?.months} {t('months')} ·{' '}
+                {money((trade.allIn ?? trade.principalAndInterest)!.amount)}
+              </Text>
+            ) : null}
+            {!trade.peak && !trade.allIn && !trade.principalAndInterest ? (
+              <Text small>{words.noLower}</Text>
+            ) : null}
+          </View>
+        ) : null}
         {!feesKnown ? (
           <Text small muted>
             {vi
@@ -351,7 +370,8 @@ function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, Intelli
 type Save = { turnId: string; blockIndex: number };
 
 function SaveScenario({ save, scenario }: { save: Save; scenario: IntelligenceScenario }) {
-  const { t, money, colors: c } = useDesign();
+  const { t, money, colors: c, locale } = useDesign();
+  const words = intelligenceDecision(locale);
   const session = auth.useSession();
   const queries = useQueryClient();
   const identifier = useRef<string | null>(null);
@@ -387,7 +407,7 @@ function SaveScenario({ save, scenario }: { save: Save; scenario: IntelligenceSc
   return (
     <>
       <Button
-        label={t('intelligenceSave')}
+        label={scenario.source === 'saved_simulation' ? words.stressSave : t('intelligenceSave')}
         variant="outline"
         onPress={() => {
           setFailed(false);
@@ -402,7 +422,7 @@ function SaveScenario({ save, scenario }: { save: Save; scenario: IntelligenceSc
         <Text bold style={{ color: c.primary, fontVariant: ['tabular-nums'] }}>
           {scenario.months} {t('months')} · {money(scenario.principal)}
         </Text>
-        <Text>{t('intelligenceSaveHint')}</Text>
+        <Text>{scenario.stressBasis ? words.stressSaveHint : t('intelligenceSaveHint')}</Text>
         {failed ? (
           <Text role="alert" muted>
             {t('intelligenceSaveError')}
@@ -438,6 +458,7 @@ function Block({
   const [offersExpanded, expandOffers] = useState(false);
   const [details, setDetails] = useState(false);
   const vi = locale === 'vi-VN';
+  const words = intelligenceDecision(locale);
   const format = (amount: number | null) => (amount === null ? t('unknown') : money(amount));
   const percent = (n: number) =>
     new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(n);
@@ -492,6 +513,8 @@ function Block({
       );
     case 'scenario': {
       const savedId = value.simulationId;
+      const pressure = scenarioPressure(value);
+      const stress = value.stressBasis;
       const methodKey =
         value.method === 'flat'
           ? 'flat'
@@ -523,6 +546,12 @@ function Block({
             rows={[
               { label: t('intelligencePeak'), value: money(value.peakPayment) },
               { label: t('assistantPrincipalInterest'), value: money(value.repayment) },
+              ...(value.total === null
+                ? []
+                : [
+                    { label: t('fee'), value: format(value.fee) },
+                    { label: t('assistantIncludingFees'), value: money(value.total) },
+                  ]),
               {
                 label: t('intelligenceAfterPayment'),
                 value: format(value.remainingCash),
@@ -539,6 +568,63 @@ function Block({
                   ]),
             ]}
           />
+          {pressure ? (
+            <View
+              style={{
+                borderLeftWidth: 3,
+                borderColor: pressure === 'within' ? c.success : c.warning,
+                borderRadius: 9,
+                backgroundColor: c.elevated,
+                padding: 9,
+                gap: 2,
+              }}
+            >
+              <Text small bold style={{ color: c.primary }}>
+                {words.planningTitle}
+                {value.planningCapacity === undefined ? '' : ' · ' + money(value.planningCapacity)}
+              </Text>
+              <Text small>{words.pressure[pressure]}</Text>
+              <Text small muted>
+                {words.planningRule}
+              </Text>
+            </View>
+          ) : value.remainingCash === null ? (
+            <Text small muted>
+              {words.planningUnknown}
+            </Text>
+          ) : null}
+          {stress ? (
+            <View style={{ gap: 2 }}>
+              <Text small bold>
+                {words.stressTitle}
+              </Text>
+              <AnalysisLedger
+                rows={[
+                  ...(stress.incomeReductionPercent === null
+                    ? []
+                    : [
+                        {
+                          label:
+                            words.incomeLoss + ' · ' + percent(stress.incomeReductionPercent / 100),
+                          value: money(stress.monthlyIncomeLoss),
+                        },
+                      ]),
+                  ...(stress.expenseIncreasePercent === null && stress.monthlyExpenseIncrease === 0
+                    ? []
+                    : [
+                        {
+                          label:
+                            words.expenseIncrease +
+                            (stress.expenseIncreasePercent === null
+                              ? ''
+                              : ' · ' + percent(stress.expenseIncreasePercent / 100)),
+                          value: money(stress.monthlyExpenseIncrease),
+                        },
+                      ]),
+                ]}
+              />
+            </View>
+          ) : null}
           {value.fee === null ? (
             <Text small muted>
               {vi
@@ -609,7 +695,7 @@ function Block({
               </Text>
             </Action>
           ) : null}
-          {save && value.source === 'user_assumptions' && value.firstDue ? (
+          {save && (value.source === 'user_assumptions' || value.stressBasis) && value.firstDue ? (
             <SaveScenario save={save} scenario={value} />
           ) : null}
         </Receipt>

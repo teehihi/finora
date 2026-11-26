@@ -25,6 +25,7 @@ import {
 import { auth } from '../src/services/client';
 import { GoogleAction } from '../src/features/auth/GoogleAction';
 import { AuthArtwork } from '../src/features/auth/AuthArtwork';
+import { AccessProgress } from '../src/features/auth/AccessProgress';
 
 type Step = 'email' | 'code' | 'password';
 type Pending = 'request' | 'resend' | 'verify' | 'password' | 'google' | 'reconnect' | 'restore';
@@ -35,6 +36,7 @@ export default function Auth() {
   const returnTo = allowedAuthReturn(params.returnTo);
   const { colors: c, locale, t } = useDesign();
   const copy = getAccessStrings(locale);
+  const vi = locale === 'vi-VN';
   const { width } = useWindowDimensions();
   const wide = width >= 1024;
   const session = auth.useSession();
@@ -223,6 +225,8 @@ export default function Auth() {
   const googleAvailable = methods.data?.google === true && redirectOAuthSupported;
   const emailAvailable = methods.data?.emailOtp !== false;
   const title = step === 'code' ? 'authCodeTitle' : 'signIn';
+  const verificationInvalid =
+    error === 'authCodeNeedSix' || error === 'authCodeAttempts' || error === 'authCodeInvalid';
   if (session.isPending && !busy && !restoring && step === 'email') {
     return (
       <PublicPage auth>
@@ -237,9 +241,11 @@ export default function Auth() {
         >
           <SignatureIcon icon={LockKeyhole} tone="lime" size={53} />
           <ActivityIndicator color={c.primary} />
-          <Text muted small>
-            {t('authChecking')}
-          </Text>
+          <View accessibilityLiveRegion="polite">
+            <Text muted small>
+              {t('authChecking')}
+            </Text>
+          </View>
         </View>
       </PublicPage>
     );
@@ -268,17 +274,23 @@ export default function Auth() {
               {copy.offlineBody}
             </Text>
           ) : null}
-          <Button
-            label={copy.restoreRetry}
-            onPress={retrySession}
-            loading={busy || session.isRefetching}
-          />
-          <Button
-            variant="text"
-            label={copy.useDifferentLogin}
-            onPress={() => changeStep('email')}
-            disabled={busy}
-          />
+          {busy || session.isRefetching ? (
+            <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', gap: 8 }}>
+              <ActivityIndicator color={c.primary} />
+              <Text muted small>
+                {t('authChecking')}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Button label={copy.restoreRetry} onPress={retrySession} />
+              <Button
+                variant="text"
+                label={copy.useDifferentLogin}
+                onPress={() => changeStep('email')}
+              />
+            </>
+          )}
         </View>
       </PublicPage>
     );
@@ -293,7 +305,7 @@ export default function Auth() {
           alignSelf: 'center',
           flexDirection: wide ? 'row' : 'column',
           alignItems: wide ? 'stretch' : undefined,
-          marginTop: wide ? 24 : 16,
+          marginTop: wide ? 24 : 10,
           marginBottom: wide ? 40 : 28,
           ...(wide
             ? {
@@ -303,28 +315,22 @@ export default function Auth() {
                 backgroundColor: c.surface,
                 overflow: 'hidden',
               }
-            : { gap: 20 }),
+            : { gap: 15 }),
         }}
       >
-        {wide ? <AuthArtwork wide /> : null}
+        {wide ? <AuthArtwork wide /> : step === 'email' ? <AuthArtwork wide={false} /> : null}
         <View
           style={{
             flex: wide ? 1 : undefined,
             minWidth: 0,
             justifyContent: 'center',
-            gap: wide ? 18 : 17,
+            gap: wide ? 18 : 13,
             paddingHorizontal: wide ? 37 : 0,
             paddingVertical: wide ? 30 : 0,
           }}
         >
           <View style={{ gap: 8 }}>
-            {step !== 'email' ? (
-              <SignatureIcon
-                icon={step === 'code' ? MailCheck : LockKeyhole}
-                tone="lime"
-                size={50}
-              />
-            ) : null}
+            {step === 'email' && !emailAvailable ? null : <AccessProgress step={step} />}
             <Heading size={wide ? 37 : 33}>{t(title)}</Heading>
             <Text muted style={{ fontSize: 15, lineHeight: 23, maxWidth: 410 }}>
               {t(
@@ -388,7 +394,7 @@ export default function Auth() {
                   <Text small muted>
                     {t('authCodeSentTo')}
                   </Text>
-                  <Text bold numberOfLines={1} style={{ fontSize: 15, lineHeight: 21 }}>
+                  <Text bold numberOfLines={2} style={{ fontSize: 15, lineHeight: 21 }}>
                     {email}
                   </Text>
                 </View>
@@ -404,10 +410,19 @@ export default function Auth() {
               </View>
               <VerificationField
                 code={code}
-                setCode={setCode}
+                setCode={(value) => {
+                  setCode(value);
+                  if (verificationInvalid) setError(null);
+                }}
                 editable={!busy}
+                invalid={verificationInvalid}
                 onSubmit={verifyCode}
               />
+              <Text small muted>
+                {vi
+                  ? 'Chưa thấy thư? Kiểm tra hộp thư rác hoặc sửa địa chỉ trên.'
+                  : 'No email yet? Check spam or edit the address above.'}
+              </Text>
             </View>
           ) : (
             <View style={{ gap: 12 }}>
@@ -428,6 +443,7 @@ export default function Auth() {
                 placeholder="ban@example.com"
                 style={{ minHeight: 54, borderRadius: 16 }}
                 error={error === 'authEmailInvalid' ? t(error) : undefined}
+                inputMode="email"
                 onSubmitEditing={step === 'email' ? () => requestCode() : undefined}
               />
               {step === 'password' ? (
@@ -440,6 +456,7 @@ export default function Auth() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   returnKeyType="go"
+                  autoFocus
                   maxLength={128}
                   editable={!busy}
                   style={{ minHeight: 54, borderRadius: 16 }}
@@ -564,7 +581,6 @@ export default function Auth() {
             </Action>
           ) : null}
         </View>
-        {!wide && step === 'email' ? <AuthArtwork wide={false} /> : null}
       </View>
     </PublicPage>
   );

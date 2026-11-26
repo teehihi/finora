@@ -11,11 +11,13 @@ export function VerificationField({
   setCode,
   onSubmit,
   editable,
+  invalid = false,
 }: {
   code: string;
   setCode: (code: string) => void;
   onSubmit: () => void;
   editable: boolean;
+  invalid?: boolean;
 }) {
   const { colors: c, t } = useDesign();
   const [focused, setFocused] = useState(false);
@@ -46,7 +48,13 @@ export function VerificationField({
                   marginRight: index === 2 ? 5 : 0,
                   borderRadius: 14,
                   borderWidth: active ? 2 : 1,
-                  borderColor: active ? c.focus : entered ? c.border : c.borderStrong,
+                  borderColor: invalid
+                    ? c.error
+                    : active
+                      ? c.focus
+                      : entered
+                        ? c.border
+                        : c.borderStrong,
                   backgroundColor: active || entered ? c.secondary : c.input,
                   alignItems: 'center',
                   justifyContent: 'center',

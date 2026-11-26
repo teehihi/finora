@@ -34,6 +34,9 @@ describe('catalog filters', () => {
       education,
     ]);
     expect(filterProducts([education, personal], 'chi tiêu', 'all', 'all')).toEqual([personal]);
+    expect(filterProducts([education, personal], 'sandbox   hoc tap', 'all', 'all')).toEqual([
+      education,
+    ]);
   });
   it('combines category and the maximum annual rate rather than the advertised minimum', () => {
     expect(filterProducts([personal, education], '', 'all', '12')).toEqual([education]);

@@ -48,9 +48,11 @@ test('V4 calculator controls drive an API-calculated live first payment', async 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/simulate/' + offer!.id);
   const field = page.getByLabel('Số tiền vay', { exact: true });
-  const original = Number(await field.inputValue());
+  const readAmount = async () => Number((await field.inputValue()).replace(/\./g, ''));
+  const original = await readAmount();
+  await expect(field).toHaveValue(/^\d{1,3}(\.\d{3})+$/);
   await page.getByRole('button', { name: 'Tăng số tiền vay' }).click();
-  await expect.poll(async () => Number(await field.inputValue())).toBeGreaterThan(original);
+  await expect.poll(readAmount).toBeGreaterThan(original);
   await expect(page.getByText('Ước tính kỳ đầu', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Chi tiết trả nợ' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Tính lịch trả nợ' }).click();

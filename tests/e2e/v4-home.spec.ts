@@ -81,3 +81,35 @@ test('Home links each quick action to the real tool and opens saved simulations 
     'true',
   );
 });
+
+test('Home stress sheet compares real profile cash flow without saving a change', async ({
+  context,
+  page,
+}) => {
+  const owner = await createLegacyAccount(context.request, {
+    email: randomUUID() + '@example.test',
+    name: 'An',
+    password: randomUUID(),
+  });
+  expect(owner.ok()).toBeTruthy();
+  const api = 'http://localhost:3000/api';
+  const profile = { income: 15000000, expenses: 8000000, debt: 1000000 };
+  const saved = await context.request.put(api + '/profile', {
+    headers: { Origin: 'http://localhost:8081' },
+    data: profile,
+  });
+  expect(saved.ok()).toBeTruthy();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/home');
+  await page.getByRole('button', { name: 'Thử biến động dòng tiền', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Thử biến động dòng tiền', exact: true });
+  await expect(sheet.getByRole('heading', { name: /3\.000\.000/ })).toBeVisible();
+  await sheet.getByRole('radio', { name: 'Chi phí tăng 20%' }).click();
+  await expect(sheet.getByRole('heading', { name: /4\.400\.000/ })).toBeVisible();
+  await sheet.getByRole('radio', { name: 'Cả hai' }).click();
+  await expect(sheet.getByRole('heading', { name: /1\.400\.000/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+  const refreshed = await context.request.get(api + '/account');
+  expect((await refreshed.json()).profile).toMatchObject(profile);
+});

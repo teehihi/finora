@@ -8,6 +8,7 @@ import {
   buildProfile,
   interpret,
   scenarioInput,
+  stressBudget,
   toScenario,
 } from '../src/modules/intelligence-rules.js';
 import { financialTools } from '../src/modules/tools.js';
@@ -126,6 +127,55 @@ describe('conversation-local borrowing assumptions', () => {
       interpret('Vay 1.234 triệu trong 12 tháng, lãi suất 12%/năm, trả góp đều.').principal,
     ).toBeUndefined();
     expect(interpret('Vay 8,5 triệu trong 12 tháng').principal).toBe(8_500_000);
+  });
+
+  it('keeps the income shock while updating expenses, then explicitly restores the baseline', () => {
+    const profile = { income: 15_000_000, expenses: 8_000_000, debt: 1_000_000 };
+    const initial = 'Vay 50 triệu 12 hoặc 24 tháng, lãi 12%/năm, trả góp đều. Thu nhập giảm 20%.';
+    const past = store(initial, captureContext(interpret(initial)));
+    const relative = 'Nếu chi phí sinh hoạt tăng 25% thì sao?';
+    const second = parse(relative, [past]).intent;
+    expect(second).toMatchObject({ incomeCut: 20, expenseRisePercent: 25 });
+    expect(stressBudget(profile, second)).toEqual({
+      cashFlow: 1_000_000,
+      basis: {
+        incomeReductionPercent: 20,
+        expenseIncreasePercent: 25,
+        monthlyIncomeLoss: 3_000_000,
+        monthlyExpenseIncrease: 2_000_000,
+      },
+    });
+    const recent = store(relative, captureContext(second));
+    const absolute = 'Nếu chi phí sinh hoạt tăng 1 triệu thì sao?';
+    const third = parse(absolute, [recent, past]).intent;
+    expect(third).toMatchObject({
+      incomeCut: 20,
+      expenseRisePercent: undefined,
+      extraExpense: 1_000_000,
+    });
+    expect(stressBudget(profile, third)?.cashFlow).toBe(2_000_000);
+    const cleared = parse('Bỏ giả định biến động và xem lại phương án ban đầu.', [
+      store(absolute, captureContext(third)),
+      recent,
+      past,
+    ]).intent;
+    expect(cleared).toMatchObject({ principal: 50_000_000, months: 12, secondMonths: 24 });
+    expect(stressBudget(profile, cleared)).toBeNull();
+  });
+
+  it('keeps a zero denominator out of stress advice but accepts total loss of income', () => {
+    const profile = { income: 15_000_000, expenses: 0, debt: 0 };
+    expect(
+      stressBudget(profile, interpret('Nếu thu nhập giảm 100% và chi phí sinh hoạt tăng 10%?')),
+    ).toEqual({
+      cashFlow: 0,
+      basis: {
+        incomeReductionPercent: 100,
+        expenseIncreasePercent: 10,
+        monthlyIncomeLoss: 15_000_000,
+        monthlyExpenseIncrease: 0,
+      },
+    });
   });
 
   it('supports legacy stored analysis and separates independent saved references', () => {

@@ -20,6 +20,7 @@ import {
   intelligenceRequestSchema,
   intelligenceTurnSchema,
   loanSchema,
+  savedStressAnalysisSchema,
   saveIntelligenceScenarioSchema,
   type IntelligenceBlock,
   type IntelligenceRequest,
@@ -43,8 +44,10 @@ import {
   redactExternalPrompt,
   scenarioInput,
   snapshotOf,
+  stressBudget,
   toAffordability,
   toScenario,
+  type InputIssue,
   type Intent,
 } from './intelligence-rules.js';
 import {
@@ -297,6 +300,7 @@ async function resultFor(
   const vi = input.locale === 'vi-VN';
   const say = (viText: string, en: string) => (vi ? viText : en);
   const current = interpret(input.prompt);
+  const invalid = current.inputIssues ?? [];
   const out: IntelligenceBlock[] = [];
   const notice = (message: string) => out.push({ kind: 'notice', message });
   if (current.blocked) {
@@ -366,17 +370,15 @@ async function resultFor(
     intent.expenses !== undefined ||
     intent.incomeCut !== undefined ||
     intent.extraExpense !== undefined ||
+    intent.expenseRisePercent !== undefined ||
+    invalid.length > 0 ||
     route.selected.has('assessRepaymentCapacity');
   if (shouldAssess && profile.profile)
     out.push(toAffordability(profile.profile, profile.basis, intent.savings));
-  if (profile.profile && intent.knownPayment !== undefined) {
+  if (!invalid.length && profile.profile && intent.knownPayment !== undefined) {
     const p = profile.profile;
     const before = p.income - p.expenses - p.debt;
-    const adjusted =
-      Math.round(p.income * (1 - (intent.incomeCut ?? 0) / 100)) -
-      p.expenses -
-      p.debt -
-      (intent.extraExpense ?? 0);
+    const adjusted = stressBudget(p, intent)?.cashFlow ?? before;
     const after = num(adjusted - intent.knownPayment, input.locale);
     notice(
       say(
@@ -422,9 +424,9 @@ async function resultFor(
     );
   }
   const next = nextMonth();
-  const first = scenarioInput(intent, undefined, firstDue ?? next);
+  const first = invalid.length ? undefined : scenarioInput(intent, undefined, firstDue ?? next);
   const scenarioBlocks: Extract<IntelligenceBlock, { kind: 'scenario' }>[] = [];
-  if (first.success && !intent.early) {
+  if (first?.success && !intent.early) {
     if (intent.monthlyQuoted)
       notice(
         say(
@@ -452,6 +454,18 @@ async function resultFor(
       const alt = { ...first.data, months: intent.secondMonths };
       const cmp = financialTools.compareLoanOptions(first.data, alt);
       scenarioBlocks.push(toScenario(alt, cmp.right, intent, profile.profile));
+      const [left, right] = scenarioBlocks;
+      const burdenDifference = left.peakPayment - right.peakPayment;
+      if (burdenDifference !== 0) {
+        const easier = burdenDifference < 0 ? left.months : right.months;
+        const difference = num(Math.abs(burdenDifference), input.locale);
+        notice(
+          say(
+            `Kỳ trả cao nhất của phương án ${easier} tháng thấp hơn ${difference} ₫. Kỳ trả thấp hơn không đồng nghĩa tổng chi phí thấp hơn.`,
+            `The ${easier}-month plan’s highest installment is ${difference} VND lower. A lower installment does not imply a lower total cost.`,
+          ),
+        );
+      }
       if (cmp.totalDifference !== null && cmp.totalDifference !== 0) {
         const lowerTerm = cmp.totalDifference < 0 ? first.data.months : alt.months;
         const difference = num(Math.abs(cmp.totalDifference), input.locale);
@@ -472,10 +486,9 @@ async function resultFor(
     }
     out.push(...scenarioBlocks);
     if (
-      profile.profile &&
       scenarioBlocks.some(
-        ({ peakPayment }) =>
-          peakPayment > financialTools.analyzeFinancialProfile(profile.profile!).monthlyBudget,
+        ({ peakPayment, planningCapacity }) =>
+          planningCapacity !== undefined && peakPayment > planningCapacity,
       )
     )
       notice(
@@ -494,18 +507,16 @@ async function resultFor(
   }
   if (
     !scenarioBlocks.length &&
+    !invalid.length &&
     profile.profile &&
     intent.knownPayment === undefined &&
-    (intent.incomeCut !== undefined || intent.extraExpense !== undefined)
+    (intent.incomeCut !== undefined ||
+      intent.extraExpense !== undefined ||
+      intent.expenseRisePercent !== undefined)
   ) {
     const { income, expenses, debt } = profile.profile;
-    const changed = {
-      income: Math.round(income * (1 - (intent.incomeCut ?? 0) / 100)),
-      expenses: expenses + (intent.extraExpense ?? 0),
-      debt,
-    };
     const before = income - expenses - debt;
-    const left = changed.income - changed.expenses - debt;
+    const left = stressBudget(profile.profile, intent)?.cashFlow ?? before;
     notice(
       say(
         `Theo thay đổi bạn nêu, dòng tiền tháng trước khi tính khoản vay mới từ ${num(before, input.locale)} ₫ còn ${num(left, input.locale)} ₫. Chưa tính được kỳ trả nếu thiếu các điều khoản vay.`,
@@ -513,10 +524,10 @@ async function resultFor(
       ),
     );
   }
-  if (intent.early) {
+  if (intent.early && !invalid.length) {
     const period = intent.payoffAfter;
     const percent = intent.payoffFeeRate;
-    if (first.success && period && period < first.data.months && percent !== undefined) {
+    if (first?.success && period && period < first.data.months && percent !== undefined) {
       const schedule = financialTools.simulateRepaymentScenario(first.data).schedule;
       const balance = schedule[period - 1].balance;
       const fee = Math.round((balance * percent) / 100);
@@ -562,9 +573,35 @@ async function resultFor(
     annualRate: ['lãi suất năm', 'annual rate'],
     method: ['cách tính lãi', 'repayment method'],
   };
+  const fixes: Record<InputIssue, [string, string]> = {
+    annualRate: [
+      'một mức lãi danh nghĩa năm từ 0–100%',
+      'one nominal annual rate between 0 and 100%',
+    ],
+    months: ['kỳ hạn từ 1–360 tháng, không có phần lẻ', 'a whole term between 1 and 360 months'],
+    method: ['một cách tính lãi cho mỗi lần mô phỏng', 'one interest method per simulation'],
+    incomeCut: ['mức giảm thu nhập từ 0–100%', 'an income reduction between 0 and 100%'],
+    extraExpense: [
+      'mức tăng chi phí bằng một số tiền hoặc một tỷ lệ',
+      'an expense increase as a single amount or percentage',
+    ],
+  };
+  if (invalid.length)
+    out.push({
+      kind: 'missing',
+      fields: invalid,
+      message:
+        say(
+          'Mình chưa tính theo thay đổi này. Hãy xác nhận: ',
+          'I did not apply this change. Please confirm: ',
+        ) +
+        invalid.map((key) => fixes[key][vi ? 0 : 1]).join('; ') +
+        '.',
+    });
   const keys = new Set<string>(shouldAssess ? profile.missing : []);
   if (
     shouldAssess &&
+    first &&
     !first.success &&
     !intent.early &&
     (intent.principal !== undefined ||
@@ -587,7 +624,7 @@ async function resultFor(
         '.',
     });
   const answer =
-    first.success && !intent.early
+    first?.success && !intent.early
       ? scenarioBlocks.length > 1
         ? say(
             'Mình đã đối chiếu hai kỳ hạn theo cùng số tiền, lãi và cách tính. Hãy nhìn mức trả mỗi kỳ cùng tổng chi phí, rồi xem dòng tiền khi điều kiện thay đổi.',
@@ -615,7 +652,10 @@ async function resultFor(
     provider: route.provider,
     answer,
     blocks: intelligenceBlocksSchema.parse(bounded),
-    context: captureContext(intent, first.success ? first.data : undefined),
+    // Do not overwrite the last usable context with an invalid, rejected edit.
+    context: invalid.length
+      ? undefined
+      : captureContext(intent, first?.success ? first.data : undefined),
   };
 }
 export const userScenarioSource = 'FINORA_USER_SCENARIO';
@@ -650,7 +690,15 @@ export class IntelligenceController {
     });
     if (!turn) throw new NotFoundException();
     const scenario = analysisBlocks(turn.blocks)[input.blockIndex];
-    if (!scenario || scenario.kind !== 'scenario' || scenario.source !== 'user_assumptions')
+    if (!scenario || scenario.kind !== 'scenario')
+      throw new BadRequestException('Scenario is not available for saving');
+    const stress = savedStressAnalysisSchema.safeParse({
+      ...scenario.stressBasis,
+      remainingCash: scenario.remainingCash,
+      stressRemainingCash: scenario.stressRemainingCash,
+    });
+    // Baseline saved simulations are not duplicated unless saving a distinct stress result.
+    if (scenario.source !== 'user_assumptions' && !stress.success)
       throw new BadRequestException('Scenario is not available for saving');
     const snapshot = loanSchema.parse(snapshotOf(scenario, scenario.firstDue));
     const result = financialTools.simulateRepaymentScenario(snapshot);
@@ -677,7 +725,9 @@ export class IntelligenceController {
         requestId: input.requestId,
         productId: null,
         input: { ...snapshot },
-        result: JSON.parse(JSON.stringify(result)),
+        result: JSON.parse(
+          JSON.stringify({ ...result, ...(stress.success ? { stressAnalysis: stress.data } : {}) }),
+        ),
         productSnapshot: { ...product },
       },
       update: {},

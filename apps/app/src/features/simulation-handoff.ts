@@ -2,9 +2,17 @@ import type { LoanInput } from '@finora/contracts';
 import { requestId } from '../services/request-id';
 import { parseScenario, type ScenarioFields } from './simulation-model';
 
-let draft: { id: string; owner: string; fields: ScenarioFields; expires: number } | undefined;
+type HandoffOrigin = 'ai' | 'document';
 
-export function prepareSimulationHandoff(owner: string, input: LoanInput): string | undefined {
+let draft:
+  | { id: string; owner: string; fields: ScenarioFields; origin: HandoffOrigin; expires: number }
+  | undefined;
+
+export function prepareSimulationHandoff(
+  owner: string,
+  input: LoanInput,
+  origin: HandoffOrigin = 'ai',
+): string | undefined {
   const fields = {
     principal: String(input.principal),
     months: String(input.months),
@@ -15,13 +23,17 @@ export function prepareSimulationHandoff(owner: string, input: LoanInput): strin
   };
   if (!parseScenario(null, fields)) return;
   const id = requestId();
-  draft = { id, owner, fields, expires: Date.now() + 60_000 };
+  draft = { id, owner, fields, origin, expires: Date.now() + 60_000 };
   return id;
 }
 
-export function readSimulationHandoff(owner?: string, id?: string): ScenarioFields | undefined {
+export function readSimulationHandoffContext(owner?: string, id?: string) {
   if (draft && draft.expires > Date.now() && draft.id === id && draft.owner === owner)
-    return { ...draft.fields };
+    return { fields: { ...draft.fields }, origin: draft.origin };
+}
+
+export function readSimulationHandoff(owner?: string, id?: string): ScenarioFields | undefined {
+  return readSimulationHandoffContext(owner, id)?.fields;
 }
 
 export function clearSimulationHandoff(owner?: string, id?: string) {

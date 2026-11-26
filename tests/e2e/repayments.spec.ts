@@ -67,6 +67,14 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   expect(active.upcomingTotal).toBe(result.firstPayment);
   expect(active.loans[0].paidPeriods).toBe(0);
   const loanId = active.loans[0].id;
+  await page.getByRole('tab', { name: 'Đã ghi nhận', exact: true }).click();
+  await expect(page.getByText('Không có kỳ nào ở nhóm này.', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Chưa ghi nhận', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Chưa ghi nhận', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Đánh dấu đã trả' }).first()).toBeVisible();
 
   await page.goto('/loans');
   await expect(page.getByText('Kỳ trả gần nhất', { exact: true })).toBeVisible();
@@ -119,8 +127,20 @@ test('saving a simulation does not create an obligation; tracking and payment bo
       })
     ).status(),
   ).toBe(400);
+  const paymentEndpoint = '**/api/repayments/' + loanId + '/payments/1';
+  await page.route(paymentEndpoint, (route) =>
+    route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }),
+  );
+  await page.getByRole('button', { name: 'Xác nhận đã trả', exact: true }).click();
+  await expect(focusDialog.getByRole('alert')).toHaveText('Chưa lưu được thay đổi. Thử lại.');
+  expect(await ledger()).toEqual(active);
+  await page.unroute(paymentEndpoint);
   await page.getByRole('button', { name: 'Xác nhận đã trả', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Bỏ dấu đã trả', exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveText('Đã cập nhật sổ cá nhân.');
+  await page.getByRole('tab', { name: 'Đã ghi nhận', exact: true }).click();
+  await expect(page.getByText(/Bạn ghi nhận ngày/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Đánh dấu đã trả', exact: true })).toHaveCount(0);
   expect((await ledger()).upcomingTotal).toBe(0);
   expect((await ledger()).loans[0].paidPeriods).toBe(1);
   await page.goto('/loans');

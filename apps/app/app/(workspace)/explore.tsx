@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Action,
   Text,
-  Heading,
   Choices,
   SearchInput,
   SegmentedControl,
@@ -15,14 +14,14 @@ import {
   EmptyState,
   useDesign,
 } from '@finora/ui';
-import { ArrowUpRight, Calculator, Columns2, SlidersHorizontal } from 'lucide-react-native';
+import { ArrowUpRight, Calculator, SlidersHorizontal } from 'lucide-react-native';
 import { numeric, percent } from '@finora/i18n';
 import { api } from '../../src/services/client';
 import { Page, Data } from '../../src/components/layout';
 import { SignatureIcon } from '../../src/components/signature';
 import { LoanProductCard, ProductComparison } from '../../src/features/catalog';
 import { PublicCatalogView } from '../../src/features/public-catalog';
-import { MarketNotice, MarketPanel } from '../../src/features/market-ui';
+import { ComparisonTray, FilterChip, Provenance } from '../../src/features/catalog-marketplace';
 import {
   categories,
   filterProducts,
@@ -47,13 +46,11 @@ export default function Explore() {
           { value: 'sample', label: t('sampleCatalogMode') },
         ]}
       />
+      <PersonalTerms />
       {mode === 'public' ? (
-        <PublicCatalogView personalAction={<PersonalTerms />} />
+        <PublicCatalogView />
       ) : (
-        <SampleCatalogView
-          personalAction={<PersonalTerms />}
-          compareIntent={params.intent === 'compare'}
-        />
+        <SampleCatalogView compareIntent={params.intent === 'compare'} />
       )}
     </Page>
   );
@@ -79,7 +76,10 @@ function PersonalTerms() {
     >
       <SignatureIcon icon={Calculator} size={32} tone="emerald" />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text small bold style={{ color: c.primary }}>
+        <Text small muted>
+          {locale === 'vi-VN' ? 'Điều khoản cá nhân' : 'Personal loan terms'}
+        </Text>
+        <Text bold style={{ color: c.primary }}>
           {label}
         </Text>
         <Text small muted>
@@ -93,13 +93,7 @@ function PersonalTerms() {
   );
 }
 
-function SampleCatalogView({
-  compareIntent,
-  personalAction,
-}: {
-  compareIntent: boolean;
-  personalAction: React.ReactNode;
-}) {
+function SampleCatalogView({ compareIntent }: { compareIntent: boolean }) {
   const { t, colors: c, locale } = useDesign();
   const { width } = useWindowDimensions();
   const desktop = width >= 1024;
@@ -113,7 +107,10 @@ function SampleCatalogView({
   const [compareOpen, setCompareOpen] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
 
-  const products = q.data?.filter((p) => selection.includes(p.id)) ?? [];
+  const products = selection.flatMap((id) => {
+    const product = q.data?.find((p) => p.id === id);
+    return product ? [product] : [];
+  });
   const pair = products.length === 2 ? ([products[0], products[1]] as const) : null;
   const filterControls = (
     <>
@@ -130,43 +127,27 @@ function SampleCatalogView({
       />
     </>
   );
-  const compareControls = products.length > 0 && (
-    <MarketPanel style={{ gap: 8, padding: 13 }}>
-      <Heading size={22}>
-        {t('compare')} ({products.length}/2)
-      </Heading>
-      {products.map((p) => (
-        <Text small key={p.id}>
-          {locale === 'vi-VN' ? p.name : p.nameEn}
-        </Text>
-      ))}
-      {pair && desktop ? (
-        <Button
-          variant="soft"
-          label={t('compare')}
-          icon={<Columns2 size={16} color={c.primary} />}
-          onPress={() => setCompareOpen(true)}
-        />
-      ) : !pair ? (
-        <Text muted small>
-          {t('compareChooseAnother')}
-        </Text>
-      ) : null}
-      <Action
-        label={t('compareClear')}
-        onPress={() => setSelection([])}
-        style={{ alignSelf: 'flex-start', paddingHorizontal: 4 }}
-      >
-        <Text small bold style={{ color: c.primary }}>
-          {t('compareClear')}
-        </Text>
-      </Action>
-    </MarketPanel>
+  const compareControls = (
+    <ComparisonTray
+      names={products.map((p) => ({
+        id: p.id,
+        title: locale === 'vi-VN' ? p.name : p.nameEn,
+        institution: p.institution,
+      }))}
+      onRemove={(id) => setSelection((ids) => ids.filter((value) => value !== id))}
+      onClear={() => setSelection([])}
+      onCompare={() => setCompareOpen(true)}
+    />
   );
 
   return (
     <>
-      <MarketNotice title={t('catalogIndex')}>{t('catalogDisclosure')}</MarketNotice>
+      <View style={{ gap: 6, paddingHorizontal: 4 }}>
+        <Provenance mode="sample" />
+        <Text small muted>
+          {t('catalogDisclosure')}
+        </Text>
+      </View>
       {compareIntent && (
         <Text small bold style={{ color: c.primary }}>
           {locale === 'vi-VN'
@@ -208,25 +189,22 @@ function SampleCatalogView({
               }))}
             />
           </View>
-          {personalAction}
+          {!desktop && max !== 'all' ? (
+            <View style={{ alignSelf: 'flex-start' }}>
+              <FilterChip
+                label={t('maxRate') + ' · ' + percent(Number(max), locale)}
+                onRemove={() => rate('all')}
+              />
+            </View>
+          ) : null}
           {desktop && (
             <View style={{ gap: 8, paddingTop: 12, borderTopWidth: 1, borderColor: c.border }}>
               {filterControls}
             </View>
           )}
-          {desktop && compareControls}
+          {compareControls}
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          {!desktop && pair ? (
-            <View style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
-              <Button
-                variant="soft"
-                label={t('compare')}
-                icon={<Columns2 size={16} color={c.primary} />}
-                onPress={() => setCompareOpen(true)}
-              />
-            </View>
-          ) : null}
           <Data q={q}>
             {(all) => {
               const results = filterProducts(all, query, category, max);
@@ -288,7 +266,6 @@ function SampleCatalogView({
               );
             }}
           </Data>
-          {!desktop && compareControls}
         </View>
       </View>
       <BottomSheet visible={filterOpen} onClose={() => setFilterOpen(false)} title={t('filters')}>
@@ -300,7 +277,13 @@ function SampleCatalogView({
         onClose={() => setCompareOpen(false)}
         title={t('compare')}
       >
-        {pair && <ProductComparison key={pair.map((p) => p.id).join(':')} products={pair} />}
+        {pair && (
+          <ProductComparison
+            key={pair.map((p) => p.id).join(':')}
+            products={pair}
+            onNavigate={() => setCompareOpen(false)}
+          />
+        )}
         <Text small muted>
           {t('noLoanApproval')}
         </Text>

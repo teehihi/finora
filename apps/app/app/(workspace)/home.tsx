@@ -120,7 +120,7 @@ export default function Home() {
         paddingBottom: dockInset + 20,
       }}
     >
-      <View style={{ width: '100%', maxWidth: 1120, gap: mobile ? 16 : 20 }}>
+      <View style={{ width: '100%', maxWidth: 1120, gap: mobile ? 19 : 24 }}>
         {!mobile ? (
           <Heading size={desktop ? 29 : 25}>
             {name ? t('greet') + ', ' + name + '.' : t('greet') + '!'}
@@ -130,8 +130,8 @@ export default function Home() {
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 34 }}>
             <View style={{ flex: 1.23, minWidth: 0, gap: 22 }}>
               <HomeCapacity account={account} desktop />
-              <HomeTools />
               <HomeFin />
+              <HomeTools />
             </View>
             <View style={{ flex: 1, minWidth: 0, gap: 13 }}>
               {payments}
@@ -142,9 +142,9 @@ export default function Home() {
           <>
             <HomeCapacity account={account} desktop={false} />
             {hasPendingPayment ? payments : null}
+            <HomeFin />
             <HomeTools />
             {!hasPendingPayment ? payments : null}
-            <HomeFin />
             {recent}
           </>
         )}

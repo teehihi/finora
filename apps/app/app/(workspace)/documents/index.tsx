@@ -193,16 +193,21 @@ function PrivateIntake({ userId }: { userId: string }) {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 9,
-            padding: 12,
-            borderRadius: 13,
+            gap: 12,
+            padding: 14,
+            borderRadius: 15,
             backgroundColor: c.secondary,
           }}
         >
           <ActivityIndicator size="small" color={c.primary} />
-          <Text small bold>
-            {vi ? 'Đang đọc tài liệu của bạn…' : 'Reading your document…'}
-          </Text>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text small bold>
+              {s.uploadReading}
+            </Text>
+            <Text small muted>
+              {s.uploadPrivacy}
+            </Text>
+          </View>
         </View>
       ) : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
@@ -219,9 +224,16 @@ function PrivateIntake({ userId }: { userId: string }) {
         </Text>
       </View>
       {error ? (
-        <Text role="alert" style={{ color: c.error }}>
-          {error}
-        </Text>
+        <View style={{ borderRadius: 15, backgroundColor: c.surface, padding: 13, gap: 3 }}>
+          <Text role="alert" style={{ color: c.error }}>
+            {error}
+          </Text>
+          <Text small muted>
+            {vi
+              ? 'Bạn có thể chọn lại tệp hoặc thử với mẫu.'
+              : 'Choose another file or try the sample.'}
+          </Text>
+        </View>
       ) : null}
       <View style={{ gap: 10 }}>
         <Heading size={21}>{s.recent}</Heading>
@@ -260,11 +272,9 @@ function PrivateIntake({ userId }: { userId: string }) {
                           : s.png)
                     }
                     body={
-                      row.synthetic
-                        ? s.syntheticFile
-                        : time.format(new Date(row.createdAt)) +
-                          ' · ' +
-                          (row.mode === 'manual' ? s.manualStatus : s.extractedStatus)
+                      (row.synthetic ? s.syntheticFile : time.format(new Date(row.createdAt))) +
+                      ' · ' +
+                      (row.mode === 'manual' ? s.needsManual : s.readyToReview)
                     }
                     icon={<FileText size={19} color={c.primary} />}
                     onPress={() =>
