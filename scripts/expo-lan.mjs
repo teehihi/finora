@@ -10,25 +10,31 @@ const candidates = Object.entries(networkInterfaces()).flatMap(([name, entries])
     .map(({ address }) => ({ name, address })),
 );
 
-const ip = candidates.find(({ address }) =>
-  /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(address),
-)?.address;
-
-if (!ip) {
-  console.error('Không tìm thấy IPv4 LAN. Kết nối máy tính và điện thoại cùng Wi-Fi rồi chạy lại.');
-  process.exit(1);
-}
+const ip = candidates
+  .filter(({ address }) => /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(address))
+  .sort((a, b) => {
+    const score = ({ name, address }) => {
+      if (/^(en\d+|wlan\d*|wlp\w*|wi-?fi)$/i.test(name)) return 0;
+      if (/^(eth\d+|enp\w+)$/i.test(name)) return 1;
+      if (/^(utun|bridge|docker|veth|vmnet)/i.test(name)) return 3;
+      if (address.startsWith('192.168.')) return 1;
+      return 2;
+    };
+    return score(a) - score(b);
+  })[0]?.address;
 
 function setEnvValue(path, key, value) {
   const contents = readFileSync(path, 'utf8');
   const line = new RegExp(`^${key}=.*$`, 'm');
   if (!line.test(contents)) throw new Error(`Không tìm thấy ${key} trong ${path}`);
-  writeFileSync(path, contents.replace(line, `${key}=${value}`));
+  const updated = contents.replace(line, `${key}=${value}`);
+  if (updated !== contents) writeFileSync(path, updated);
 }
 
-const apiUrl = `http://${ip}:3000`;
-const webOrigin = `http://${ip}:8081`;
-setEnvValue('apps/app/.env', 'EXPO_PUBLIC_API_URL', apiUrl);
+const apiUrl = ip ? `http://${ip}:3000` : 'http://localhost:3000';
+const webOrigin = ip ? `http://${ip}:8081` : undefined;
+// Let Expo provide its current hostUri when no private LAN address is available.
+setEnvValue('apps/app/.env', 'EXPO_PUBLIC_API_URL', ip ? apiUrl : '');
 setEnvValue('apps/api/.env', 'BETTER_AUTH_URL', apiUrl);
 
 const apiEnv = readFileSync('apps/api/.env', 'utf8');
@@ -38,10 +44,15 @@ const origins = originsMatch[1]
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
-if (!origins.includes(webOrigin)) origins.push(webOrigin);
+if (webOrigin && !origins.includes(webOrigin)) origins.push(webOrigin);
 setEnvValue('apps/api/.env', 'WEB_ORIGINS', origins.join(','));
 
-console.log(`Đã cấu hình API Expo: ${apiUrl}`);
-console.log(`Đã cho phép Expo origin: ${webOrigin}`);
-console.log('Chạy lại pnpm dev để khởi động API và Metro với cấu hình mới.');
-console.log('Build native mới để nhúng EXPO_PUBLIC_API_URL vào app.');
+if (ip) {
+  console.log(`Đã cấu hình API Expo: ${apiUrl}`);
+  console.log(`Đã cho phép Expo origin: ${webOrigin}`);
+} else {
+  console.warn('Không thấy IPv4 LAN riêng; app sẽ lấy host từ Expo, API dùng localhost.');
+  console.log(`Đã cấu hình API: ${apiUrl}`);
+}
+console.log('Các lệnh dev sẽ nạp cấu hình này khi khởi động API và Metro.');
+console.log('Build native mới sau khi đổi mạng để cập nhật URL nhúng trong app.');

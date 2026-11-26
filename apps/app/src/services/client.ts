@@ -37,7 +37,16 @@ export const auth = createAuthClient({
     }),
     emailOTPClient(),
   ],
-  fetchOptions: { credentials: Platform.OS === 'web' ? 'include' : 'omit' },
+  fetchOptions: {
+    credentials: Platform.OS === 'web' ? 'include' : 'omit',
+    // Never leave the auth screen waiting indefinitely when the API host is down.
+    timeout: 8_000,
+    onError: ({ error }) =>
+      console.warn('[Finora auth] request failed', {
+        status: error.status,
+        code: error.code,
+      }),
+  },
 });
 const headers = (): Record<string, string> =>
   Platform.OS === 'web' ? {} : { cookie: auth.getCookie() };

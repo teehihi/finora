@@ -217,6 +217,14 @@ const copy = {
     'Chưa thể gửi mã. Kiểm tra kết nối và thử lại.',
     'We couldn’t send a code. Check your connection and try again.',
   ],
+  authConnectionError: [
+    'Không kết nối được máy chủ. Kiểm tra kết nối hoặc khởi động lại API rồi thử lại.',
+    'Can’t reach the server. Check your connection or restart the API, then try again.',
+  ],
+  authInvalidCredentials: [
+    'Email hoặc mật khẩu chưa đúng. Kiểm tra lại rồi thử lần nữa.',
+    'That email and password did not match. Check them and try again.',
+  ],
   authUnavailable: [
     'Mã email hiện chưa khả dụng. Bạn vẫn có thể đăng nhập bằng mật khẩu hiện có.',
     'Email codes are currently unavailable. You can still use your existing password.',
@@ -567,8 +575,10 @@ const copy = {
   sampleSource: ['Danh mục minh họa Finora', 'Finora sample catalog'],
 } as const;
 export type Key = keyof typeof copy;
-export const translate = (locale: Locale, key: Key): string =>
-  copy[key][locale === 'vi-VN' ? 0 : 1];
+export const translate = (locale: Locale, key: Key): string => {
+  const entry = copy[key] ?? copy.authGenericError;
+  return entry[locale === 'vi-VN' ? 0 : 1];
+};
 export const currency = (value: number, locale: Locale = 'vi-VN') =>
   new Intl.NumberFormat(locale, {
     style: 'currency',
