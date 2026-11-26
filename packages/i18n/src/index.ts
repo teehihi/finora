@@ -114,9 +114,26 @@ const copy = {
   compareClear: ['Bỏ chọn tất cả', 'Clear comparison'],
   loansNotebook: ['Sổ theo dõi', 'Repayment notebook'],
   loansIntro: [
-    'Xem lại kế hoạch đã lưu và phân biệt với những khoản vay bạn đang trả thực tế.',
-    'Revisit your saved plans and keep them separate from actual borrowing.',
+    'Theo dõi lịch trả nợ và xem lại các bản mô phỏng đã lưu.',
+    'Track repayments and revisit saved simulations.',
   ],
+  loanCenterNext: ['Kỳ thanh toán tiếp theo', 'Next scheduled payment'],
+  loanCenterPast: ['Kỳ quá hạn theo lịch', 'Past-due payment'],
+  loanCenterToday: ['Đến hạn hôm nay', 'Due today'],
+  loanCenterTracked: ['Khoản vay theo dõi', 'Tracked loans'],
+  loanCenterNoPending: ['Không còn kỳ chưa xác nhận', 'No unconfirmed payments'],
+  loanCenterNoPendingBody: [
+    'Bạn đã xác nhận tất cả các kỳ trong sổ cá nhân.',
+    'You have confirmed every payment in your personal ledger.',
+  ],
+  loanCenterEmpty: ['Chưa theo dõi khoản vay nào', 'No tracked loans yet'],
+  loanCenterEmptyBody: [
+    'Mở một bản mô phỏng đã lưu để bắt đầu theo dõi khoản vay bạn đã nhận.',
+    'Open a saved simulation to track a loan you have actually taken out.',
+  ],
+  loanCenterThirty: ['Đến hạn trong 30 ngày', 'Due in the next 30 days'],
+  loanCenterPastTotal: ['Quá hạn chưa xác nhận', 'Past due, unconfirmed'],
+  loanCenterSimulation: ['Chỉ để mô phỏng', 'Simulation only'],
   savedOnlyNote: [
     'Bản mô phỏng là kế hoạch tham khảo, không phải khoản nợ hay lịch đến hạn thật.',
     'A simulation is a planning estimate, not a debt or an actual due date.',

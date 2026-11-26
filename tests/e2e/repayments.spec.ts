@@ -45,6 +45,10 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   ).toBe(400);
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/loans');
+  await expect(page.getByText('Chưa theo dõi khoản vay nào', { exact: true })).toBeVisible();
+  await expect(page.getByText('Chỉ để mô phỏng', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mở sổ trả nợ' })).toHaveCount(0);
   await page.goto('/saved/' + simulationId);
   await page.getByRole('button', { name: 'Theo dõi khoản vay thực tế', exact: true }).click();
   await expect(page.getByText(/Tôi xác nhận đây là khoản vay đã nhận/)).toBeVisible();
@@ -58,6 +62,14 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   expect(active.upcomingTotal).toBe(result.firstPayment);
   expect(active.loans[0].paidPeriods).toBe(0);
   const loanId = active.loans[0].id;
+
+  await page.goto('/loans');
+  await expect(page.getByText('Kỳ thanh toán tiếp theo', { exact: true })).toBeVisible();
+  await expect(page.getByText('Đến hạn hôm nay · Kỳ 1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('progressbar', { name: 'Đã xác nhận 0/12 kỳ' })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('loan-center-390.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Mở sổ trả nợ' }).click();
+  await expect(page).toHaveURL(/\/repayments$/);
 
   const repeated = await context.request.post(base + '/repayments', { data: input });
   expect((await repeated.json()).id).toBe(loanId);
@@ -75,6 +87,10 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   await page.getByRole('button', { name: 'Xác nhận đã trả', exact: true }).click();
   await expect(page.getByText('Đã xác nhận 1/12 kỳ', { exact: true })).toBeVisible();
   expect((await ledger()).upcomingTotal).toBe(0);
+  await page.goto('/loans');
+  await expect(page.getByText('Kỳ thanh toán tiếp theo', { exact: true })).toBeVisible();
+  await expect(page.getByRole('progressbar', { name: 'Đã xác nhận 1/12 kỳ' })).toBeVisible();
+  await page.getByRole('button', { name: 'Mở sổ trả nợ' }).click();
   await page.reload();
   await expect(page.getByText('Đã xác nhận 1/12 kỳ', { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 960 });
