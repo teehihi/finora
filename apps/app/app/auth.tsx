@@ -1,12 +1,11 @@
 import { useRef, useState } from 'react';
-import { Platform, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Platform, View, useWindowDimensions } from 'react-native';
 import { Redirect, useLocalSearchParams, type Href } from 'expo-router';
 import { ShieldCheck } from 'lucide-react-native';
 import { z } from 'zod';
 import type { Key } from '@finora/i18n';
-import { Action, Button, Field, Heading, Text, useDesign } from '@finora/ui';
+import { Action, Button, Field, Text, useDesign } from '@finora/ui';
 import { PublicPage } from '../src/components/layout';
-import { AuthArtwork } from '../src/features/auth/AuthArtwork';
 import { ResendCode, VerificationField, resendDelay } from '../src/features/auth/Verification';
 import {
   allowedAuthReturn,
@@ -174,44 +173,89 @@ export default function Auth() {
   const busy = pending !== null;
   const googleAvailable = methods.data?.google === true && redirectOAuthSupported;
   const emailAvailable = methods.data?.emailOtp !== false;
-  const title = step === 'code' ? 'authCodeTitle' : step === 'password' ? 'signIn' : 'authWelcome';
+  const title = step === 'code' ? 'authCodeTitle' : 'signIn';
+  if (session.isPending) {
+    return (
+      <PublicPage auth>
+        <View
+          style={{
+            flex: 1,
+            minHeight: 300,
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <ActivityIndicator color={c.primary} />
+          <Text muted small>
+            {t('authChecking')}
+          </Text>
+        </View>
+      </PublicPage>
+    );
+  }
+
   return (
     <PublicPage auth>
       <View
         style={{
-          flexDirection: wide ? 'row' : 'column',
           width: '100%',
-          alignItems: wide ? 'stretch' : 'center',
+          maxWidth: wide ? 460 : 498,
+          alignSelf: 'center',
+          flexGrow: 1,
           justifyContent: 'center',
-          gap: wide ? 56 : 24,
-          paddingVertical: wide ? 42 : 20,
+          paddingTop: wide ? 32 : 24,
+          paddingBottom: wide ? 48 : 34,
         }}
       >
-        {wide ? <AuthArtwork wide /> : null}
-        <View style={{ width: '100%', maxWidth: wide ? 432 : 498, alignSelf: 'center', gap: 21 }}>
-          {!wide && step === 'code' ? <AuthArtwork wide={false} verification /> : null}
+        <View style={{ gap: 25 }}>
+          <View style={{ gap: 12 }}>
+            <View
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 16,
+                backgroundColor: c.secondary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 4,
+              }}
+            >
+              <ShieldCheck size={23} color={c.primary} strokeWidth={1.8} />
+            </View>
+            <View style={{ gap: 7 }}>
+              <Text
+                role="header"
+                style={{
+                  fontSize: wide ? 34 : 31,
+                  lineHeight: wide ? 42 : 39,
+                  letterSpacing: -0.8,
+                  fontFamily: 'GeistMedium',
+                  color: c.foreground,
+                }}
+              >
+                {t(title)}
+              </Text>
+              <Text muted style={{ maxWidth: 410 }}>
+                {t(
+                  step === 'code'
+                    ? 'authCodeIntro'
+                    : step === 'password'
+                      ? 'authPasswordIntro'
+                      : 'authWelcomeBody',
+                )}
+              </Text>
+            </View>
+          </View>
+
           {session.error || methods.isError ? (
             <Text role="alert" small style={{ color: c.error }}>
               {t('authConnectionError')}
             </Text>
           ) : null}
-          <View style={{ gap: 7 }}>
-            <Heading size={wide ? 44 : 36} style={{ lineHeight: wide ? 53 : 43 }}>
-              {t(title)}
-            </Heading>
-            <Text muted>
-              {t(
-                step === 'code'
-                  ? 'authCodeIntro'
-                  : step === 'password'
-                    ? 'authPasswordIntro'
-                    : 'authWelcomeBody',
-              )}
-            </Text>
-          </View>
 
           {step === 'email' && googleAvailable ? (
-            <View style={{ gap: 15 }}>
+            <View style={{ gap: 16 }}>
               <GoogleAction
                 onPress={signInGoogle}
                 label={t('authGoogleContinue')}
@@ -229,18 +273,32 @@ export default function Auth() {
           ) : null}
 
           {step === 'code' ? (
-            <View style={{ gap: 13 }}>
+            <View style={{ gap: 12 }}>
               <View
                 style={{
-                  borderLeftWidth: 2,
-                  borderColor: c.accent,
-                  paddingLeft: 12,
-                  paddingVertical: 2,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 12,
                 }}
               >
-                <Text bold style={{ color: c.primary }}>
-                  {email}
-                </Text>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text small muted>
+                    {t('authCodeSentTo')}
+                  </Text>
+                  <Text bold numberOfLines={1} style={{ fontSize: 15, lineHeight: 21 }}>
+                    {email}
+                  </Text>
+                </View>
+                <Action
+                  disabled={busy}
+                  onPress={() => changeStep('email')}
+                  label={t('authEditEmail')}
+                >
+                  <Text small bold style={{ color: c.primary }}>
+                    {t('authEditEmail')}
+                  </Text>
+                </Action>
               </View>
               <VerificationField
                 code={code}
@@ -301,7 +359,7 @@ export default function Auth() {
             </Text>
           ) : null}
 
-          <View style={{ gap: 5 }}>
+          <View style={{ gap: 8 }}>
             <Button
               label={t(
                 step === 'code'
@@ -321,36 +379,20 @@ export default function Auth() {
               disabled={busy || (step === 'email' && !emailAvailable)}
             />
             {step === 'code' ? (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  flexWrap: 'wrap',
-                  justifyContent: 'space-between',
-                  gap: 8,
-                }}
-              >
+              <View style={{ alignItems: 'center', gap: 4 }}>
                 <ResendCode
                   until={until}
                   disabled={busy}
                   loading={pending === 'resend'}
                   onPress={() => requestCode(true)}
                 />
-                <Action
-                  disabled={busy}
-                  onPress={() => changeStep('email')}
-                  label={t('authEditEmail')}
-                >
-                  <Text muted small>
-                    {t('authEditEmail')}
-                  </Text>
-                </Action>
               </View>
             ) : (
               <Action
                 label={t(step === 'password' ? 'authUseCode' : 'authUsePassword')}
                 onPress={() => changeStep(step === 'password' ? 'email' : 'password')}
                 disabled={busy}
-                style={{ alignItems: 'center' }}
+                style={{ alignItems: 'center', marginTop: 2 }}
               >
                 <Text small bold style={{ color: c.primary }}>
                   {t(step === 'password' ? 'authUseCode' : 'authUsePassword')}
@@ -358,18 +400,20 @@ export default function Auth() {
               </Action>
             )}
           </View>
+
           <View
             style={{
               flexDirection: 'row',
-              alignItems: 'flex-start',
-              gap: 9,
-              borderTopWidth: 1,
-              borderColor: c.border,
-              paddingTop: 13,
+              alignItems: 'center',
+              gap: 10,
+              backgroundColor: c.secondary,
+              paddingHorizontal: 13,
+              paddingVertical: 12,
+              borderRadius: 14,
             }}
           >
-            <ShieldCheck size={17} color={c.primary} />
-            <Text small muted>
+            <ShieldCheck size={18} color={c.primary} />
+            <Text small muted style={{ flex: 1 }}>
               {t('authHint')}
             </Text>
           </View>

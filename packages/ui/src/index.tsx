@@ -34,6 +34,7 @@ export function Text({
   small = false,
   bold = false,
   role,
+  numberOfLines,
 }: {
   children: ReactNode;
   style?: TextStyle;
@@ -41,11 +42,13 @@ export function Text({
   small?: boolean;
   bold?: boolean;
   role?: 'alert' | 'header';
+  numberOfLines?: number;
 }) {
   const { colors: c } = useDesign();
   return (
     <RNText
       accessibilityRole={role}
+      numberOfLines={numberOfLines}
       style={[
         {
           fontFamily: bold ? tokens.font.medium : tokens.font.body,

@@ -17,6 +17,14 @@ async function receivedCode(request: APIRequestContext, address: string): Promis
   return Text?.match(/(?<!\d)\d{6}(?!\d)/)?.[0] ?? null;
 }
 
+test('the app opens on login when no session exists', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/auth$/);
+  await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
+  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+});
+
 test('email OTP creates a session using the real local Mailpit message', async ({
   page,
   request,
@@ -29,8 +37,9 @@ test('email OTP creates a session using the real local Mailpit message', async (
   ).toBe(true);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/auth');
-  await expect(page.getByRole('heading', { name: 'Bắt đầu với Finora' })).toBeVisible();
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/auth$/);
+  await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
   await expect(page.getByLabel('Mật khẩu', { exact: true })).toHaveCount(0);
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByRole('button', { name: 'Tiếp tục bằng email' }).click();
