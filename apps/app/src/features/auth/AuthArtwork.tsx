@@ -1,12 +1,12 @@
 import { Image, View } from 'react-native';
 import { CalendarDays, Calculator, FileSearch } from 'lucide-react-native';
 import { Heading, Text, useDesign } from '@finora/ui';
-import { accessStrings } from '@finora/i18n';
+import { getAccessStrings } from '@finora/i18n';
 import mascot from '../../../assets/brand/fin-assistant.png';
 
 export function AuthArtwork({ wide }: { wide: boolean }) {
   const { colors: c, locale } = useDesign();
-  const copy = accessStrings[locale];
+  const copy = getAccessStrings(locale);
   return (
     <View
       style={{

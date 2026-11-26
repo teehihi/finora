@@ -25,7 +25,7 @@ import {
   useDesign,
 } from '@finora/ui';
 import { profileSchema, type Profile, type Preferences } from '@finora/contracts';
-import { accessStrings } from '@finora/i18n';
+import { getAccessStrings } from '@finora/i18n';
 import { Page, Data } from '../../src/components/layout';
 import { AccountIdentity } from '../../src/components/AccountIdentity';
 import { api, auth } from '../../src/services/client';
@@ -153,6 +153,7 @@ export default function ProfileScreen() {
   const a = useAccount();
   const session = auth.useSession();
   const { t, colors: c, locale } = useDesign();
+  const accessCopy = getAccessStrings(locale);
   const { width } = useWindowDimensions();
   const desktop = width >= 1024;
   const { appearance, set } = usePrefs();
@@ -255,7 +256,7 @@ export default function ProfileScreen() {
                     >
                       <ShieldCheck size={18} color={c.primary} />
                       <Text small bold style={{ flex: 1, color: c.primary }}>
-                        {accessStrings[locale].completeProfile}
+                        {accessCopy.completeProfile}
                       </Text>
                     </View>
                   ) : null}
@@ -268,7 +269,7 @@ export default function ProfileScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Fingerprint size={19} color={c.primary} />
               <Text bold style={{ color: c.primary }}>
-                {accessStrings[locale].verification}
+                {accessCopy.verification}
               </Text>
             </View>
             <AccountIdentity />
