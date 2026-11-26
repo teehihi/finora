@@ -13,6 +13,7 @@ import { Action, Button, Dialog, EmptyState, Heading, Progress, Text, useDesign 
 import { date, numeric } from '@finora/i18n';
 import type { DueRepayment, TrackedPayment, TrackedRepayment } from '@finora/contracts';
 import { Back, Data, Page } from '../../src/components/layout';
+import { SignatureIcon, SignatureSweep } from '../../src/components/signature';
 import { ledgerKey, useRepaymentLedger } from '../../src/features/repayments';
 import { api } from '../../src/services/client';
 
@@ -53,12 +54,24 @@ export default function Repayments() {
           };
           return value.loans.length ? (
             <>
-              <View style={{ backgroundColor: c.forest, borderRadius: 24, padding: 20, gap: 7 }}>
-                <CreditCard size={22} color={c.onForestMuted} />
+              <View
+                style={{
+                  backgroundColor: c.forest,
+                  borderRadius: 26,
+                  padding: 21,
+                  gap: 8,
+                  overflow: 'hidden',
+                }}
+              >
+                <SignatureSweep name="finora-repayments-summary" />
+                <SignatureIcon tone="lime" icon={CreditCard} size={36} />
                 <Text small style={{ color: c.onForestMuted }}>
                   {t('repaymentsRemainingTotal')}
                 </Text>
-                <Heading size={35} style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}>
+                <Heading
+                  size={width >= 1024 ? 46 : 36}
+                  style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}
+                >
                   {money(value.loans.reduce((sum, loan) => sum + loan.remainingRepayment, 0))}
                 </Heading>
                 <Text small style={{ color: c.onForestMuted }}>

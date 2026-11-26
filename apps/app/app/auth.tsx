@@ -1,11 +1,19 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, View, useWindowDimensions } from 'react-native';
 import { Redirect, router, useLocalSearchParams, type Href } from 'expo-router';
-import { ArrowUpRight, LockKeyhole, MailCheck, ShieldCheck, WifiOff } from 'lucide-react-native';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  LockKeyhole,
+  MailCheck,
+  ShieldCheck,
+  WifiOff,
+} from 'lucide-react-native';
 import { z } from 'zod';
 import { getAccessStrings, type Key } from '@finora/i18n';
 import { Action, Button, Field, Heading, Text, useDesign } from '@finora/ui';
 import { PublicPage } from '../src/components/layout';
+import { SignatureIcon } from '../src/components/signature';
 import { ResendCode, VerificationField, resendDelay } from '../src/features/auth/Verification';
 import {
   allowedAuthReturn,
@@ -227,6 +235,7 @@ export default function Auth() {
             gap: 12,
           }}
         >
+          <SignatureIcon icon={LockKeyhole} tone="lime" size={53} />
           <ActivityIndicator color={c.primary} />
           <Text muted small>
             {t('authChecking')}
@@ -244,17 +253,15 @@ export default function Auth() {
             width: '100%',
             maxWidth: 490,
             alignSelf: 'center',
-            marginVertical: 36,
-            borderRadius: 23,
-            borderWidth: 1,
+            marginVertical: 30,
+            borderTopWidth: 1,
             borderColor: c.border,
-            backgroundColor: c.surface,
-            padding: 22,
-            gap: 12,
+            paddingTop: 23,
+            gap: 15,
           }}
         >
-          <MailCheck size={25} color={c.primary} />
-          <Heading size={27}>{copy.restoreTitle}</Heading>
+          <SignatureIcon icon={MailCheck} tone="lime" size={53} />
+          <Heading size={32}>{copy.restoreTitle}</Heading>
           <Text muted>{copy.restoreBody}</Text>
           {connectionIssue ? (
             <Text role="alert" small style={{ color: c.error }}>
@@ -282,15 +289,21 @@ export default function Auth() {
       <View
         style={{
           width: '100%',
-          maxWidth: wide ? 1020 : 490,
+          maxWidth: wide ? 1040 : 470,
           alignSelf: 'center',
-          flexGrow: 1,
           flexDirection: wide ? 'row' : 'column',
           alignItems: wide ? 'stretch' : undefined,
-          justifyContent: wide ? 'center' : undefined,
-          paddingTop: wide ? 32 : 16,
-          paddingBottom: wide ? 48 : 30,
-          gap: wide ? 24 : 16,
+          marginTop: wide ? 24 : 16,
+          marginBottom: wide ? 40 : 28,
+          ...(wide
+            ? {
+                borderRadius: 30,
+                borderWidth: 1,
+                borderColor: c.border,
+                backgroundColor: c.surface,
+                overflow: 'hidden',
+              }
+            : { gap: 20 }),
         }}
       >
         {wide || step === 'email' ? <AuthArtwork wide={wide} /> : null}
@@ -299,35 +312,21 @@ export default function Auth() {
             flex: wide ? 1 : undefined,
             minWidth: 0,
             justifyContent: 'center',
-            gap: wide ? 21 : 15,
-            backgroundColor: c.surface,
-            borderRadius: 24,
-            borderWidth: 1,
-            borderColor: c.border,
-            padding: wide ? 30 : 17,
+            gap: wide ? 18 : 17,
+            paddingHorizontal: wide ? 37 : 0,
+            paddingVertical: wide ? 30 : 0,
           }}
         >
           <View style={{ gap: 8 }}>
             {step !== 'email' ? (
-              <View
-                style={{
-                  width: 45,
-                  height: 45,
-                  borderRadius: 14,
-                  backgroundColor: c.secondary,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {step === 'code' ? (
-                  <MailCheck size={22} color={c.primary} />
-                ) : (
-                  <LockKeyhole size={21} color={c.primary} />
-                )}
-              </View>
+              <SignatureIcon
+                icon={step === 'code' ? MailCheck : LockKeyhole}
+                tone="lime"
+                size={50}
+              />
             ) : null}
-            <Heading size={wide ? 32 : 27}>{t(title)}</Heading>
-            <Text muted small>
+            <Heading size={wide ? 37 : 33}>{t(title)}</Heading>
+            <Text muted style={{ fontSize: 15, lineHeight: 23, maxWidth: 410 }}>
               {t(
                 step === 'code'
                   ? 'authCodeIntro'
@@ -342,11 +341,11 @@ export default function Auth() {
             <View
               style={{
                 backgroundColor: c.elevated,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: c.border,
-                padding: 11,
-                gap: 5,
+                borderRadius: 15,
+                borderLeftWidth: 3,
+                borderColor: c.error,
+                padding: 12,
+                gap: 6,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -379,9 +378,13 @@ export default function Auth() {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   gap: 12,
+                  backgroundColor: c.elevated,
+                  borderRadius: 16,
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
                 }}
               >
-                <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                   <Text small muted>
                     {t('authCodeSentTo')}
                   </Text>
@@ -423,6 +426,7 @@ export default function Auth() {
                 maxLength={254}
                 editable={!busy}
                 placeholder="ban@example.com"
+                style={{ minHeight: 54, borderRadius: 16 }}
                 error={error === 'authEmailInvalid' ? t(error) : undefined}
                 onSubmitEditing={step === 'email' ? () => requestCode() : undefined}
               />
@@ -438,6 +442,7 @@ export default function Auth() {
                   returnKeyType="go"
                   maxLength={128}
                   editable={!busy}
+                  style={{ minHeight: 54, borderRadius: 16 }}
                   error={error === 'authPasswordRequired' ? t(error) : undefined}
                   onSubmitEditing={signInPassword}
                 />
@@ -464,8 +469,9 @@ export default function Auth() {
             </Text>
           ) : null}
 
-          <View style={{ gap: 8 }}>
+          <View style={{ gap: 7 }}>
             <Button
+              icon={<ArrowRight size={17} color={c.onPrimary} />}
               label={t(
                 step === 'code'
                   ? 'authCodeConfirm'
@@ -529,13 +535,12 @@ export default function Auth() {
               flexDirection: 'row',
               alignItems: 'center',
               gap: 10,
-              backgroundColor: c.elevated,
-              paddingHorizontal: 11,
-              paddingVertical: 9,
-              borderRadius: 14,
+              borderTopWidth: 1,
+              borderColor: c.border,
+              paddingTop: 14,
             }}
           >
-            <ShieldCheck size={18} color={c.primary} />
+            <SignatureIcon icon={ShieldCheck} tone="emerald" size={33} />
             <Text small muted style={{ flex: 1 }}>
               {t('authHint')}
             </Text>
@@ -547,7 +552,8 @@ export default function Auth() {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justifyContent: 'flex-start',
+                alignSelf: 'flex-start',
                 gap: 5,
               }}
             >

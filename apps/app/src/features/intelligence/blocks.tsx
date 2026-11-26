@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   ChevronDown,
   CircleAlert,
+  ChartNoAxesCombined,
   Info,
   Landmark,
   TrendingDown,
@@ -13,6 +14,8 @@ import type { IntelligenceBlock, IntelligenceScenario } from '@finora/contracts'
 import { Action, Button, Dialog, Heading, Text, useDesign } from '@finora/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { date } from '@finora/i18n';
+import { tokens } from '@finora/design-tokens';
+import { SignatureIcon } from '../../components/signature';
 import { auth } from '../../services/client';
 import { requestId } from '../../services/request-id';
 import { saveIntelligenceScenario } from './transport';
@@ -59,11 +62,15 @@ function Receipt({
   label,
   title,
   figure,
+  figureLabel,
+  emphasis = false,
   children,
 }: {
   label?: string;
   title: string;
   figure?: string;
+  figureLabel?: string;
+  emphasis?: boolean;
   children: ReactNode;
 }) {
   const { colors: c } = useDesign();
@@ -72,35 +79,52 @@ function Receipt({
       style={{
         backgroundColor: c.surface,
         padding: 15,
-        gap: 8,
+        gap: 10,
         borderWidth: 1,
         borderColor: c.border,
-        borderRadius: 18,
+        borderRadius: 21,
         flexShrink: 0,
       }}
     >
       {label ? (
-        <Text small bold style={{ color: c.primary }}>
-          {label}
-        </Text>
+        <View
+          style={{
+            alignSelf: 'flex-start',
+            borderRadius: 8,
+            backgroundColor: c.secondary,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+          }}
+        >
+          <Text small bold style={{ color: c.primary }}>
+            {label}
+          </Text>
+        </View>
       ) : null}
-      <Heading size={19}>{title}</Heading>
+      <Heading size={20}>{title}</Heading>
       {figure ? (
         <View
           style={{
-            backgroundColor: c.secondary,
-            paddingHorizontal: 10,
-            paddingVertical: 7,
-            borderRadius: 10,
+            backgroundColor: emphasis ? c.signatureStart : c.elevated,
+            paddingHorizontal: 13,
+            paddingVertical: 10,
+            borderRadius: 14,
           }}
         >
+          {figureLabel ? (
+            <Text small style={{ color: emphasis ? c.onForestMuted : c.muted }}>
+              {figureLabel}
+            </Text>
+          ) : null}
           <Text
             bold
             style={{
-              fontSize: 26,
-              lineHeight: 34,
+              fontFamily: tokens.font.heading,
+              fontSize: figure.length > 19 ? 24 : 30,
+              lineHeight: figure.length > 19 ? 30 : 36,
+              letterSpacing: -0.65,
               fontVariant: ['tabular-nums'],
-              color: c.primary,
+              color: emphasis ? c.signatureLime : c.primary,
             }}
           >
             {figure}
@@ -210,6 +234,7 @@ function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, Intelli
   const feesKnown = scenarios.every((scenario) => scenario.total !== null);
   const stressed = scenarios.some((scenario) => scenario.stressRemainingCash !== null);
   const moneyOf = (value: number | null) => (value === null ? t('unknown') : money(value));
+  const maxPayment = Math.max(...scenarios.map((s) => s.peakPayment));
   const values: { label: string; amount: (s: IntelligenceScenario) => number | null }[] = [
     { label: t('intelligencePeak'), amount: (s) => s.peakPayment },
     {
@@ -236,12 +261,24 @@ function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, Intelli
       }}
     >
       <View
-        style={{ paddingHorizontal: 14, paddingVertical: 13, backgroundColor: c.secondary, gap: 3 }}
+        style={{
+          paddingHorizontal: 14,
+          paddingVertical: 13,
+          backgroundColor: c.signatureStart,
+          gap: 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
       >
-        <Heading size={18}>{vi ? 'So sánh theo kỳ hạn' : 'Compare both terms'}</Heading>
-        <Text small muted>
-          {vi ? 'Cùng số tiền vay, lãi suất và cách tính' : 'Same loan amount, rate and method'}
-        </Text>
+        <SignatureIcon icon={ChartNoAxesCombined} tone="lime" size={40} />
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Heading size={18} style={{ color: c.onForest }}>
+            {vi ? 'So sánh theo kỳ hạn' : 'Compare both terms'}
+          </Heading>
+          <Text small style={{ color: c.onForestMuted }}>
+            {vi ? 'Cùng số tiền vay, lãi suất và cách tính' : 'Same loan amount, rate and method'}
+          </Text>
+        </View>
       </View>
       <View style={{ paddingHorizontal: 14, paddingVertical: 9, gap: 7 }}>
         <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -264,19 +301,36 @@ function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, Intelli
               {label}
             </Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              {scenarios.map((s) => (
-                <Text
-                  key={s.months}
-                  small
-                  bold
-                  style={{
-                    flex: 1,
-                    color: (amount(s) ?? 0) < 0 ? c.warning : c.foreground,
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {moneyOf(amount(s))}
-                </Text>
+              {scenarios.map((s, index) => (
+                <View key={s.months} style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                  <Text
+                    small
+                    bold
+                    style={{
+                      color: (amount(s) ?? 0) < 0 ? c.warning : c.foreground,
+                      fontVariant: ['tabular-nums'],
+                    }}
+                  >
+                    {moneyOf(amount(s))}
+                  </Text>
+                  {label === t('intelligencePeak') && maxPayment > 0 ? (
+                    <View
+                      accessible={false}
+                      importantForAccessibility="no-hide-descendants"
+                      style={{ height: 5, backgroundColor: c.elevated, borderRadius: 4 }}
+                    >
+                      <View
+                        style={{
+                          height: 5,
+                          width: `${(Math.max(0, s.peakPayment) / maxPayment) * 100}%`,
+                          maxWidth: '100%',
+                          backgroundColor: index === 0 ? c.chartPrincipal : c.actionBlue,
+                          borderRadius: 4,
+                        }}
+                      />
+                    </View>
+                  ) : null}
+                </View>
               ))}
             </View>
           </View>
@@ -403,10 +457,9 @@ function Block({
           )}
           title={t('intelligenceAffordability')}
           figure={money(value.monthlyCapacity)}
+          figureLabel={t('perMonth')}
+          emphasis
         >
-          <Text small muted>
-            {t('perMonth')}
-          </Text>
           <AnalysisLedger
             rows={[
               { label: t('income'), value: money(value.income) },
@@ -462,10 +515,8 @@ function Block({
           )}
           title={t('intelligenceScenarios') + ' · ' + months(value.months)}
           figure={money(value.firstPayment)}
+          figureLabel={t('firstPayment')}
         >
-          <Text small muted>
-            {t('firstPayment')}
-          </Text>
           <AnalysisLedger
             rows={[
               { label: t('intelligencePeak'), value: money(value.peakPayment) },

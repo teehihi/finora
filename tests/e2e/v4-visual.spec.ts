@@ -5,6 +5,8 @@ import { syntheticLoanOfferPdf } from '../../apps/app/src/features/documents/fix
 import { createLegacyAccount } from './legacy-fixture';
 
 const captureDirectory = process.env.FINORA_V4_CAPTURE_DIR;
+const signatureCapture = process.env.FINORA_V5_EXTRA === '1';
+const signatureWidths = signatureCapture ? [390, 430, 768, 1440] : [390, 1440];
 const api = 'http://localhost:3000/api';
 const headers = { Origin: 'http://localhost:8081' };
 const widths = [375, 390, 430, 768, 1024, 1440];
@@ -40,11 +42,39 @@ test('capture every major Finora route with real local fixtures', async ({ page 
     await page.waitForLoadState('networkidle');
     for (const width of widths) {
       await noOverflow(screen, width);
-      if (width === 390 || width === 1440 || screen === 'home') await capture(screen, width);
+      if (
+        width === 390 ||
+        width === 1440 ||
+        screen === 'home' ||
+        (signatureCapture &&
+          ['home-empty', 'assistant', 'simulator', 'auth', 'discovery'].includes(screen) &&
+          signatureWidths.includes(width))
+      )
+        await capture(screen, width);
     }
   };
 
   await openScreen('/auth', 'auth');
+  if (signatureCapture) {
+    await page.route('**/api/auth/providers', (route) =>
+      route.fulfill({
+        status: 503,
+        headers: {
+          'Access-Control-Allow-Origin': 'http://localhost:8081',
+          'Access-Control-Allow-Credentials': 'true',
+        },
+        json: { error: 'Service unavailable' },
+      }),
+    );
+    try {
+      await viewport(390);
+      await page.goto('/auth');
+      await expect(page.getByRole('button', { name: 'Thử kết nối lại' })).toBeVisible();
+      await capture('auth-recovery', 390);
+    } finally {
+      await page.unroute('**/api/auth/providers');
+    }
+  }
   const landing = process.env.FINORA_V4_LANDING_PATH;
   if (landing) {
     await openScreen(landing, 'public-landing');
@@ -82,6 +112,30 @@ test('capture every major Finora route with real local fixtures', async ({ page 
     password: randomUUID(),
   });
   expect(result.ok(), await result.text()).toBe(true);
+  if (signatureCapture) {
+    let release: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/account', async (route) => {
+      await pending;
+      await route.continue();
+    });
+    try {
+      await viewport(390);
+      await page.goto('/home');
+      await expect(page.getByRole('progressbar').first()).toBeVisible();
+      await capture('home-loading', 390);
+      const accountLoaded = page.waitForResponse((response) =>
+        response.url().endsWith('/api/account'),
+      );
+      release();
+      expect((await accountLoaded).ok()).toBeTruthy();
+    } finally {
+      release();
+      await page.unrouteAll({ behavior: 'wait' });
+    }
+  }
   await openScreen('/home', 'home-empty', async () => {
     await expect(page.getByRole('tab', { name: 'Tổng quan' })).toBeVisible();
   });
@@ -148,6 +202,13 @@ test('capture every major Finora route with real local fixtures', async ({ page 
   await expect(page.getByRole('button', { name: 'Lưu bản mô phỏng' })).toBeVisible();
   await page.getByRole('button', { name: 'Lưu bản mô phỏng' }).scrollIntoViewIfNeeded();
   await capture('simulator-estimate', 390);
+  if (signatureCapture) {
+    for (const width of signatureWidths.slice(1)) {
+      await viewport(width);
+      await page.getByRole('heading', { name: 'Chi tiết trả nợ' }).scrollIntoViewIfNeeded();
+      await capture('simulator-estimate', width);
+    }
+  }
   await openScreen('/saved/' + scenarioId, 'saved-loan');
   await openScreen('/loans', 'loan-activity');
   await openScreen('/repayments', 'repayments', async () => {
@@ -163,7 +224,7 @@ test('capture every major Finora route with real local fixtures', async ({ page 
   await page.getByRole('button', { name: 'Gửi', exact: true }).click();
   const aiResult = page.getByRole('heading', { name: 'Kịch bản trả nợ · 24 tháng' });
   await expect(aiResult).toBeVisible();
-  for (const width of [390, 1440]) {
+  for (const width of signatureWidths) {
     await viewport(width);
     await aiResult.scrollIntoViewIfNeeded();
     await capture('intelligence-structured', width);
@@ -208,6 +269,7 @@ test('capture every major Finora route with real local fixtures', async ({ page 
   for (const [route, screen] of [
     ['home', 'home'],
     ['intelligence', 'intelligence'],
+    ...(signatureCapture ? [['simulate/personal-flex', 'simulator']] : []),
     ['explore', 'discovery'],
     ['repayments', 'repayments'],
   ]) {

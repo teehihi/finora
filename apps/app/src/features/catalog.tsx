@@ -1,12 +1,20 @@
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowUpRight, Check } from 'lucide-react-native';
+import { ArrowUpRight, Check, ClipboardList } from 'lucide-react-native';
 import { Action, Button, Field, Heading, SourceAttribution, Text, useDesign } from '@finora/ui';
 import { date, percent } from '@finora/i18n';
 import { compare } from '@finora/financial-engine';
 import type { Product } from '@finora/contracts';
-import { ComparisonGrid, MarketNotice, MarketPanel, ProductIcon } from './market-ui';
+import {
+  ComparisonGrid,
+  MarketFacts,
+  MarketNotice,
+  MarketPanel,
+  MarketRate,
+  ProductIcon,
+} from './market-ui';
+import { SignatureIcon } from '../components/signature';
 import {
   clampWithin,
   commonScenarioBounds,
@@ -39,17 +47,19 @@ export function LoanProductTerms({ p }: { p: Product }) {
   const { t, colors: c } = useDesign();
   const rows = useTerms(p);
   return (
-    <MarketPanel>
-      <Heading size={20}>{t('productTerms')}</Heading>
-      <View style={{ gap: 3 }}>
+    <MarketPanel style={{ borderRadius: 22 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <SignatureIcon icon={ClipboardList} size={37} tone="blue" />
+        <Heading size={20}>{t('productTerms')}</Heading>
+      </View>
+      <View>
         {rows.map(({ label, value }) => (
           <View
             key={label}
             style={{
-              paddingVertical: 8,
-              paddingHorizontal: 8,
-              borderRadius: 8,
-              backgroundColor: c.elevated,
+              paddingVertical: 9,
+              borderBottomWidth: 1,
+              borderBottomColor: c.border,
               flexDirection: 'row',
               alignItems: 'baseline',
               gap: 12,
@@ -93,7 +103,13 @@ export function LoanProductCard({
   const productName = locale === 'vi-VN' ? p.name : p.nameEn;
   return (
     <MarketPanel
-      style={{ borderColor: selected ? c.primary : c.border, width: wide ? '49%' : undefined }}
+      style={{
+        borderColor: selected ? c.primary : c.border,
+        width: wide ? '49%' : undefined,
+        borderRadius: 22,
+        padding: 16,
+        gap: 14,
+      }}
     >
       <View style={{ flexDirection: 'row', gap: 11, alignItems: 'flex-start' }}>
         <ProductIcon category={p.category} />
@@ -104,34 +120,13 @@ export function LoanProductCard({
           <Heading size={20}>{productName}</Heading>
         </View>
       </View>
-      <View style={{ backgroundColor: c.elevated, borderRadius: 12, padding: 11, gap: 7 }}>
-        <View style={{ gap: 2 }}>
-          <Text bold style={{ color: c.primary, fontVariant: ['tabular-nums'] }}>
-            {rateRange(p, locale)}
-          </Text>
-          <Text small muted>
-            {t('yearRate')} · {t(p.method)}
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <View style={{ flex: 1.8, minWidth: 0 }}>
-            <Text small muted>
-              {t('amount')}
-            </Text>
-            <Text small bold style={{ fontVariant: ['tabular-nums'] }}>
-              {money(p.amountMin)} – {money(p.amountMax)}
-            </Text>
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text small muted>
-              {t('term')}
-            </Text>
-            <Text small bold style={{ fontVariant: ['tabular-nums'] }}>
-              {p.monthsMin}–{p.monthsMax} {t('months')}
-            </Text>
-          </View>
-        </View>
-      </View>
+      <MarketRate label={t('yearRate')} value={rateRange(p, locale)} detail={t(p.method)} />
+      <MarketFacts
+        facts={[
+          [t('amount'), money(p.amountMin) + ' – ' + money(p.amountMax)],
+          [t('term'), p.monthsMin + '–' + p.monthsMax + ' ' + t('months')],
+        ]}
+      />
       <SourceAttribution source={p.source} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
         <Action
@@ -142,7 +137,7 @@ export function LoanProductCard({
             alignItems: 'center',
             gap: 7,
             paddingHorizontal: 11,
-            borderRadius: 10,
+            borderRadius: 12,
             backgroundColor: c.secondary,
           }}
         >
@@ -162,7 +157,10 @@ export function LoanProductCard({
               flexDirection: 'row',
               alignItems: 'center',
               gap: 5,
-              paddingHorizontal: 9,
+              paddingHorizontal: 10,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: selected ? c.primary : c.border,
               backgroundColor: selected ? c.elevated : 'transparent',
             }}
           >
@@ -241,7 +239,7 @@ function NormalizedComparison({ products }: { products: readonly [Product, Produ
   });
 
   return (
-    <MarketPanel style={{ padding: 12 }}>
+    <MarketPanel style={{ borderRadius: 20, padding: 14 }}>
       <Heading size={19}>{local('Cùng số tiền, cùng kỳ hạn', 'Same amount, same term')}</Heading>
       {!bounds ? (
         <Text small muted>

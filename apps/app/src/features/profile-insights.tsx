@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUpRight, Info } from 'lucide-react-native';
 import { Action, Heading, Text, useDesign } from '@finora/ui';
 import type { Profile } from '@finora/contracts';
 import type { Readiness } from '@finora/api-client';
+import { SignatureIcon } from '../components/signature';
 
 export function ProfileInsights({
   profile,
@@ -20,9 +21,9 @@ export function ProfileInsights({
     new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(n / 100);
   const explain = tr('Xem cách tính', 'See how it is calculated');
   return (
-    <View style={{ backgroundColor: c.secondary, borderRadius: 15, gap: 9, padding: 13 }}>
+    <View style={{ backgroundColor: c.elevated, borderRadius: 19, gap: 11, padding: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <ArrowUpRight size={18} color={c.primary} />
+        <SignatureIcon icon={ArrowUpRight} tone={remaining < 0 ? 'amber' : 'emerald'} size={30} />
         <Text small bold style={{ color: c.primary }}>
           {tr('Bức tranh hằng tháng', 'Monthly picture')}
         </Text>
@@ -34,7 +35,7 @@ export function ProfileInsights({
             : tr('Tiền còn lại sau chi phí và nợ', 'Cash left after expenses and debt')}
         </Text>
         <Heading
-          size={29}
+          size={Math.abs(remaining) >= 100_000_000 ? 28 : 34}
           style={{
             color: remaining < 0 ? c.actionAmber : c.foreground,
             fontVariant: ['tabular-nums'],
