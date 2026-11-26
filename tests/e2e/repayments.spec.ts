@@ -47,8 +47,9 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/loans');
   await expect(page.getByText('Chưa theo dõi khoản vay nào', { exact: true })).toBeVisible();
-  await expect(page.getByText('Chỉ để mô phỏng', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mở sổ trả nợ' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Bản mô phỏng', exact: true }).click();
+  await expect(page.getByText('Chỉ để mô phỏng', { exact: true })).toBeVisible();
   await page.goto('/saved/' + simulationId);
   await page.getByRole('button', { name: 'Theo dõi khoản vay thực tế', exact: true }).click();
   await expect(page.getByText(/Tôi xác nhận đây là khoản vay đã nhận/)).toBeVisible();
@@ -65,7 +66,9 @@ test('saving a simulation does not create an obligation; tracking and payment bo
 
   await page.goto('/loans');
   await expect(page.getByText('Kỳ thanh toán tiếp theo', { exact: true })).toBeVisible();
-  await expect(page.getByText('Đến hạn hôm nay · Kỳ 1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Đến hạn hôm nay' })).toBeChecked();
+  await expect(page.getByText('Tiền gốc', { exact: true })).toBeVisible();
+  await expect(page.getByText('Tiền lãi', { exact: true })).toBeVisible();
   await expect(page.getByRole('progressbar', { name: 'Đã xác nhận 0/12 kỳ' })).toBeVisible();
   await page.screenshot({ path: info.outputPath('loan-center-390.png'), fullPage: true });
   await page.getByRole('button', { name: 'Mở sổ trả nợ' }).click();
@@ -91,6 +94,8 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   await expect(page.getByText('Kỳ thanh toán tiếp theo', { exact: true })).toBeVisible();
   await expect(page.getByRole('progressbar', { name: 'Đã xác nhận 1/12 kỳ' })).toBeVisible();
   await page.getByRole('button', { name: 'Mở sổ trả nợ' }).click();
+  await expect(page).toHaveURL(/\/repayments$/);
+  await expect(page.getByRole('heading', { name: input.title })).toBeVisible();
   await page.reload();
   await expect(page.getByText('Đã xác nhận 1/12 kỳ', { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 960 });
@@ -120,4 +125,40 @@ test('saving a simulation does not create an obligation; tracking and payment bo
     ).status(),
   ).toBe(404);
   expect((await (await request.get(base + '/repayments')).json()).loans).toEqual([]);
+
+  const later = new Date(today + 'T00:00:00Z');
+  later.setUTCDate(later.getUTCDate() + 2);
+  const another = await context.request.post(base + '/simulations', {
+    data: {
+      requestId: randomUUID(),
+      productId: 'personal-flex',
+      input: {
+        principal: 15000000,
+        months: 12,
+        annualRate: 12,
+        fee: null,
+        method: 'annuity',
+        firstDue: later.toISOString().slice(0, 10),
+      },
+    },
+  });
+  expect(another.ok()).toBe(true);
+  expect(
+    (
+      await context.request.post(base + '/repayments', {
+        data: {
+          simulationId: (await another.json()).id,
+          title: 'Khoản thứ hai',
+          confirmed: true,
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.goto('/loans');
+  await expect(page.getByRole('radio', { name: 'Đến hạn hôm nay' })).toBeChecked();
+  const laterDate = page.getByRole('radio').nth(1);
+  await laterDate.click();
+  await expect(laterDate).toBeChecked();
+  await expect(page.getByText('Cần trả theo lịch', { exact: true })).toBeVisible();
+  await expect(page.getByText('Khoản thứ hai', { exact: true })).toHaveCount(2);
 });
