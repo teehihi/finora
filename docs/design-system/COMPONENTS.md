@@ -8,7 +8,7 @@
 - **Dữ liệu tài chính:** `FinancialAmount`, `FinancialMetric`, `SourceAttribution` và `RiskIndicator` giữ nguồn, ngữ cảnh và nhãn giá trị. Biểu đồ của phần trả nợ có bản số liệu văn bản tương đương.
 - **Trợ giúp:** Dialog, BottomSheet, Progress, Skeleton, LoadingState, EmptyState, ErrorState và Toast hỗ trợ trạng thái có thật, không thay bằng số hoặc nội dung mẫu giả người dùng.
 
-Trang phát triển `/showcase` hiển thị bảng màu, phân cấp typography, input tiền, lựa chọn, trạng thái nút và dialog. Trang không dành cho người dùng production.
+Trang `/showcase` giới thiệu sản phẩm, tách khỏi luồng đăng nhập và các màn có dữ liệu cá nhân. Xem [thiết kế Consumer Fintech 4.0](FINORA_V4.md) để biết cách áp dụng hệ thống mới.
 
 ## Điều hướng và chất liệu
 

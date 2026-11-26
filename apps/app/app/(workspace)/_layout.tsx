@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurTargetView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import {
-  BookOpen,
+  House,
   ChevronRight,
   Compass,
   Sparkle,
@@ -26,12 +26,12 @@ import {
 } from 'lucide-react-native';
 import { useDesign, Text, Eyebrow, Action, Avatar, LoadingState, ErrorState } from '@finora/ui';
 import { Logo, WorkspaceDockInsetContext } from '../../src/components/layout';
-import PlatformGlassSurface from '../../src/components/PlatformGlassSurface';
+import { DockChrome, dockHeight, dockOffset } from '../../src/components/DockChrome';
 import { auth } from '../../src/services/client';
 import { date } from '@finora/i18n';
 
 const links = [
-  ['home', '/home', BookOpen],
+  ['home', '/home', House],
   ['explore', '/explore', Compass],
   ['ai', '/assistant', Sparkle],
   ['loans', '/loans', Wallet],
@@ -169,14 +169,121 @@ export default function Workspace() {
     });
   }, [indicatorX, reduceMotion]);
 
+  // RN Web's touch-history PanResponder can lose part of a mouse drag when
+  // taking over from a pressed tab. Track actual pointer travel on web only.
+  // Native still uses the original PanResponder and Liquid Glass indicator.
+  const userId = data?.user.id;
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !showDock || !userId) return;
+    const node = dock.current as unknown as HTMLElement | null;
+    if (!node?.getBoundingClientRect) return;
+    let start: { id: number; x: number; y: number; index: number; step: number } | null = null;
+    let skipClick = false;
+    let skipTimer: ReturnType<typeof setTimeout> | undefined;
+    const previousTouch = node.style.touchAction;
+    const previousSelect = node.style.userSelect;
+    node.style.touchAction = 'pan-y';
+    node.style.userSelect = 'none';
+
+    const snap = (index: number, step: number) => {
+      const toValue = index * step;
+      if (reduceMotion) indicatorX.setValue(toValue);
+      else
+        Animated.timing(indicatorX, {
+          toValue,
+          duration: tokens.motion.navigation,
+          useNativeDriver: false,
+        }).start();
+    };
+    const down = (event: PointerEvent) => {
+      if (!event.isPrimary || event.button !== 0) return;
+      skipClick = false;
+      clearTimeout(skipTimer);
+      const { left, width: dockWidth } = node.getBoundingClientRect();
+      const step = dockWidth / links.length;
+      const index = selectedIndex.current;
+      if (step <= 0 || Math.floor((event.clientX - left) / step) !== index) return;
+      start = { id: event.pointerId, x: event.clientX, y: event.clientY, index, step };
+    };
+    const move = (event: PointerEvent) => {
+      if (!start || event.pointerId !== start.id) return;
+      const dx = event.clientX - start.x;
+      if (!isDragging.current) {
+        const dy = event.clientY - start.y;
+        if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) {
+          start = null;
+          return;
+        }
+        if (Math.abs(dx) <= 8 || Math.abs(dx) <= Math.abs(dy)) return;
+        isDragging.current = true;
+        indicatorX.stopAnimation();
+      }
+      if (event.cancelable) event.preventDefault();
+      const last = links.length - 1;
+      indicatorX.setValue(Math.max(0, Math.min(last * start.step, start.index * start.step + dx)));
+    };
+    const finish = (event?: PointerEvent) => {
+      const pending = start;
+      if (!pending || (event && pending.id !== event.pointerId)) return;
+      start = null;
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      skipClick = true;
+      skipTimer = setTimeout(() => {
+        skipClick = false;
+      }, 400);
+      const next =
+        event?.type === 'pointerup'
+          ? Math.max(
+              0,
+              Math.min(
+                links.length - 1,
+                Math.round(pending.index + (event.clientX - pending.x) / pending.step),
+              ),
+            )
+          : pending.index;
+      snap(next, pending.step);
+      if (next !== pending.index) router.replace(links[next][1]);
+    };
+    const click = (event: MouseEvent) => {
+      // Keyboard and assistive/programmatic activation have no pointer count.
+      if (!skipClick || event.detail === 0) return;
+      skipClick = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const blur = () => finish();
+    node.addEventListener('pointerdown', down);
+    node.addEventListener('click', click, true);
+    window.addEventListener('pointermove', move, { capture: true, passive: false });
+    window.addEventListener('pointerup', finish, true);
+    window.addEventListener('pointercancel', finish, true);
+    window.addEventListener('blur', blur);
+    return () => {
+      clearTimeout(skipTimer);
+      isDragging.current = false;
+      node.style.touchAction = previousTouch;
+      node.style.userSelect = previousSelect;
+      node.removeEventListener('pointerdown', down);
+      node.removeEventListener('click', click, true);
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', finish, true);
+      window.removeEventListener('pointercancel', finish, true);
+      window.removeEventListener('blur', blur);
+    };
+  }, [indicatorX, reduceMotion, showDock, userId]);
+
   if (isPending) return <LoadingState />;
   if (error) return <ErrorState retry={() => refetch()} />;
   if (!data) return <Redirect href={{ pathname: '/auth', params: { returnTo: path } }} />;
   const name = data.user.name?.trim() || data.user.email || 'Finora';
   const selected = links[activeIndex];
+  const mobileHome = !rail && path === '/home';
+  const firstName = data.user.name?.trim().split(/\s+/).at(-1);
   const nav = links.map(([key, href, Icon], index) => {
     const on = index === activeIndex;
-    const labelColor = on ? c.primary : c.muted;
+    const featured = !rail && key === 'ai';
+    const labelColor = on || featured ? c.primary : c.muted;
     return (
       <Action
         key={key}
@@ -187,22 +294,43 @@ export default function Workspace() {
         style={{
           flex: rail ? undefined : 1,
           alignItems: 'center',
-          minHeight: rail ? 48 : 55,
+          minHeight: rail ? 48 : dockHeight,
+          paddingTop: !rail && !featured ? 19 : 0,
+          paddingBottom: featured ? 7 : 0,
           minWidth: 44,
           gap: full ? 11 : 2,
           paddingHorizontal: full ? 12 : 0,
           flexDirection: full ? 'row' : 'column',
-          justifyContent: full ? 'flex-start' : 'center',
+          justifyContent: full ? 'flex-start' : featured ? 'flex-end' : 'center',
           backgroundColor: rail && on ? c.secondary : 'transparent',
           borderRadius: rail ? tokens.radius.control : tokens.radius.card,
         }}
       >
-        <Icon size={rail ? 20 : 21} strokeWidth={on ? 2 : 1.6} color={labelColor} />
+        {featured ? (
+          <View
+            pointerEvents="none"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: c.forestBorder,
+              backgroundColor: c.forest,
+              alignItems: 'center',
+              justifyContent: 'center',
+              elevation: 2,
+            }}
+          >
+            <Icon size={23} color={c.accent} strokeWidth={on ? 2.3 : 1.9} />
+          </View>
+        ) : (
+          <Icon size={rail ? 20 : 21} strokeWidth={on ? 2 : 1.6} color={labelColor} />
+        )}
         <Text
           small
-          bold={on}
+          bold={on || featured}
           style={{
-            fontSize: full ? 14 : 11,
+            fontSize: full ? 14 : rail ? 11 : 10,
             lineHeight: full ? 21 : 16,
             color: labelColor,
             textAlign: 'center',
@@ -227,8 +355,11 @@ export default function Workspace() {
   const nativeGlass = Platform.OS === 'ios' && !!isLiquidGlassSupported;
 
   return (
-    <WorkspaceDockInsetContext.Provider value={showDock ? tokens.layout.dockInset : 0}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
+    <WorkspaceDockInsetContext.Provider value={showDock ? dockHeight + dockOffset + 5 : 0}>
+      <SafeAreaView
+        edges={['top', 'right', 'bottom', 'left']}
+        style={{ flex: 1, backgroundColor: c.surface }}
+      >
         <StatusBar style={c === dark ? 'light' : 'dark'} />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -236,13 +367,17 @@ export default function Workspace() {
         >
           <BlurTargetView
             ref={blurTarget}
-            style={{ flex: 1, flexDirection: rail ? 'row' : 'column' }}
+            style={{
+              flex: 1,
+              backgroundColor: c.background,
+              flexDirection: rail ? 'row' : 'column',
+            }}
           >
             {rail ? (
               <View
                 style={{
                   width: full ? 222 : 88,
-                  backgroundColor: c.elevated,
+                  backgroundColor: c.surface,
                   paddingHorizontal: full ? 18 : 10,
                   paddingTop: 21,
                   paddingBottom: 24,
@@ -293,6 +428,7 @@ export default function Workspace() {
                       ? tokens.layout.tabletGutter
                       : tokens.layout.gutter,
                   minHeight: rail ? 66 : 58,
+                  backgroundColor: c.surface,
                   borderBottomWidth: 1,
                   borderColor: c.border,
                   flexDirection: 'row',
@@ -319,6 +455,13 @@ export default function Workspace() {
                   </Action>
                 )}
                 <View style={{ flexDirection: 'row', gap: 13, alignItems: 'center' }}>
+                  {mobileHome ? (
+                    <Text role="header" bold>
+                      {firstName
+                        ? (locale === 'vi-VN' ? 'Chào, ' : 'Hello, ') + firstName
+                        : t('greet')}
+                    </Text>
+                  ) : null}
                   {full ? (
                     <Text small muted>
                       {date(new Date(), locale)}
@@ -343,22 +486,17 @@ export default function Workspace() {
             </View>
           </BlurTargetView>
           {showDock ? (
-            <PlatformGlassSurface
-              isDark={c === dark}
-              blurTarget={blurTarget}
-              surfaceColor={c.surface}
-              borderColor={c.border}
+            <View
               style={{
                 position: 'absolute',
                 left: 12,
                 right: 12,
-                bottom: 8,
-                minHeight: 69,
-                borderRadius: 23,
-                paddingHorizontal: 4,
-                paddingVertical: 5,
+                bottom: dockOffset,
+                minHeight: dockHeight,
+                paddingHorizontal: 5,
               }}
             >
+              <DockChrome isDark={c === dark} nativeGlass={nativeGlass} blurTarget={blurTarget} />
               <View
                 ref={dock}
                 accessibilityRole="tablist"
@@ -370,8 +508,8 @@ export default function Workspace() {
                     dockX.current = x;
                   });
                 }}
-                {...navPan.panHandlers}
-                style={{ flexDirection: 'row', alignItems: 'center', minHeight: 56 }}
+                {...(Platform.OS === 'web' ? {} : navPan.panHandlers)}
+                style={{ flexDirection: 'row', alignItems: 'center', minHeight: dockHeight }}
               >
                 {navWidth > 0 ? (
                   <Animated.View
@@ -379,8 +517,8 @@ export default function Workspace() {
                     style={{
                       position: 'absolute',
                       left: 0,
-                      top: 1,
-                      bottom: 1,
+                      top: 23,
+                      bottom: 4,
                       width: navWidth / links.length,
                       transform: [{ translateX: indicatorX }],
                     }}
@@ -409,7 +547,7 @@ export default function Workspace() {
                 ) : null}
                 {nav}
               </View>
-            </PlatformGlassSurface>
+            </View>
           ) : null}
         </KeyboardAvoidingView>
       </SafeAreaView>

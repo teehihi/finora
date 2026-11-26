@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Eyebrow, Field, Heading, Text, useDesign } from '@finora/ui';
+import { Button, Field, Heading, Text, useDesign } from '@finora/ui';
+import { Calculator, Check, CircleAlert, FileSearch, ShieldCheck } from 'lucide-react-native';
 import {
   documentFieldNames,
   documentReviewSchema,
@@ -17,6 +18,7 @@ import { auth } from '../../../src/services/client';
 import { Back, Data, Page } from '../../../src/components/layout';
 import { Breakdown } from '../../../src/features/breakdown';
 import { docApi } from '../../../src/features/documents/client';
+import { PrivatePreview } from '../../../src/features/documents/PrivatePreview';
 
 const numericFields = ['principal', 'months', 'annualRate', 'totalFees'] as const;
 const inputFields = ['lender', ...numericFields, 'firstDue'] as const;
@@ -36,6 +38,7 @@ function Review({
   const s = documentStrings[locale];
   const { width } = useWindowDimensions();
   const split = width >= 1100;
+  const vi = locale === 'vi-VN';
   const queryClient = useQueryClient();
   const [showSources, setShowSources] = useState(split);
   const [deleting, setDeleting] = useState(false);
@@ -117,13 +120,69 @@ function Review({
     }
   }
   const sourceContent = (
-    <View style={{ gap: 11 }}>
-      <Heading size={25}>{s.extracted}</Heading>
+    <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+        <FileSearch size={21} color={c.primary} />
+        <Heading size={20}>{s.extracted}</Heading>
+      </View>
       <Text small muted>
         {modeMessage}
       </Text>
+      {!showSources ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            columnGap: 9,
+            rowGap: 7,
+            padding: 10,
+            backgroundColor: c.elevated,
+            borderRadius: 12,
+          }}
+        >
+          {(
+            [
+              ['principal', vi ? 'Tiền gốc' : 'Principal'],
+              ['months', vi ? 'Kỳ hạn' : 'Term'],
+              ['annualRate', vi ? 'Lãi năm' : 'Annual rate'],
+            ] as const
+          ).map(([key, label]) => {
+            const term = documentReview.fields[key];
+            const value =
+              typeof term.value !== 'number'
+                ? term.state === 'conflicting'
+                  ? s.conflict
+                  : s.unknown
+                : key === 'principal'
+                  ? money(term.value)
+                  : key === 'annualRate'
+                    ? new Intl.NumberFormat(locale, {
+                        style: 'percent',
+                        maximumFractionDigits: 4,
+                      }).format(term.value / 100)
+                    : term.value + (vi ? ' tháng' : ' months');
+            return (
+              <View key={key} style={{ flexGrow: 1, minWidth: 70, gap: 1 }}>
+                <Text small muted>
+                  {label}
+                </Text>
+                <Text
+                  small
+                  bold
+                  style={{
+                    color: term.value === null ? c.muted : c.primary,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  {value}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
       <Button
-        variant="text"
+        variant="outline"
         label={showSources ? s.hideSources : s.showSources}
         onPress={() => setShowSources(!showSources)}
       />
@@ -149,16 +208,46 @@ function Review({
             return (
               <View
                 key={field}
-                style={{ gap: 4, borderTopWidth: 1, borderColor: c.border, paddingVertical: 9 }}
+                style={{ gap: 6, borderTopWidth: 1, borderColor: c.border, paddingTop: 9 }}
               >
-                <Text bold small>
-                  {s.fields[field]}
-                </Text>
-                <Text muted={value.value === null}>{rendered}</Text>
-                {value.sources.map((source, i) => (
-                  <Text key={i} small muted>
-                    {s.source} · {s.page} {source.page}: “{source.excerpt}”
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'baseline',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 5,
+                  }}
+                >
+                  <Text bold small>
+                    {s.fields[field]}
                   </Text>
+                  {value.value === null ? (
+                    <Text
+                      small
+                      bold
+                      style={{ color: value.state === 'conflicting' ? c.warning : c.muted }}
+                    >
+                      {rendered}
+                    </Text>
+                  ) : (
+                    <Text bold style={{ color: c.primary, fontVariant: ['tabular-nums'] }}>
+                      {rendered}
+                    </Text>
+                  )}
+                </View>
+                {value.sources.map((source, i) => (
+                  <View
+                    key={i}
+                    style={{ gap: 3, borderRadius: 9, backgroundColor: c.elevated, padding: 8 }}
+                  >
+                    <Text small muted>
+                      {s.source}
+                    </Text>
+                    <Text small>
+                      {s.page} {source.page}: “{source.excerpt}”
+                    </Text>
+                  </View>
                 ))}
               </View>
             );
@@ -167,8 +256,11 @@ function Review({
     </View>
   );
   const changes = (
-    <View style={{ gap: 16 }}>
-      <Heading size={25}>{s.assumptions}</Heading>
+    <View style={{ gap: 13 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+        <ShieldCheck size={21} color={c.primary} />
+        <Heading size={20}>{s.assumptions}</Heading>
+      </View>
       <Text small muted>
         {s.confirmHelp}
       </Text>
@@ -236,38 +328,54 @@ function Review({
       description={s.reviewDescription}
       top={<Back to={() => router.navigate('/documents')} />}
     >
-      {documentReview.synthetic ? <Eyebrow tone="forest">{s.syntheticFile}</Eyebrow> : null}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          columnGap: 8,
+          rowGap: 6,
+          alignItems: 'center',
+        }}
+        accessibilityLabel={vi ? 'Quy trình rà soát đề nghị vay' : 'Loan offer review steps'}
+      >
+        <ReviewStep number={1} label={vi ? 'Đọc tài liệu' : 'Read document'} complete />
+        <ReviewStep
+          number={2}
+          label={vi ? 'Xác nhận giá trị' : 'Confirm values'}
+          active={!checked}
+          complete={!!checked}
+        />
+        <ReviewStep
+          number={3}
+          label={vi ? 'Tính khoản trả' : 'Calculate payments'}
+          active={!!checked}
+        />
+      </View>
+      <PrivatePreview review={documentReview} />
+      {documentReview.synthetic ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+          <CircleAlert size={15} color={c.warning} />
+          <Text small muted>
+            {s.syntheticFile}
+          </Text>
+        </View>
+      ) : null}
       <View
         style={{
           flexDirection: split ? 'row' : 'column',
-          gap: split ? 28 : 22,
-          alignItems: 'stretch',
+          gap: 14,
+          alignItems: split ? 'flex-start' : 'stretch',
         }}
       >
-        <View
-          style={{
-            flex: split ? 1 : undefined,
-            borderTopWidth: 1,
-            borderColor: c.border,
-            paddingTop: 16,
-          }}
-        >
-          {sourceContent}
-        </View>
-        <View
-          style={{
-            flex: split ? 1 : undefined,
-            borderTopWidth: 1,
-            borderColor: c.border,
-            paddingTop: 16,
-          }}
-        >
-          {changes}
-        </View>
+        <ReviewPanel styleFlex={split ? 1 : undefined}>{sourceContent}</ReviewPanel>
+        <ReviewPanel styleFlex={split ? 1 : undefined}>{changes}</ReviewPanel>
       </View>
       {checked ? (
-        <View style={{ gap: 10, borderTopWidth: 1, borderColor: c.border, paddingTop: 18 }}>
-          <Heading size={28}>{s.estimated}</Heading>
+        <View style={{ gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Calculator size={21} color={c.primary} />
+            <Heading size={23}>{s.estimated}</Heading>
+          </View>
           <Text muted small>
             {s.calculationNote}
           </Text>
@@ -290,7 +398,7 @@ function Review({
           ) : null}
         </View>
       ) : null}
-      <View style={{ gap: 10, borderTopWidth: 1, borderColor: c.border, paddingTop: 10 }}>
+      <View style={{ gap: 9, paddingHorizontal: 4 }}>
         {deleting ? (
           <>
             <Text>{s.confirmDelete}</Text>
@@ -338,9 +446,83 @@ export default function ReviewRoute() {
   });
   return (
     <Data q={q}>
-      {(documentReview) => (
-        <Review key={documentReview.id} document={documentReview} userId={userId ?? ''} />
-      )}
+      {(documentReview) =>
+        userId ? (
+          <Review
+            key={userId + ':' + documentReview.id}
+            document={documentReview}
+            userId={userId}
+          />
+        ) : null
+      }
     </Data>
+  );
+}
+
+function ReviewPanel({ children, styleFlex }: { children: ReactNode; styleFlex?: number }) {
+  const { colors: c } = useDesign();
+  return (
+    <View
+      style={{
+        flex: styleFlex,
+        minWidth: 0,
+        padding: 14,
+        borderRadius: 17,
+        borderWidth: 1,
+        borderColor: c.border,
+        backgroundColor: c.surface,
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+function ReviewStep({
+  number,
+  label,
+  active,
+  complete,
+}: {
+  number: number;
+  label: string;
+  active?: boolean;
+  complete?: boolean;
+}) {
+  const { colors: c } = useDesign();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        padding: 5,
+        paddingRight: 7,
+        borderRadius: 10,
+        backgroundColor: active ? c.secondary : c.surface,
+      }}
+    >
+      <View
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 7,
+          backgroundColor: active || complete ? c.primary : c.elevated,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {complete ? (
+          <Check size={13} color={c.onPrimary} />
+        ) : (
+          <Text small bold style={{ color: active ? c.onPrimary : c.muted }}>
+            {number}
+          </Text>
+        )}
+      </View>
+      <Text small bold style={{ color: active ? c.primary : c.muted, fontSize: 12 }}>
+        {label}
+      </Text>
+    </View>
   );
 }

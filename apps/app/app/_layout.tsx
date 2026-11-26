@@ -6,8 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { Geist_400Regular } from '@expo-google-fonts/geist/400Regular';
 import { Geist_500Medium } from '@expo-google-fonts/geist/500Medium';
-import { InstrumentSerif_400Regular } from '@expo-google-fonts/instrument-serif/400Regular';
-import { SourceSerif4_400Regular } from '@expo-google-fonts/source-serif-4/400Regular';
+import { Geist_700Bold } from '@expo-google-fonts/geist/700Bold';
 import { Providers } from '../src/providers/AppProviders';
 import { LoadingState, useDesign } from '@finora/ui';
 function Routes() {
@@ -26,8 +25,7 @@ export default function Layout() {
   const [loaded, error] = useFonts({
     Geist: Geist_400Regular,
     GeistMedium: Geist_500Medium,
-    InstrumentSerif: InstrumentSerif_400Regular,
-    SourceSerif: SourceSerif4_400Regular,
+    GeistBold: Geist_700Bold,
   });
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

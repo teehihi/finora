@@ -8,18 +8,20 @@ import {
   Heading,
   Choices,
   SearchInput,
+  SegmentedControl,
   BottomSheet,
   Dialog,
   Button,
   EmptyState,
   useDesign,
 } from '@finora/ui';
-import { BookOpen, Columns2, SlidersHorizontal } from 'lucide-react-native';
+import { Columns2, SlidersHorizontal } from 'lucide-react-native';
 import { numeric, percent } from '@finora/i18n';
 import { api } from '../../src/services/client';
 import { Page, Data } from '../../src/components/layout';
 import { LoanProductCard, ProductComparison } from '../../src/features/catalog';
 import { PublicCatalogView } from '../../src/features/public-catalog';
+import { MarketNotice, MarketPanel } from '../../src/features/market-ui';
 import {
   categories,
   filterProducts,
@@ -35,9 +37,8 @@ export default function Explore() {
     <Page
       title={t('catalog')}
       description={t(mode === 'public' ? 'publicCatalogIntro' : 'catalogIntro')}
-      eyebrow={t('explore')}
     >
-      <Choices
+      <SegmentedControl
         value={mode}
         onChange={(value) => router.setParams({ mode: value })}
         options={[
@@ -54,6 +55,7 @@ function SampleCatalogView() {
   const { t, colors: c, locale } = useDesign();
   const { width } = useWindowDimensions();
   const desktop = width >= 1024;
+  const wide = width >= 1280;
   const ComparisonOverlay = desktop ? Dialog : BottomSheet;
   const q = useQuery({ queryKey: ['catalog'], queryFn: api.catalog });
   const [query, search] = useState('');
@@ -81,7 +83,7 @@ function SampleCatalogView() {
     </>
   );
   const compareControls = products.length > 0 && (
-    <View style={{ gap: 10, paddingTop: 16, borderTopWidth: 1, borderColor: c.border }}>
+    <MarketPanel style={{ gap: 8, padding: 13 }}>
       <Heading size={22}>
         {t('compare')} ({products.length}/2)
       </Heading>
@@ -111,29 +113,12 @@ function SampleCatalogView() {
           {t('compareClear')}
         </Text>
       </Action>
-    </View>
+    </MarketPanel>
   );
 
   return (
     <>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          gap: 12,
-          padding: 14,
-          borderRadius: 12,
-          backgroundColor: c.secondary,
-        }}
-      >
-        <BookOpen size={17} color={c.primary} style={{ marginTop: 2 }} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text small bold style={{ color: c.primary }}>
-            {t('catalogIndex')}
-          </Text>
-          <Text small>{t('catalogDisclosure')}</Text>
-        </View>
-      </View>
+      <MarketNotice title={t('catalogIndex')}>{t('catalogDisclosure')}</MarketNotice>
       <View style={{ flexDirection: desktop ? 'row' : 'column', gap: desktop ? 34 : 18 }}>
         <View style={{ width: desktop ? 216 : undefined, gap: desktop ? 18 : 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 }}>
@@ -146,6 +131,7 @@ function SampleCatalogView() {
                   width: 46,
                   alignItems: 'center',
                   borderWidth: 1,
+                  borderRadius: 13,
                   borderColor: c.border,
                   backgroundColor: max === 'all' ? c.surface : c.secondary,
                 }}
@@ -189,8 +175,8 @@ function SampleCatalogView() {
             {(all) => {
               const results = filterProducts(all, query, category, max);
               return (
-                <View>
-                  <View style={{ paddingBottom: 12 }} accessibilityLiveRegion="polite">
+                <View style={{ gap: 10 }}>
+                  <View style={{ paddingBottom: 1 }} accessibilityLiveRegion="polite">
                     <Text small muted>
                       {t('catalogMatches')} · {numeric(results.length, locale)}
                     </Text>
@@ -201,23 +187,32 @@ function SampleCatalogView() {
                     ) : null}
                   </View>
                   {results.length ? (
-                    results.map((p) => (
-                      <LoanProductCard
-                        key={p.id}
-                        p={p}
-                        selected={selection.includes(p.id)}
-                        comparisonDisabled={selection.length >= 2 && !selection.includes(p.id)}
-                        toggleComparison={() =>
-                          setSelection((ids) =>
-                            ids.includes(p.id)
-                              ? ids.filter((id) => id !== p.id)
-                              : ids.length >= 2
-                                ? ids
-                                : [...ids, p.id],
-                          )
-                        }
-                      />
-                    ))
+                    <View
+                      style={{
+                        gap: 10,
+                        flexDirection: wide ? 'row' : 'column',
+                        flexWrap: wide ? 'wrap' : 'nowrap',
+                      }}
+                    >
+                      {results.map((p) => (
+                        <LoanProductCard
+                          key={p.id}
+                          p={p}
+                          wide={wide}
+                          selected={selection.includes(p.id)}
+                          comparisonDisabled={selection.length >= 2 && !selection.includes(p.id)}
+                          toggleComparison={() =>
+                            setSelection((ids) =>
+                              ids.includes(p.id)
+                                ? ids.filter((id) => id !== p.id)
+                                : ids.length >= 2
+                                  ? ids
+                                  : [...ids, p.id],
+                            )
+                          }
+                        />
+                      ))}
+                    </View>
                   ) : (
                     <EmptyState
                       title={t('noResults')}

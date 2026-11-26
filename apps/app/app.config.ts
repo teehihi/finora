@@ -15,7 +15,7 @@ const config: ExpoConfig = {
     'expo-secure-store',
     [
       'expo-splash-screen',
-      { image: './assets/brand/lockup.png', imageWidth: 160, backgroundColor: '#F7F5EF' },
+      { image: './assets/brand/lockup.png', imageWidth: 160, backgroundColor: '#F5F7FA' },
     ],
   ],
   experiments: { autolinkingModuleResolution: true },

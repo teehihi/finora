@@ -64,16 +64,21 @@ test('analyze verified assumptions, explicitly save, and revisit the repayment s
 
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 960 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
-    );
-    if (width === 1440) {
-      const [left, right] = await Promise.all([scenario.boundingBox(), alternative.boundingBox()]);
-      expect(left).not.toBeNull();
-      expect(right).not.toBeNull();
-      expect(left!.x).toBeLessThan(right!.x);
-      expect(Math.abs(left!.y - right!.y)).toBeLessThan(4);
-    }
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      .toBe(true);
+    await expect
+      .poll(async () => {
+        const [left, right] = await Promise.all([
+          scenario.boundingBox(),
+          alternative.boundingBox(),
+        ]);
+        if (!left || !right) return false;
+        return width === 1440
+          ? left.x < right.x && Math.abs(left.y - right.y) < 4
+          : Math.abs(left.x - right.x) < 4 && left.y < right.y;
+      })
+      .toBe(true);
     if (captures) {
       await scenario.scrollIntoViewIfNeeded();
       await page.evaluate(() => document.fonts.ready);

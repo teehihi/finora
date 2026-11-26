@@ -84,6 +84,15 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   await expect(page.getByText('Đã xác nhận 0/12 kỳ', { exact: true })).toBeVisible();
   expect((await ledger()).upcomingTotal).toBe(result.firstPayment);
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/home');
+  const nextPayment = page.getByRole('button', { name: /Kỳ thanh toán sắp tới/ }).filter({
+    hasText: input.title,
+  });
+  await expect(nextPayment).toBeVisible();
+  await nextPayment.click();
+  await expect(page).toHaveURL(/\/repayments$/);
+
   expect((await createLegacyAccount(request, identity())).ok()).toBe(true);
   const foreign = await request.post(base + '/repayments', { data: input });
   expect(foreign.status()).toBe(404);

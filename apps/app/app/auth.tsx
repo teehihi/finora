@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, View, useWindowDimensions } from 'react-native';
-import { Redirect, useLocalSearchParams, type Href } from 'expo-router';
-import { ShieldCheck } from 'lucide-react-native';
+import { Redirect, router, useLocalSearchParams, type Href } from 'expo-router';
+import { ArrowUpRight, LockKeyhole, MailCheck, ShieldCheck } from 'lucide-react-native';
 import { z } from 'zod';
-import type { Key } from '@finora/i18n';
-import { Action, Button, Field, Text, useDesign } from '@finora/ui';
+import { accessStrings, type Key } from '@finora/i18n';
+import { Action, Button, Field, Heading, Text, useDesign } from '@finora/ui';
 import { PublicPage } from '../src/components/layout';
 import { ResendCode, VerificationField, resendDelay } from '../src/features/auth/Verification';
 import {
@@ -16,6 +16,7 @@ import {
 } from '../src/features/auth/identity';
 import { auth } from '../src/services/client';
 import { GoogleAction } from '../src/features/auth/GoogleAction';
+import { AuthArtwork } from '../src/features/auth/AuthArtwork';
 
 type Step = 'email' | 'code' | 'password';
 type Pending = 'request' | 'resend' | 'verify' | 'password' | 'google';
@@ -24,7 +25,7 @@ const emailSchema = z.email().max(254);
 export default function Auth() {
   const params = useLocalSearchParams<{ returnTo?: string; oauth?: string }>();
   const returnTo = allowedAuthReturn(params.returnTo);
-  const { colors: c, t } = useDesign();
+  const { colors: c, locale, t } = useDesign();
   const { width } = useWindowDimensions();
   const wide = width >= 1024;
   const session = auth.useSession();
@@ -200,76 +201,66 @@ export default function Auth() {
       <View
         style={{
           width: '100%',
-          maxWidth: wide ? 460 : 498,
+          maxWidth: wide ? 1020 : 490,
           alignSelf: 'center',
           flexGrow: 1,
-          justifyContent: 'center',
-          paddingTop: wide ? 32 : 24,
-          paddingBottom: wide ? 48 : 34,
+          flexDirection: wide ? 'row' : 'column',
+          alignItems: wide ? 'stretch' : undefined,
+          justifyContent: wide ? 'center' : undefined,
+          paddingTop: wide ? 32 : 16,
+          paddingBottom: wide ? 48 : 30,
+          gap: wide ? 24 : 16,
         }}
       >
-        <View style={{ gap: 25 }}>
-          <View style={{ gap: 12 }}>
-            <View
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: 16,
-                backgroundColor: c.secondary,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 4,
-              }}
-            >
-              <ShieldCheck size={23} color={c.primary} strokeWidth={1.8} />
-            </View>
-            <View style={{ gap: 7 }}>
-              <Text
-                role="header"
+        {wide || step === 'email' ? <AuthArtwork wide={wide} /> : null}
+        <View
+          style={{
+            flex: wide ? 1 : undefined,
+            minWidth: 0,
+            justifyContent: 'center',
+            gap: wide ? 21 : 15,
+            backgroundColor: c.surface,
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: c.border,
+            padding: wide ? 30 : 17,
+          }}
+        >
+          <View style={{ gap: 8 }}>
+            {step !== 'email' ? (
+              <View
                 style={{
-                  fontSize: wide ? 34 : 31,
-                  lineHeight: wide ? 42 : 39,
-                  letterSpacing: -0.8,
-                  fontFamily: 'GeistMedium',
-                  color: c.foreground,
+                  width: 45,
+                  height: 45,
+                  borderRadius: 14,
+                  backgroundColor: c.secondary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                {t(title)}
-              </Text>
-              <Text muted style={{ maxWidth: 410 }}>
-                {t(
-                  step === 'code'
-                    ? 'authCodeIntro'
-                    : step === 'password'
-                      ? 'authPasswordIntro'
-                      : 'authWelcomeBody',
+                {step === 'code' ? (
+                  <MailCheck size={22} color={c.primary} />
+                ) : (
+                  <LockKeyhole size={21} color={c.primary} />
                 )}
-              </Text>
-            </View>
+              </View>
+            ) : null}
+            <Heading size={wide ? 32 : 27}>{t(title)}</Heading>
+            <Text muted small>
+              {t(
+                step === 'code'
+                  ? 'authCodeIntro'
+                  : step === 'password'
+                    ? 'authPasswordIntro'
+                    : 'authWelcomeBody',
+              )}
+            </Text>
           </View>
 
           {session.error || methods.isError ? (
             <Text role="alert" small style={{ color: c.error }}>
               {t('authConnectionError')}
             </Text>
-          ) : null}
-
-          {step === 'email' && googleAvailable ? (
-            <View style={{ gap: 16 }}>
-              <GoogleAction
-                onPress={signInGoogle}
-                label={t('authGoogleContinue')}
-                disabled={busy}
-                busy={pending === 'google'}
-              />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ height: 1, flex: 1, backgroundColor: c.border }} />
-                <Text small muted>
-                  {t('authOr')}
-                </Text>
-                <View style={{ height: 1, flex: 1, backgroundColor: c.border }} />
-              </View>
-            </View>
           ) : null}
 
           {step === 'code' ? (
@@ -401,14 +392,32 @@ export default function Auth() {
             )}
           </View>
 
+          {step === 'email' && googleAvailable ? (
+            <View style={{ gap: 9 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ height: 1, flex: 1, backgroundColor: c.border }} />
+                <Text small muted>
+                  {t('authOr')}
+                </Text>
+                <View style={{ height: 1, flex: 1, backgroundColor: c.border }} />
+              </View>
+              <GoogleAction
+                onPress={signInGoogle}
+                label={t('authGoogleContinue')}
+                disabled={busy}
+                busy={pending === 'google'}
+              />
+            </View>
+          ) : null}
+
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 10,
-              backgroundColor: c.secondary,
-              paddingHorizontal: 13,
-              paddingVertical: 12,
+              backgroundColor: c.elevated,
+              paddingHorizontal: 11,
+              paddingVertical: 9,
               borderRadius: 14,
             }}
           >
@@ -417,6 +426,23 @@ export default function Auth() {
               {t('authHint')}
             </Text>
           </View>
+          {step === 'email' && Platform.OS === 'web' ? (
+            <Action
+              label={accessStrings[locale].preview}
+              onPress={() => router.push('/showcase')}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+              }}
+            >
+              <Text small bold style={{ color: c.primary }}>
+                {accessStrings[locale].preview}
+              </Text>
+              <ArrowUpRight size={15} color={c.primary} />
+            </Action>
+          ) : null}
         </View>
       </View>
     </PublicPage>

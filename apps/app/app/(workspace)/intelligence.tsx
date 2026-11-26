@@ -13,9 +13,11 @@ import {
 import {
   ArrowDown,
   ArrowLeft,
-  ArrowRight,
   ArrowUp,
   BookOpen,
+  ChartNoAxesCombined,
+  CircleDollarSign,
+  Scale,
   FileText,
   Paperclip,
   ShieldCheck,
@@ -24,19 +26,15 @@ import {
 import type { IntelligenceBlock, IntelligenceRequest, IntelligenceTurn } from '@finora/contracts';
 import { tokens } from '@finora/design-tokens';
 import { date } from '@finora/i18n';
-import {
-  Action,
-  BottomSheet,
-  Button,
-  Dialog,
-  Eyebrow,
-  Heading,
-  Text,
-  Switch,
-  useDesign,
-} from '@finora/ui';
+import { Action, BottomSheet, Button, Dialog, Heading, Text, Switch, useDesign } from '@finora/ui';
 import { useWorkspaceDockInset } from '../../src/components/layout';
 import { AnalysisBlocks } from '../../src/features/intelligence/blocks';
+import {
+  FinancePrompt,
+  FinAvatar,
+  FinIntro,
+  ModeMark,
+} from '../../src/features/intelligence/presentation';
 import { chooseDraftPrompt, chooseSimulationId } from '../../src/features/intelligence/model';
 import {
   clearIntelligenceHistory,
@@ -266,9 +264,9 @@ function Desk({
   }
 
   const toolsPanel = (
-    <View style={{ gap: 10 }}>
-      <Eyebrow>{t('intelligenceTools')}</Eyebrow>
-      <Entry
+    <View style={{ gap: 8 }}>
+      <Heading size={17}>{t('intelligenceTools')}</Heading>
+      <FinancePrompt
         label={t('intelligenceCatalog')}
         icon={<BookOpen color={c.primary} size={17} />}
         onPress={() => {
@@ -276,7 +274,7 @@ function Desk({
           router.push('/explore');
         }}
       />
-      <Entry
+      <FinancePrompt
         label={t('intelligenceDocuments')}
         icon={<FileText color={c.primary} size={17} />}
         onPress={() => {
@@ -284,7 +282,7 @@ function Desk({
           router.push('/documents');
         }}
       />
-      <Entry
+      <FinancePrompt
         label={t('intelligencePrivacy')}
         icon={<ShieldCheck color={c.primary} size={17} />}
         onPress={() => {
@@ -312,9 +310,7 @@ function Desk({
     >
       <View
         style={{
-          paddingVertical: 6,
-          borderBottomWidth: 1,
-          borderColor: c.border,
+          paddingVertical: 5,
           flexDirection: 'row',
           gap: 12,
           alignItems: 'center',
@@ -331,17 +327,19 @@ function Desk({
             {t('ai')}
           </Text>
         </Action>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent }} />
-          <Text small muted style={{ textAlign: 'right' }}>
-            {modeLabel}
-          </Text>
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <ModeMark label={modeLabel} />
         </View>
         {!wide ? (
           <Action
             label={t('intelligenceTools')}
             onPress={() => openTools(true)}
-            style={{ minWidth: 44, alignItems: 'center' }}
+            style={{
+              minWidth: 44,
+              alignItems: 'center',
+              backgroundColor: c.surface,
+              borderRadius: 12,
+            }}
           >
             <BookOpen size={18} color={c.primary} />
           </Action>
@@ -351,7 +349,7 @@ function Desk({
       <View style={{ flex: 1, minHeight: 0, flexDirection: 'row', gap: wide ? 27 : 0 }}>
         <View style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
           {engaged ? (
-            <Heading size={wide ? 27 : 22} style={{ paddingTop: 11, paddingBottom: 8 }}>
+            <Heading size={wide ? 26 : 21} style={{ paddingTop: 8, paddingBottom: 7 }}>
               {t('intelligenceTitle')}
             </Heading>
           ) : null}
@@ -361,8 +359,9 @@ function Desk({
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 8,
-                borderBottomWidth: 1,
-                borderColor: c.border,
+                backgroundColor: c.secondary,
+                borderRadius: 12,
+                paddingHorizontal: 12,
               }}
             >
               <Paperclip size={16} color={c.primary} />
@@ -387,7 +386,12 @@ function Desk({
           <ScrollView
             ref={scroll}
             style={{ flex: 1, minHeight: 0 }}
-            contentContainerStyle={{ gap: 20, paddingVertical: 17, paddingRight: wide ? 7 : 0 }}
+            contentContainerStyle={{
+              gap: 16,
+              paddingTop: 9,
+              paddingBottom: 17,
+              paddingRight: wide ? 7 : 0,
+            }}
             keyboardShouldPersistTaps="handled"
             scrollEventThrottle={64}
             onScroll={({ nativeEvent }) => {
@@ -406,39 +410,24 @@ function Desk({
           >
             {!engaged ? (
               <>
-                <View
-                  style={{
-                    backgroundColor: c.forest,
-                    borderRadius: tokens.radius.feature,
-                    padding: wide ? 28 : 20,
-                    gap: 9,
-                  }}
-                >
-                  <Eyebrow style={{ color: c.onForestMuted }}>FINORA INTELLIGENCE</Eyebrow>
-                  <Heading
-                    size={wide ? 49 : 32}
-                    style={{ color: c.onForest, maxWidth: width <= 430 ? 250 : undefined }}
-                  >
-                    {t('intelligenceTitle')}
-                  </Heading>
-                  <Text style={{ color: c.onForestMuted, maxWidth: 530 }}>
-                    {t('intelligenceIntro')}
-                  </Text>
-                </View>
-                <View style={{ gap: 4 }}>
-                  <Eyebrow style={{ marginBottom: 4 }}>{t('intelligenceStarter')}</Eyebrow>
-                  {starters.map(([question, title], index) => (
-                    <Entry
-                      key={question}
-                      label={t(title)}
-                      icon={
-                        <Text small muted style={{ fontVariant: ['tabular-nums'] }}>
-                          {'0' + (index + 1)}
-                        </Text>
-                      }
-                      onPress={() => fill(t(question))}
-                    />
-                  ))}
+                <FinIntro
+                  title={t('intelligenceTitle')}
+                  description={t('intelligenceIntro')}
+                  wide={wide}
+                />
+                <View style={{ gap: 8 }}>
+                  <Heading size={17}>{t('intelligenceStarter')}</Heading>
+                  {starters.map(([question, title], index) => {
+                    const Icon = [CircleDollarSign, Scale, ChartNoAxesCombined][index]!;
+                    return (
+                      <FinancePrompt
+                        key={question}
+                        label={t(title)}
+                        icon={<Icon size={16} color={c.primary} />}
+                        onPress={() => fill(t(question))}
+                      />
+                    );
+                  })}
                 </View>
               </>
             ) : null}
@@ -532,9 +521,7 @@ function Desk({
           </View>
           <View
             style={{
-              borderTopWidth: 1,
-              borderColor: c.border,
-              paddingTop: 9,
+              paddingTop: 5,
               gap: 5,
             }}
           >
@@ -545,7 +532,7 @@ function Desk({
                 borderWidth: 1,
                 borderColor: focus ? c.focus : c.border,
                 backgroundColor: c.surface,
-                borderRadius: tokens.radius.card,
+                borderRadius: 17,
                 padding: 6,
                 gap: 7,
               }}
@@ -602,8 +589,8 @@ function Desk({
         </View>
         {wide ? (
           <ScrollView
-            style={{ width: 265, flexGrow: 0, borderLeftWidth: 1, borderColor: c.border }}
-            contentContainerStyle={{ paddingLeft: 19, paddingTop: 19, paddingBottom: 14 }}
+            style={{ width: 255, flexGrow: 0 }}
+            contentContainerStyle={{ paddingTop: 9, paddingBottom: 14 }}
           >
             {toolsPanel}
           </ScrollView>
@@ -699,51 +686,24 @@ function Turn({
       </View>
       {answer || blocks.length ? (
         <View style={{ gap: 9 }}>
-          <Eyebrow>
-            {provider === 'mock'
-              ? t('intelligenceLocal')
-              : provider
-                ? t('intelligenceRemote') + ' · OpenAI'
-                : t('ai')}
-          </Eyebrow>
-          {answer ? <Text style={{ maxWidth: tokens.layout.reading }}>{answer}</Text> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+            <FinAvatar />
+            <Text small bold>
+              {provider === 'mock'
+                ? t('intelligenceLocal')
+                : provider
+                  ? t('intelligenceRemote') + ' · OpenAI'
+                  : t('ai')}
+            </Text>
+          </View>
+          {answer ? (
+            <View style={{ backgroundColor: c.surface, borderRadius: 14, padding: 12 }}>
+              <Text style={{ maxWidth: tokens.layout.reading }}>{answer}</Text>
+            </View>
+          ) : null}
           {blocks.length ? <AnalysisBlocks blocks={blocks} turnId={turnId} /> : null}
         </View>
       ) : null}
     </View>
-  );
-}
-
-function Entry({
-  label,
-  icon,
-  onPress,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  onPress: () => void;
-}) {
-  const { colors: c } = useDesign();
-  return (
-    <Action
-      label={label}
-      onPress={onPress}
-      style={{
-        borderTopWidth: 1,
-        borderColor: c.border,
-        borderRadius: 0,
-        gap: 10,
-        minHeight: 48,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 7,
-      }}
-    >
-      {icon}
-      <Text small bold style={{ flex: 1 }}>
-        {label}
-      </Text>
-      <ArrowRight size={15} color={c.primary} />
-    </Action>
   );
 }

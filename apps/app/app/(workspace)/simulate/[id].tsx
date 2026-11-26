@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { requestId } from '../../../src/services/request-id';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, useWatch, Controller } from 'react-hook-form';
 import { loanSchema, type Product, type LoanInput, type Estimate } from '@finora/contracts';
 import { percent } from '@finora/i18n';
-import { Text, Heading, Button, Field, useDesign } from '@finora/ui';
+import { Calculator, ChevronRight } from 'lucide-react-native';
+import { Action, Text, Heading, Button, Field, useDesign } from '@finora/ui';
 import { Data, Page, Back, Columns } from '../../../src/components/layout';
 import { Breakdown } from '../../../src/features/breakdown';
 import { LoanProductTerms } from '../../../src/features/catalog';
 import { api } from '../../../src/services/client';
 import { queryClient, useAccount } from '../../../src/providers/AppProviders';
+import { ComparisonGrid, MarketNotice, MarketPanel } from '../../../src/features/market-ui';
+import { AmountControl } from '../../../src/features/market-amount';
 function nextDue() {
   const now = new Date();
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -23,6 +26,31 @@ function nextDue() {
     month = Number(parts.find((x) => x.type === 'month')?.value);
   return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
 }
+function parseScenario(
+  p: Product,
+  form: Partial<{ principal: string; months: string; annualRate: string; firstDue: string }>,
+) {
+  const decimal = (s?: string) =>
+    typeof s === 'string' && /^\d+(?:[.,]\d+)?$/.test(s) ? Number(s.replace(',', '.')) : NaN;
+  const r = loanSchema.safeParse({
+    principal: decimal(form.principal),
+    months: decimal(form.months),
+    annualRate: decimal(form.annualRate),
+    firstDue: form.firstDue,
+    method: p.method,
+    fee: p.fee,
+  });
+  return r.success &&
+    r.data.principal >= p.amountMin &&
+    r.data.principal <= p.amountMax &&
+    r.data.months >= p.monthsMin &&
+    r.data.months <= p.monthsMax &&
+    r.data.annualRate >= p.rateMin &&
+    r.data.annualRate <= p.rateMax
+    ? r.data
+    : null;
+}
+
 function Simulator({ p }: { p: Product }) {
   const { t, money, locale, colors: c } = useDesign();
   const { width } = useWindowDimensions();
@@ -45,6 +73,16 @@ function Simulator({ p }: { p: Product }) {
       firstDue: nextDue(),
     },
   });
+  const [changed, setChanged] = useState(false);
+  const [principal, months, annualRate, firstDue] = useWatch({
+    control: form.control,
+    name: ['principal', 'months', 'annualRate', 'firstDue'],
+  });
+  const liveInput = useMemo(
+    () => parseScenario(p, { principal, months, annualRate, firstDue }),
+    [p, principal, months, annualRate, firstDue],
+  );
+  const [live, setLive] = useState<{ input: LoanInput; result: Estimate } | null>(null);
   const calc = useMutation({
     mutationFn: (input: LoanInput) => api.preview(p.id, input),
     onSuccess: (result, input) => setPreview({ result, input, requestId: requestId() }),
@@ -56,27 +94,45 @@ function Simulator({ p }: { p: Product }) {
       router.push('/saved/' + row.id);
     },
   });
+  useEffect(() => {
+    if (!changed || !liveInput || preview || calc.isPending) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      void api
+        .preview(p.id, liveInput)
+        .then((result) => {
+          if (active) setLive({ input: liveInput, result });
+        })
+        .catch(() => {
+          // The explicit schedule action remains the recovery path for a network failure.
+        });
+    }, 420);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [calc.isPending, changed, liveInput, p.id, preview]);
   const submit = form.handleSubmit((v) => {
-    const n = (s: string) => (/^\d+(?:[.,]\d+)?$/.test(s) ? Number(s.replace(',', '.')) : NaN);
-    const r = loanSchema.safeParse({
-      ...v,
-      principal: n(v.principal),
-      months: n(v.months),
-      annualRate: n(v.annualRate),
-      method: p.method,
-      fee: p.fee,
-    });
-    const ok =
-      r.success &&
-      r.data.principal >= p.amountMin &&
-      r.data.principal <= p.amountMax &&
-      r.data.months >= p.monthsMin &&
-      r.data.months <= p.monthsMax &&
-      r.data.annualRate >= p.rateMin &&
-      r.data.annualRate <= p.rateMax;
-    mark(!ok);
-    if (ok) calc.mutate(r.data);
+    const input = parseScenario(p, v);
+    mark(!input);
+    if (!input) return;
+    if (live?.input === liveInput) {
+      setPreview({ result: live.result, input, requestId: requestId() });
+    } else calc.mutate(input);
   });
+  const changeScenario = () => {
+    setPreview(null);
+    setChanged(true);
+    mark(false);
+  };
+  const controlsLocked = calc.isPending || save.isPending;
+  const setAmount = (value: number) => {
+    form.setValue('principal', String(value));
+    changeScenario();
+  };
+  const termChoices = [...new Set([6, 12, 24, 36, 60, p.monthsMin, p.monthsMax])]
+    .filter((value) => value >= p.monthsMin && value <= p.monthsMax)
+    .sort((x, y) => x - y);
   const inputField = (k: 'principal' | 'annualRate' | 'months' | 'firstDue') => (
     <Controller
       key={k}
@@ -96,7 +152,12 @@ function Simulator({ p }: { p: Product }) {
           )}
           value={field.value}
           inputMode={k === 'firstDue' ? undefined : k === 'annualRate' ? 'decimal' : 'numeric'}
-          editable={!calc.isPending && !save.isPending}
+          editable={!controlsLocked}
+          style={
+            k === 'principal'
+              ? { fontSize: 26, fontVariant: ['tabular-nums'], minHeight: 60 }
+              : undefined
+          }
           onChangeText={(s) => {
             const group = locale === 'vi-VN' ? /\./g : /,/g;
             const compact = k === 'principal' ? s.replace(/\s/g, '') : s;
@@ -104,8 +165,7 @@ function Simulator({ p }: { p: Product }) {
             field.onChange(
               k === 'principal' && grouped.test(compact) ? compact.replace(group, '') : compact,
             );
-            setPreview(null);
-            mark(false);
+            changeScenario();
           }}
           keyboardType={k === 'firstDue' ? 'default' : 'decimal-pad'}
           hint={
@@ -125,35 +185,71 @@ function Simulator({ p }: { p: Product }) {
     />
   );
   const comparison = reference ? (
-    <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 16, gap: 10 }}>
-      <Heading size={25}>{local('Mốc so sánh', 'Comparison baseline')}</Heading>
-      <Text>
-        {money(reference.input.principal)} · {reference.input.months} {t('months')} ·{' '}
-        {percent(reference.input.annualRate, locale)}
-      </Text>
-      <Text muted>
-        {t('firstPayment')}: {money(reference.result.firstPayment)}
-      </Text>
+    <MarketPanel>
+      <Heading size={21}>{local('Mốc so sánh', 'Comparison baseline')}</Heading>
       {preview ? (
-        <Text bold>
-          {local('Chênh lệch kỳ đầu', 'Difference in first payment')}:{' '}
-          {preview.result.firstPayment > reference.result.firstPayment ? '+' : ''}
-          {money(preview.result.firstPayment - reference.result.firstPayment)}
-        </Text>
+        <>
+          <ComparisonGrid
+            products={[
+              {
+                name: local('Mốc đã giữ', 'Pinned baseline'),
+                institution: reference.input.months + ' ' + t('months'),
+                footer: null,
+              },
+              {
+                name: local('Phương án mới', 'New scenario'),
+                institution: preview.input.months + ' ' + t('months'),
+                footer: null,
+              },
+            ]}
+            rows={[
+              {
+                label: t('amount'),
+                values: [money(reference.input.principal), money(preview.input.principal)],
+              },
+              {
+                label: t('yearRate'),
+                values: [
+                  percent(reference.input.annualRate, locale),
+                  percent(preview.input.annualRate, locale),
+                ],
+              },
+              {
+                label: t('firstPayment'),
+                values: [money(reference.result.firstPayment), money(preview.result.firstPayment)],
+              },
+              {
+                label: t('repayment'),
+                values: [money(reference.result.repayment), money(preview.result.repayment)],
+              },
+            ]}
+          />
+          <Text bold>
+            {local('Chênh lệch kỳ đầu', 'Difference in first payment')}:{' '}
+            {preview.result.firstPayment > reference.result.firstPayment ? '+' : ''}
+            {money(preview.result.firstPayment - reference.result.firstPayment)}
+          </Text>
+        </>
       ) : (
-        <Text muted>
-          {local(
-            'Đổi giả định rồi tính lịch mới để so sánh.',
-            'Change your assumptions and calculate again to compare.',
-          )}
-        </Text>
+        <>
+          <Text bold>
+            {money(reference.input.principal)} · {reference.input.months} {t('months')}
+          </Text>
+          <Text muted>
+            {t('firstPayment')}: {money(reference.result.firstPayment)}.{' '}
+            {local(
+              'Đổi giả định rồi tính lịch mới để so sánh.',
+              'Change your assumptions and calculate again to compare.',
+            )}
+          </Text>
+        </>
       )}
       <Button
         variant="outline"
         label={local('Bỏ mốc', 'Clear baseline')}
         onPress={() => pin(null)}
       />
-    </View>
+    </MarketPanel>
   ) : null;
   return (
     <Page
@@ -163,41 +259,64 @@ function Simulator({ p }: { p: Product }) {
     >
       <Columns style={{ gap: desktop ? 32 : 20, alignItems: 'stretch' }}>
         <View style={{ flex: desktop ? 1 : undefined, minWidth: 0, gap: 22 }}>
-          <View
-            style={{
-              backgroundColor: c.surface,
-              borderTopWidth: 2,
-              borderColor: c.accent,
-              padding: desktop ? 26 : 18,
-              gap: 15,
-            }}
-          >
-            <Text small bold style={{ letterSpacing: 1.2, color: c.muted }}>
-              {local('01 / GIẢ ĐỊNH', '01 / ASSUMPTIONS')}
-            </Text>
-            <Heading size={27}>{local('Lập phương án', 'Set up your scenario')}</Heading>
-            <Text small muted>
-              {t('method')}: {t(p.method)}
-            </Text>
+          <MarketPanel style={{ padding: desktop ? 21 : 16, gap: 13 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+              <Calculator size={21} color={c.primary} />
+              <Heading size={22}>{local('Lập phương án', 'Set up your scenario')}</Heading>
+            </View>
             {inputField('principal')}
-            <View style={{ flexDirection: 'row', gap: 12 }}>
+            <AmountControl
+              value={Number(principal)}
+              min={p.amountMin}
+              max={p.amountMax}
+              disabled={controlsLocked}
+              onChange={setAmount}
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1, minWidth: 0 }}>{inputField('annualRate')}</View>
               <View style={{ flex: 1, minWidth: 0 }}>{inputField('months')}</View>
             </View>
+            {!!termChoices.length && (
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                {termChoices.map((value) => (
+                  <Action
+                    key={value}
+                    role="radio"
+                    label={value + ' ' + t('months')}
+                    selected={Number(months) === value}
+                    disabled={controlsLocked}
+                    onPress={() => {
+                      form.setValue('months', String(value));
+                      changeScenario();
+                    }}
+                    style={{
+                      borderRadius: 10,
+                      backgroundColor: Number(months) === value ? c.secondary : c.elevated,
+                      paddingHorizontal: 9,
+                    }}
+                  >
+                    <Text small bold style={{ color: c.primary }}>
+                      {value} {t('months')}
+                    </Text>
+                  </Action>
+                ))}
+              </View>
+            )}
             {inputField('firstDue')}
-            <Text small muted>
-              {t('planHint')}
-            </Text>
+            <MarketNotice title={t('method') + ': ' + t(p.method)}>{t('planHint')}</MarketNotice>
             {invalid || calc.isError ? (
-              <Text role="alert">{t(invalid ? 'invalidRange' : 'error')}</Text>
+              <Text role="alert" style={{ color: c.error }}>
+                {t(invalid ? 'invalidRange' : 'error')}
+              </Text>
             ) : null}
             <Button
               label={t('preview')}
               onPress={submit}
               loading={calc.isPending}
               disabled={save.isPending}
+              icon={<ChevronRight color={c.onPrimary} size={16} />}
             />
-          </View>
+          </MarketPanel>
           {desktop ? <LoanProductTerms p={p} /> : null}
         </View>
         <View style={{ flex: desktop ? 1.2 : undefined, minWidth: 0, gap: 18 }}>
@@ -225,27 +344,46 @@ function Simulator({ p }: { p: Product }) {
               }
             />
           ) : (
-            <View
-              style={{
-                backgroundColor: c.secondary,
-                borderRadius: 18,
-                padding: desktop ? 28 : 21,
-                gap: 10,
-              }}
+            <MarketPanel
+              style={{ backgroundColor: c.secondary, borderColor: c.secondary, padding: 18 }}
             >
-              <Text small bold style={{ letterSpacing: 1.2, color: c.muted }}>
-                {local('02 / KẾT QUẢ', '02 / RESULTS')}
-              </Text>
-              <Heading size={27}>
-                {local('Xem từng kỳ trước khi vay', 'See each payment before borrowing')}
-              </Heading>
-              <Text muted>
-                {local(
-                  'Tính lịch để xem kỳ đầu, gốc, lãi và các khoản phí đã biết.',
-                  'Calculate a schedule to see the first payment, principal, interest and known fees.',
-                )}
-              </Text>
-            </View>
+              {live?.input === liveInput ? (
+                <View style={{ gap: 5 }}>
+                  <Text muted small>
+                    {local('Ước tính kỳ đầu', 'Estimated first payment')}
+                  </Text>
+                  <Text
+                    bold
+                    style={{
+                      fontSize: 27,
+                      lineHeight: 33,
+                      color: c.primary,
+                      fontVariant: ['tabular-nums'],
+                    }}
+                  >
+                    {money(live.result.firstPayment)}
+                  </Text>
+                  <Text muted small>
+                    {local(
+                      'Bấm tính lịch để xem đầy đủ các kỳ và khoản phí.',
+                      'Calculate the schedule to review every payment and fee.',
+                    )}
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Heading size={20}>
+                    {local('Xem từng kỳ trước khi vay', 'See each payment before borrowing')}
+                  </Heading>
+                  <Text muted small>
+                    {local(
+                      'Tính lịch để xem kỳ đầu, gốc, lãi và các khoản phí đã biết.',
+                      'Calculate a schedule to see the first payment, principal, interest and known fees.',
+                    )}
+                  </Text>
+                </>
+              )}
+            </MarketPanel>
           )}
           {!preview ? comparison : null}
           {!desktop ? <LoanProductTerms p={p} /> : null}

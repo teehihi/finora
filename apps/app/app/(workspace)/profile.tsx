@@ -1,9 +1,18 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
-import { LockKeyhole, LogOut } from 'lucide-react-native';
+import {
+  Banknote,
+  Fingerprint,
+  Globe2,
+  LockKeyhole,
+  LogOut,
+  Moon,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react-native';
 import {
   Text,
   Heading,
@@ -16,6 +25,7 @@ import {
   useDesign,
 } from '@finora/ui';
 import { profileSchema, type Profile, type Preferences } from '@finora/contracts';
+import { accessStrings } from '@finora/i18n';
 import { Page, Data } from '../../src/components/layout';
 import { AccountIdentity } from '../../src/components/AccountIdentity';
 import { api, auth } from '../../src/services/client';
@@ -56,7 +66,7 @@ function FinancialForm({ profile }: { profile: Profile | null }) {
     }
   });
   return (
-    <View style={{ gap: 18 }}>
+    <View style={{ gap: 14 }}>
       {financeFields.map(({ name, hint }) => (
         <Controller
           key={name}
@@ -87,9 +97,54 @@ function FinancialForm({ profile }: { profile: Profile | null }) {
         </Text>
       ) : null}
       {mutation.isSuccess ? <Toast>{t('updated')}</Toast> : null}
-      <View style={{ alignSelf: 'flex-start' }}>
+      <View style={{ marginTop: 4 }}>
         <Button label={t('update')} onPress={submit} loading={mutation.isPending} />
       </View>
+    </View>
+  );
+}
+
+function Panel({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title?: string;
+  icon?: typeof Banknote;
+  children: ReactNode;
+}) {
+  const { colors: c } = useDesign();
+  return (
+    <View
+      style={{
+        gap: 15,
+        backgroundColor: c.surface,
+        borderWidth: 1,
+        borderColor: c.border,
+        padding: 16,
+        borderRadius: 20,
+      }}
+    >
+      {title ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {Icon ? (
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 11,
+                backgroundColor: c.secondary,
+              }}
+            >
+              <Icon size={18} color={c.primary} />
+            </View>
+          ) : null}
+          <Heading size={21}>{title}</Heading>
+        </View>
+      ) : null}
+      {children}
     </View>
   );
 }
@@ -141,94 +196,137 @@ export default function ProfileScreen() {
   const initial = (name[0] || 'F').toLocaleUpperCase(locale);
   return (
     <Page title={t('profileTitle')} description={t('settingsIntro')}>
-      <View style={{ flexDirection: desktop ? 'row' : 'column', gap: desktop ? 34 : 28 }}>
-        <View style={{ flex: 1.2, minWidth: 0, gap: 16 }}>
-          <View style={{ gap: 4, borderBottomWidth: 1, borderColor: c.border, paddingBottom: 12 }}>
-            <Heading size={27}>{t('finance')}</Heading>
+      <View
+        style={{
+          borderRadius: 21,
+          backgroundColor: c.forest,
+          padding: 16,
+          gap: 11,
+          alignItems: 'center',
+          flexDirection: 'row',
+        }}
+      >
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            borderRadius: 23,
+            width: 46,
+            height: 46,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#C4F49D',
+          }}
+        >
+          <Text bold style={{ color: '#064B36', fontSize: 22, lineHeight: 29 }}>
+            {initial}
+          </Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+          <Text style={{ color: c.onForestMuted }} small>
+            {t('account')}
+          </Text>
+          <Text bold style={{ color: c.onForest, fontSize: 18 }}>
+            {name}
+          </Text>
+        </View>
+        <UserRound size={20} color={c.onForestMuted} />
+      </View>
+
+      <View style={{ flexDirection: desktop ? 'row' : 'column', alignItems: 'stretch', gap: 16 }}>
+        <View style={{ flex: desktop ? 1.1 : undefined, minWidth: 0, gap: 15 }}>
+          <Panel title={t('finance')} icon={Banknote}>
             <Text small muted>
               {t('financeHint')}
             </Text>
-          </View>
-          <Data q={a}>{(data) => <FinancialForm profile={data.profile} />}</Data>
+            <Data q={a}>
+              {(data) => (
+                <>
+                  {!data.profile ? (
+                    <View
+                      style={{
+                        padding: 11,
+                        backgroundColor: c.secondary,
+                        borderRadius: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <ShieldCheck size={18} color={c.primary} />
+                      <Text small bold style={{ flex: 1, color: c.primary }}>
+                        {accessStrings[locale].completeProfile}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <FinancialForm profile={data.profile} />
+                </>
+              )}
+            </Data>
+          </Panel>
+          <Panel>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Fingerprint size={19} color={c.primary} />
+              <Text bold style={{ color: c.primary }}>
+                {accessStrings[locale].verification}
+              </Text>
+            </View>
+            <AccountIdentity />
+          </Panel>
         </View>
-        <View style={{ flex: 1, minWidth: 0, gap: 19 }}>
-          <View style={{ gap: 12, backgroundColor: c.elevated, padding: 16, borderRadius: 14 }}>
-            <Heading size={23}>{t('account')}</Heading>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                style={{
-                  borderRadius: 24,
-                  width: 44,
-                  height: 44,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: c.secondary,
-                }}
-              >
-                <Text bold style={{ color: c.primary }}>
-                  {initial}
+
+        <View style={{ flex: desktop ? 0.9 : undefined, minWidth: 0, gap: 15 }}>
+          <Panel title={t('settingsPreferences')} icon={Moon}>
+            <View style={{ gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <Globe2 size={15} color={c.muted} />
+                <Text bold small>
+                  {t('language')}
                 </Text>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text bold>{name}</Text>
-              </View>
+              <Choices
+                value={locale}
+                onChange={(v) => update({ locale: v, appearance })}
+                options={[
+                  { value: 'vi-VN', label: 'Tiếng Việt' },
+                  { value: 'en-US', label: 'English' },
+                ]}
+              />
             </View>
-          </View>
-          <AccountIdentity />
-          <View style={{ gap: 10 }}>
-            <Heading size={23}>{t('settingsPreferences')}</Heading>
-            <Text bold small>
-              {t('language')}
-            </Text>
-            <Choices
-              value={locale}
-              onChange={(v) => update({ locale: v, appearance })}
-              options={[
-                { value: 'vi-VN', label: 'Tiếng Việt' },
-                { value: 'en-US', label: 'English' },
-              ]}
-            />
-            <Text bold small>
-              {t('appearance')}
-            </Text>
-            <Choices
-              value={appearance}
-              onChange={(v) => update({ locale, appearance: v })}
-              options={(['light', 'dark', 'system'] as const).map((v) => ({
-                value: v,
-                label: t(v),
-              }))}
-            />
+            <View style={{ gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <Moon size={15} color={c.muted} />
+                <Text bold small>
+                  {t('appearance')}
+                </Text>
+              </View>
+              <Choices
+                value={appearance}
+                onChange={(v) => update({ locale, appearance: v })}
+                options={(['light', 'dark', 'system'] as const).map((v) => ({
+                  value: v,
+                  label: t(v),
+                }))}
+              />
+            </View>
             {pref.isError ? (
               <ErrorState retry={() => pref.variables && pref.mutate(pref.variables)} />
             ) : null}
-          </View>
-          <View style={{ gap: 10, borderTopWidth: 1, borderColor: c.border, paddingTop: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-              <LockKeyhole size={16} color={c.primary} />
-              <Heading size={23}>{t('privacy')}</Heading>
-            </View>
+          </Panel>
+
+          <Panel title={t('privacy')} icon={LockKeyhole}>
             <Text muted small>
               {t('privacyText')}
             </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              <Button variant="outline" label={t('clearHistory')} onPress={() => confirm(true)} />
-              <Button
-                variant="text"
-                label={t('out')}
-                icon={<LogOut size={15} color={c.primary} />}
-                onPress={signOut}
-                loading={signingOut}
-              />
-            </View>
+            <Button
+              variant="outline"
+              label={t('clearHistory')}
+              onPress={() => {
+                clear.reset();
+                confirm(true);
+              }}
+            />
             {clear.isSuccess ? <Toast>{t('historyCleared')}</Toast> : null}
-            {signError ? (
-              <Text role="alert" style={{ color: c.error }}>
-                {t('error')}
-              </Text>
-            ) : null}
             <Dialog visible={confirmClear} title={t('clearHistory')} onClose={() => confirm(false)}>
               <Text>{t('confirmClear')}</Text>
               {clear.isError ? (
@@ -243,7 +341,21 @@ export default function ProfileScreen() {
               />
               <Button variant="outline" label={t('cancel')} onPress={() => confirm(false)} />
             </Dialog>
-          </View>
+          </Panel>
+          <Panel>
+            <Button
+              variant="text"
+              label={t('out')}
+              icon={<LogOut size={17} color={c.primary} />}
+              onPress={signOut}
+              loading={signingOut}
+            />
+            {signError ? (
+              <Text role="alert" style={{ color: c.error }}>
+                {t('error')}
+              </Text>
+            ) : null}
+          </Panel>
         </View>
       </View>
     </Page>

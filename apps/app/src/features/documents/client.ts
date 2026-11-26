@@ -62,6 +62,49 @@ export const docApi = {
   save: (id: string, body: DocumentReviewInput, requestId: string) =>
     json<{ id: string }>(segments(id) + '/save', { ...body, requestId }),
 };
+export const privateDocumentFileUrl = (id: string) =>
+  base + '/api/document-analysis' + segments(id) + '/file';
+
+// Fetch only after the owner opens the preview. The bytes stay in memory, are never
+// added to the query cache, and the account-scoped server route authorizes each fetch.
+export async function loadPrivateImage(
+  id: string,
+  mime: 'image/jpeg' | 'image/png',
+  signal: AbortSignal,
+) {
+  const web = Platform.OS === 'web';
+  const get = web ? fetch : expoFetch;
+  const response = await get(privateDocumentFileUrl(id), {
+    signal,
+    method: 'GET',
+    credentials: web ? 'include' : 'omit',
+    headers: web ? {} : { cookie: auth.getCookie() },
+    ...(web ? { cache: 'no-store' as const } : {}),
+  });
+  if (!response.ok) throw new DocumentApiError(response.status);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength > maxDocumentBytes) throw new DocumentApiError(413);
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const chunks: string[] = [];
+  let part = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i];
+    const b = bytes[i + 1] ?? 0;
+    const c = bytes[i + 2] ?? 0;
+    part +=
+      alphabet[a >> 2] +
+      alphabet[((a & 3) << 4) | (b >> 4)] +
+      (i + 1 < bytes.length ? alphabet[((b & 15) << 2) | (c >> 6)] : '=') +
+      (i + 2 < bytes.length ? alphabet[c & 63] : '=');
+    if (part.length >= 8192) {
+      chunks.push(part);
+      part = '';
+    }
+  }
+  chunks.push(part);
+  return 'data:' + mime + ';base64,' + chunks.join('');
+}
+
 export async function choosePrivateDocument() {
   const picked = await getDocumentAsync({
     type: ['application/pdf', 'image/jpeg', 'image/png'],

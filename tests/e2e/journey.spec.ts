@@ -8,7 +8,8 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
 }, info) => {
   const email = 'finora-' + randomUUID() + '@example.test',
     password = randomUUID() + 'aA';
-  await page.goto('/');
+  // The upstream app boots to sign-in; the public product tour is a separate entry.
+  await page.goto('/showcase');
   const start = page.getByRole('button', { name: 'Bắt đầu cùng Finora' });
   await expect(start).toBeVisible();
   await page.waitForFunction(
