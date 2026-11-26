@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finora Native — Home concepts</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 28px;
+        background: #e7e9e4;
+        color: #222824;
+        font:
+          14px -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+      .gallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        align-items: start;
+        justify-content: center;
+      }
+      figure {
+        margin: 0;
+        width: 390px;
+      }
+      figcaption {
+        font-weight: 700;
+        margin: 0 0 10px;
+      }
+      .phone {
+        width: 390px;
+        height: 844px;
+        overflow: hidden;
+        position: relative;
+        border-radius: 34px;
+        background: #f7f5ef;
+        box-shadow: 0 18px 50px #15231d22;
+        padding: 54px 22px 112px;
+      }
+      .preview-tag {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        z-index: 2;
+        background: #fff;
+        color: #59635b;
+        border-radius: 99px;
+        padding: 5px 9px;
+        font-size: 10px;
+        letter-spacing: 0.1px;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 42px;
+        margin-bottom: 28px;
+      }
+      .brand {
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        color: #173d32;
+      }
+      .avatar {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: #dce6d7;
+        color: #173d32;
+        font-weight: 700;
+      }
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+      h1 {
+        font-size: 27px;
+        letter-spacing: -0.8px;
+        line-height: 1.18;
+        font-weight: 650;
+      }
+      .sub {
+        margin-top: 7px;
+        color: #59665d;
+        line-height: 1.45;
+        font-size: 14px;
+      }
+      .label {
+        font-size: 12px;
+        color: #59665d;
+        margin-bottom: 9px;
+      }
+      .amount {
+        color: #173d32;
+        font-size: 34px;
+        font-weight: 650;
+        letter-spacing: -1.3px;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.12;
+      }
+      .context {
+        color: #59665d;
+        font-size: 13px;
+        line-height: 1.45;
+        margin-top: 9px;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 22px;
+      }
+      .btn {
+        height: 48px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 15px;
+        background: #173d32;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        flex: 1;
+      }
+      .btn.secondary {
+        background: #e6ebe2;
+        color: #173d32;
+      }
+      .section {
+        margin-top: 28px;
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .section-head h2 {
+        font-size: 17px;
+        letter-spacing: -0.3px;
+      }
+      .more {
+        color: #315e49;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 62px;
+        border-top: 1px solid #e0e3dc;
+      }
+      .symbol {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        background: #e9eee6;
+        color: #315e49;
+        font-weight: 700;
+      }
+      .row-main {
+        flex: 1;
+        min-width: 0;
+      }
+      .row-title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .row-sub {
+        color: #68736a;
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      .row-value {
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .note {
+        display: flex;
+        gap: 9px;
+        color: #667268;
+        font-size: 12px;
+        line-height: 1.45;
+        margin-top: 22px;
+      }
+      .dock {
+        position: absolute;
+        height: 70px;
+        bottom: 21px;
+        left: 13px;
+        right: 13px;
+        border: 1px solid #ffffffb3;
+        border-radius: 23px;
+        background: #fffffff0;
+        box-shadow: 0 4px 18px #17251d15;
+        display: flex;
+        align-items: center;
+        padding: 5px;
+      }
+      .tab {
+        flex: 1;
+        height: 58px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        font-size: 10px;
+        color: #69756c;
+      }
+      .tab .ico {
+        font-size: 18px;
+        line-height: 19px;
+      }
+      .tab.active {
+        background: #dce6d7;
+        border-radius: 17px;
+        color: #173d32;
+        font-weight: 650;
+      }
+      .empty {
+        display: none;
+        border-radius: 18px;
+        background: #fff;
+        padding: 17px;
+        margin-top: 20px;
+      }
+      .empty h2 {
+        font-size: 16px;
+        margin-bottom: 6px;
+      }
+      .empty p {
+        color: #59665d;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .empty .btn {
+        margin-top: 14px;
+        width: 100%;
+      }
+      .phone.empty-state .populated {
+        display: none;
+      }
+      .phone.empty-state .empty {
+        display: block;
+      }
+      .phone.empty-state .hero {
+        margin-top: 26px;
+      }
+      .phone.empty-state .amount {
+        display: none;
+      }
+      .phone.empty-state .hero .label {
+        display: none;
+      }
+      .phone.empty-state .hero .context {
+        margin-top: 10px;
+      }
+      .native .hero {
+        margin-top: 30px;
+      }
+      .native .actions .btn {
+        flex: none;
+      }
+      .native .actions .btn:first-child {
+        min-width: 195px;
+      }
+      .modern {
+        background: #f4f6f2;
+      }
+      .modern .hero {
+        background: #173d32;
+        color: #f7f5ef;
+        border-radius: 24px;
+        padding: 21px 19px;
+        margin: 27px -2px 0;
+      }
+      .modern .hero .label,
+      .modern .hero .context {
+        color: #dce6d7;
+      }
+      .modern .amount {
+        color: #fff;
+        font-size: 32px;
+      }
+      .modern .meter {
+        height: 5px;
+        border-radius: 99px;
+        background: #557567;
+        margin-top: 18px;
+        overflow: hidden;
+      }
+      .modern .meter i {
+        display: block;
+        width: 58%;
+        height: 100%;
+        background: #c7d9bf;
+        border-radius: 99px;
+      }
+      .modern .actions {
+        margin-top: 15px;
+      }
+      .modern .btn {
+        border-radius: 14px;
+      }
+      .modern .btn.secondary {
+        background: #e4ebe1;
+      }
+      .modern .section {
+        margin-top: 23px;
+      }
+      .warm {
+        background: #f7f5ef;
+      }
+      .warm .top {
+        margin-bottom: 35px;
+      }
+      .warm .brand {
+        letter-spacing: 1px;
+      }
+      .warm h1 {
+        font-size: 29px;
+        line-height: 1.22;
+      }
+      .warm .hero {
+        margin-top: 23px;
+        background: #e7ede3;
+        border-radius: 25px;
+        padding: 21px 19px;
+      }
+      .warm .amount {
+        font-size: 33px;
+      }
+      .warm .actions .btn:first-child {
+        flex: 1.2;
+      }
+      .warm .actions .btn.secondary {
+        background: #fff;
+      }
+      .warm .section {
+        margin-top: 25px;
+      }
+      @media (max-width: 430px) {
+        body {
+          padding: 0;
+        }
+        figure {
+          width: 100%;
+        }
+        figcaption {
+          padding: 8px 14px;
+        }
+        .phone {
+          width: 100%;
+          border-radius: 0;
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="gallery">
+      <figure>
+        <figcaption>A · Native Minimal — dự kiến chọn</figcaption>
+        <section class="phone native" id="concept-a">
+          <span class="preview-tag">Preview · dữ liệu minh hoạ</span>
+          <header class="top">
+            <span class="brand">finora</span><span class="avatar">A</span>
+          </header>
+          <h1>Chào buổi sáng, An</h1>
+          <p class="sub">Mình cùng xem kế hoạch tài chính của bạn nhé.</p>
+          <div class="hero">
+            <p class="label">Khả năng trả thêm mỗi tháng</p>
+            <p class="amount">5.500.000&nbsp;₫</p>
+            <p class="context">Ước tính theo thu nhập, chi phí và khoản trả nợ bạn đã nhập.</p>
+          </div>
+          <div class="empty">
+            <h2>Bắt đầu từ bức tranh tài chính của bạn</h2>
+            <p>Thêm thu nhập và chi phí để xem một mức trả nợ tham khảo phù hợp với kế hoạch.</p>
+            <div class="btn">Thêm hồ sơ tài chính <span>↗</span></div>
+          </div>
+          <div class="actions">
+            <div class="btn">Thử mô phỏng <span>↗</span></div>
+            <div class="btn secondary">Hỏi Finora AI <span>✳</span></div>
+          </div>
+          <div class="section populated">
+            <div class="section-head">
+              <h2>Mô phỏng gần đây</h2>
+              <span class="more">Xem tất cả</span>
+            </div>
+            <div class="row">
+              <span class="symbol">↗</span
+              ><span class="row-main"
+                ><span class="row-title">Vay tiêu dùng linh hoạt</span
+                ><span class="row-sub">120.000.000 ₫ · 24 thg 11</span></span
+              ><span class="row-value">›</span>
+            </div>
+            <div class="row">
+              <span class="symbol">↗</span
+              ><span class="row-main"
+                ><span class="row-title">Vay mua xe</span
+                ><span class="row-sub">320.000.000 ₫ · 20 thg 11</span></span
+              ><span class="row-value">›</span>
+            </div>
+            <div class="note">
+              ⓘ
+              <span
+                >Chưa có lịch trả nợ đang hoạt động. Khoản vay trong mô phỏng không phải nghĩa vụ
+                thanh toán.</span
+              >
+            </div>
+          </div>
+          <nav class="dock">
+            <div class="tab active"><span class="ico">⌂</span>Tổng quan</div>
+            <div class="tab"><span class="ico">⌕</span>Khám phá</div>
+            <div class="tab"><span class="ico">✳</span>AI</div>
+            <div class="tab"><span class="ico">▣</span>Khoản vay</div>
+            <div class="tab"><span class="ico">●</span>Hồ sơ</div>
+          </nav>
+        </section>
+      </figure>
+      <figure>
+        <figcaption>B · Modern Fintech</figcaption>
+        <section class="phone modern" id="concept-b">
+          <span class="preview-tag">Preview · dữ liệu minh hoạ</span>
+          <header class="top">
+            <span class="brand">finora</span><span class="avatar">A</span>
+          </header>
+          <h1>Chào An 👋</h1>
+          <p class="sub">Kế hoạch của bạn, trong tầm mắt.</p>
+          <div class="hero">
+            <p class="label">Mức trả thêm tham khảo</p>
+            <p class="amount">5.500.000&nbsp;₫</p>
+            <p class="context">Dựa trên hồ sơ bạn đã cung cấp</p>
+            <div class="meter"><i></i></div>
+          </div>
+          <div class="actions">
+            <div class="btn">Mô phỏng vay</div>
+            <div class="btn secondary">Hỏi AI</div>
+          </div>
+          <div class="section populated">
+            <div class="section-head">
+              <h2>Phương án đã lưu</h2>
+              <span class="more">Tất cả</span>
+            </div>
+            <div class="row">
+              <span class="symbol">↗</span
+              ><span class="row-main"
+                ><span class="row-title">Chi tiêu linh hoạt</span
+                ><span class="row-sub">24 kỳ · 120 triệu đồng</span></span
+              ><span class="row-value">›</span>
+            </div>
+            <div class="row">
+              <span class="symbol">↗</span
+              ><span class="row-main"
+                ><span class="row-title">Mua xe gia đình</span
+                ><span class="row-sub">36 kỳ · 320 triệu đồng</span></span
+              ><span class="row-value">›</span>
+            </div>
+            <div class="note">
+              ⓘ <span>Mức tham khảo theo dữ liệu đã nhập, không phải hạn mức được duyệt.</span>
+            </div>
+          </div>
+          <div class="empty">
+            <h2>Chưa có hồ sơ tài chính</h2>
+            <p>Thêm vài thông tin để xem khả năng trả nợ tham khảo.</p>
+            <div class="btn">Bắt đầu ngay</div>
+          </div>
+          <nav class="dock">
+            <div class="tab active"><span class="ico">⌂</span>Tổng quan</div>
+            <div class="tab"><span class="ico">⌕</span>Khám phá</div>
+            <div class="tab"><span class="ico">✳</span>AI</div>
+            <div class="tab"><span class="ico">▣</span>Khoản vay</div>
+            <div class="tab"><span class="ico">●</span>Hồ sơ</div>
+          </nav>
+        </section>
+      </figure>
+      <figure>
+        <figcaption>C · Warm Premium</figcaption>
+        <section class="phone warm" id="concept-c">
+          <span class="preview-tag">Preview · dữ liệu minh hoạ</span>
+          <header class="top">
+            <span class="brand">FINORA</span><span class="avatar">A</span>
+          </header>
+          <h1>Chào An,<br />mình bắt đầu nhé.</h1>
+          <p class="sub">Một góc nhìn rõ ràng hơn về kế hoạch vay của bạn.</p>
+          <div class="hero">
+            <p class="label">Khoảng trả nợ mỗi tháng</p>
+            <p class="amount">5.500.000&nbsp;₫</p>
+            <p class="context">Ước tính từ thông tin thu nhập, chi phí và nợ hiện tại.</p>
+          </div>
+          <div class="actions">
+            <div class="btn">Tạo mô phỏng</div>
+            <div class="btn secondary">Trò chuyện với AI</div>
+          </div>
+          <div class="section populated">
+            <div class="section-head">
+              <h2>Đang theo dõi</h2>
+              <span class="more">Xem thêm</span>
+            </div>
+            <div class="row">
+              <span class="symbol">↗</span
+              ><span class="row-main"
+                ><span class="row-title">Vay tiêu dùng linh hoạt</span
+                ><span class="row-sub">120.000.000 ₫ · 24 thg 11</span></span
+              ><span class="row-value">›</span>
+            </div>
+            <div class="note">
+              ⓘ
+              <span>Mô phỏng chỉ mang tính tham khảo. Chưa có khoản trả nợ nào được ghi nhận.</span>
+            </div>
+          </div>
+          <div class="empty">
+            <h2>Hãy bắt đầu từ thông tin của bạn</h2>
+            <p>Finora sẽ giúp bạn lập một kế hoạch tham khảo rõ ràng.</p>
+            <div class="btn">Tạo hồ sơ của tôi</div>
+          </div>
+          <nav class="dock">
+            <div class="tab active"><span class="ico">⌂</span>Tổng quan</div>
+            <div class="tab"><span class="ico">⌕</span>Khám phá</div>
+            <div class="tab"><span class="ico">✳</span>AI</div>
+            <div class="tab"><span class="ico">▣</span>Khoản vay</div>
+            <div class="tab"><span class="ico">●</span>Hồ sơ</div>
+          </nav>
+        </section>
+      </figure>
+    </main>
+    <script>
+      if (location.hash === '#empty')
+        document.querySelectorAll('.phone').forEach((p) => p.classList.add('empty-state'));
+    </script>
+  </body>
+</html>

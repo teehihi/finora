@@ -28,13 +28,31 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Xin chào, An.' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('heading', { name: 'Chào, An' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Thêm hồ sơ tài chính' })).toBeVisible();
+  await expect(page.getByText('Chưa có bản mô phỏng')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('home-empty.png') });
   await page.getByRole('tab', { name: 'Hồ sơ', exact: true }).click();
   await page.getByLabel('Thu nhập hằng tháng').fill('20000000');
   await page.getByLabel('Chi phí sinh hoạt').fill('9000000');
   await page.getByLabel('Tiền trả nợ hiện tại').fill('1500000');
   await page.getByRole('button', { name: 'Lưu thay đổi' }).click();
   await expect(page.getByText('Đã lưu thay đổi.')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const profileTab = await page.getByRole('tab', { name: 'Hồ sơ', exact: true }).boundingBox();
+  const loansTab = await page.getByRole('tab', { name: 'Khoản vay', exact: true }).boundingBox();
+  expect(profileTab && loansTab).toBeTruthy();
+  await page.mouse.move(
+    profileTab!.x + profileTab!.width / 2,
+    profileTab!.y + profileTab!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(loansTab!.x + loansTab!.width / 2, loansTab!.y + loansTab!.height / 2, {
+    steps: 5,
+  });
+  await page.mouse.up();
+  await expect(page).toHaveURL(/\/loans/);
   await page.getByRole('tab', { name: 'Khám phá' }).click();
   await page.getByRole('radio', { name: 'Bản mô phỏng mẫu', exact: true }).click();
   await page.getByLabel('Tìm sản phẩm hoặc tổ chức').fill('Chi tiêu linh hoạt');
@@ -61,9 +79,14 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await expect(page.getByRole('button', { name: 'Gửi', exact: true })).toBeDisabled();
   await page.reload();
   await expect(page.getByText(/Tổng gốc và lãi theo lịch là/)).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('tab', { name: 'Tổng quan' }).click();
   await expect(page.getByText(/5\.500\.000/)).toBeVisible();
-  await page.screenshot({ path: info.outputPath('home-desktop.png') });
+  await expect(page.getByText('Chi tiêu linh hoạt', { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBeTruthy();
+  await page.screenshot({ path: info.outputPath('home-populated.png') });
   await page.getByRole('tab', { name: 'Hồ sơ', exact: true }).click();
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
   await page.goto(url);

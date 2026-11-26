@@ -1,11 +1,22 @@
-import { View, useWindowDimensions } from 'react-native';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowUpRight, BookOpen, Compass, MessageCircle, ShieldCheck } from 'lucide-react-native';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  CalendarDays,
+  Compass,
+  Info,
+  MessageCircle,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Action, Button, Heading, Text, useDesign } from '@finora/ui';
 import { date, percent } from '@finora/i18n';
 import { api, auth } from '../../src/services/client';
 import { useAccount } from '../../src/providers/AppProviders';
+import { useRepaymentLedger } from '../../src/features/repayments';
 import { Page, Data, Columns, LinkRow } from '../../src/components/layout';
 
 export default function Home() {
@@ -14,6 +25,7 @@ export default function Home() {
   const session = auth.useSession();
   const user = session.data?.user;
   const account = useAccount();
+  const { ledger } = useRepaymentLedger();
   const saved = useQuery({
     queryKey: ['saved', user?.id],
     queryFn: api.saved,
@@ -22,6 +34,286 @@ export default function Home() {
   const vi = locale === 'vi-VN';
   const choose = (vn: string, en: string) => (vi ? vn : en);
   const large = width >= 1024;
+  if (width < 768) {
+    const name = user?.name?.trim().split(/\s+/).at(-1);
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 118 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={{ gap: 6 }}>
+          <Text role="header" style={{ fontSize: 27, lineHeight: 34, letterSpacing: -0.7 }}>
+            {name ? choose(`Chào, ${name}`, `Hello, ${name}`) : choose('Chào bạn', 'Hello there')}
+          </Text>
+          <Text muted>
+            {choose(
+              'Mình cùng xem kế hoạch tài chính của bạn nhé.',
+              "Let's look at your financial plan.",
+            )}
+          </Text>
+        </View>
+
+        <View style={{ marginTop: 30, gap: 8 }}>
+          <Text small muted>
+            {choose('Khả năng trả thêm mỗi tháng', 'Estimated room to repay each month')}
+          </Text>
+          <Data q={account}>
+            {(a) => (
+              <View style={{ gap: 8 }}>
+                {a.readiness ? (
+                  <Text
+                    style={{
+                      fontSize: 35,
+                      lineHeight: 43,
+                      fontVariant: ['tabular-nums'],
+                      letterSpacing: -1.1,
+                      color: c.primary,
+                    }}
+                  >
+                    {money(a.readiness.monthlyBudget)}
+                  </Text>
+                ) : (
+                  <Text
+                    role="header"
+                    style={{ fontSize: 22, lineHeight: 29, letterSpacing: -0.45 }}
+                  >
+                    {choose('Bắt đầu từ thông tin của bạn', 'Start with your financial details')}
+                  </Text>
+                )}
+                <Text muted style={{ fontSize: 14, lineHeight: 21 }}>
+                  {a.readiness
+                    ? choose(
+                        'Ước tính từ thu nhập, chi phí và khoản trả nợ bạn đã nhập. Dùng ngưỡng kế hoạch 35%, không phải hạn mức được duyệt.',
+                        'Estimated from the income, expenses and repayments you entered. Uses a 35% planning cap; it is not an approved credit limit.',
+                      )
+                    : choose(
+                        'Thêm thu nhập, chi phí và khoản trả nợ để xem mức tham khảo. Finora chưa có đủ thông tin để ước tính.',
+                        'Add your income, expenses and repayments to see a planning estimate. There is not enough information to calculate one yet.',
+                      )}
+                </Text>
+                {!a.readiness ? (
+                  <Action
+                    label={t(a.profile ? 'editProfile' : 'addProfile')}
+                    onPress={() => router.navigate('/profile')}
+                    style={{
+                      alignSelf: 'flex-start',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 7,
+                      marginTop: 2,
+                    }}
+                  >
+                    <Text bold style={{ color: c.primary }}>
+                      {t(a.profile ? 'editProfile' : 'addProfile')}
+                    </Text>
+                    <ArrowUpRight size={16} color={c.primary} />
+                  </Action>
+                ) : null}
+              </View>
+            )}
+          </Data>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
+          <Action
+            label={choose('Thử mô phỏng vay', 'Try a loan simulation')}
+            onPress={() => router.navigate('/explore?mode=sample')}
+            style={{
+              flex: 1,
+              minHeight: 50,
+              borderRadius: 14,
+              backgroundColor: c.primary,
+              paddingHorizontal: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            <Compass size={18} color={c.onPrimary} />
+            <Text small bold style={{ color: c.onPrimary }}>
+              {choose('Mô phỏng', 'Simulate')}
+            </Text>
+          </Action>
+          <Action
+            label={t('ai')}
+            onPress={() => router.navigate('/assistant')}
+            style={{
+              flex: 1,
+              minHeight: 50,
+              borderRadius: 14,
+              backgroundColor: c.secondary,
+              paddingHorizontal: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            <Sparkles size={18} color={c.primary} />
+            <Text small bold style={{ color: c.primary }}>
+              Finora AI
+            </Text>
+          </Action>
+        </View>
+
+        <View style={{ marginTop: 30 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 8,
+            }}
+          >
+            <Text role="header" style={{ fontSize: 18, lineHeight: 25, letterSpacing: -0.3 }}>
+              {choose('Mô phỏng gần đây', 'Recent simulations')}
+            </Text>
+            <Action label={t('seeAll')} onPress={() => router.navigate('/loans')}>
+              <Text small bold style={{ color: c.primary }}>
+                {t('seeAll')}
+              </Text>
+            </Action>
+          </View>
+          <Data q={saved}>
+            {(rows) =>
+              rows.length ? (
+                <View>
+                  {rows.slice(0, 3).map((row) => (
+                    <Action
+                      key={row.id}
+                      label={`${vi ? row.product.name : row.product.nameEn}, ${money(row.input.principal)}`}
+                      onPress={() => router.push('/saved/' + row.id)}
+                      style={{
+                        minHeight: 66,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        borderTopWidth: 1,
+                        borderColor: c.border,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 12,
+                          backgroundColor: c.secondary,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <BookOpen size={17} color={c.primary} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                        <Text bold style={{ flexShrink: 1 }}>
+                          {vi ? row.product.name : row.product.nameEn}
+                        </Text>
+                        <Text small muted>
+                          {money(row.input.principal)} · {date(row.createdAt, locale)}
+                        </Text>
+                      </View>
+                      <ArrowRight size={17} color={c.muted} />
+                    </Action>
+                  ))}
+                </View>
+              ) : (
+                <View
+                  style={{
+                    borderTopWidth: 1,
+                    borderColor: c.border,
+                    paddingTop: 14,
+                    paddingBottom: 8,
+                    gap: 5,
+                  }}
+                >
+                  <Text bold>{t('emptySaved')}</Text>
+                  <Text small muted>
+                    {t('emptySavedText')}
+                  </Text>
+                  <Action
+                    label={t('learn')}
+                    onPress={() => router.navigate('/explore?mode=sample')}
+                    style={{
+                      alignSelf: 'flex-start',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginTop: 3,
+                    }}
+                  >
+                    <Text small bold style={{ color: c.primary }}>
+                      {t('learn')}
+                    </Text>
+                    <ArrowUpRight size={15} color={c.primary} />
+                  </Action>
+                </View>
+              )
+            }
+          </Data>
+        </View>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: 9,
+            marginTop: 22,
+            paddingTop: 15,
+            borderTopWidth: 1,
+            borderColor: c.border,
+          }}
+        >
+          <Info size={17} color={c.muted} style={{ marginTop: 2 }} />
+          <View style={{ flex: 1, gap: 5 }}>
+            <Text small bold>
+              {t('upcoming')}
+            </Text>
+            <Data q={ledger}>
+              {(value) => {
+                const next = value.upcoming[0];
+                return (
+                  <View style={{ gap: 4 }}>
+                    {next ? (
+                      <Action
+                        label={`${next.title}, ${date(next.date, locale)}, ${money(next.payment)}`}
+                        onPress={() => router.push('/repayments')}
+                        style={{
+                          alignSelf: 'flex-start',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <CalendarDays size={16} color={c.primary} />
+                        <Text small bold>
+                          {next.title}
+                        </Text>
+                        <Text small muted>
+                          {date(next.date, locale)} · {money(next.payment)}
+                        </Text>
+                        <ArrowRight size={15} color={c.muted} />
+                      </Action>
+                    ) : (
+                      <Text small muted>
+                        {value.loans.length ? t('repaymentsNoDue') : t('repaymentsUntrackedNote')}
+                      </Text>
+                    )}
+                    {value.overdue.length ? (
+                      <Text small style={{ color: c.warning }}>
+                        {t('repaymentsLate')}: {money(value.overdueTotal)}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              }}
+            </Data>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
   return (
     <Page
       title={user?.name?.trim() ? t('greet') + ', ' + user.name.trim() + '.' : t('greet') + '!'}

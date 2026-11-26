@@ -10,7 +10,17 @@ export function useIdentityOptions() {
     queryKey: authProviderKey,
     retry: false,
     queryFn: async ({ signal }) => {
-      const response = await fetch(`${base}/api/auth/providers`, { signal });
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      signal.addEventListener('abort', abort, { once: true });
+      const timeout = setTimeout(abort, 8_000);
+      let response: Response;
+      try {
+        response = await fetch(`${base}/api/auth/providers`, { signal: controller.signal });
+      } finally {
+        clearTimeout(timeout);
+        signal.removeEventListener('abort', abort);
+      }
       if (!response.ok) throw new Error('Auth methods unavailable');
       const body: unknown = await response.json();
       if (
