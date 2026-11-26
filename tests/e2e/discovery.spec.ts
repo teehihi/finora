@@ -60,6 +60,7 @@ test('sample loan discovery keeps terms comparable and separates estimates from 
 
   await page.getByRole('tab', { name: 'Khoản vay', exact: true }).click();
   await expect(page.getByText(/Các bản mô phỏng không tự trở thành khoản vay/)).toBeVisible();
+  await page.getByRole('tab', { name: 'Bản mô phỏng', exact: true }).click();
   await expect(page.getByText('Chưa có bản mô phỏng', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Xem sản phẩm mẫu' })).toBeVisible();
 });

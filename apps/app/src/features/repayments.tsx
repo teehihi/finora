@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, CalendarDays } from 'lucide-react-native';
 import { Button, Dialog, Field, Heading, Text, useDesign } from '@finora/ui';
 import type { Saved } from '@finora/contracts';
 import { date } from '@finora/i18n';
 import { api, auth } from '../services/client';
-import { Data } from '../components/layout';
 
 export const ledgerKey = (userId: string | undefined) =>
   ['owned-repayment-ledger', userId] as const;
@@ -20,64 +18,6 @@ export function useRepaymentLedger() {
     enabled: !!userId,
   });
   return { ledger, userId };
-}
-
-export function RepaymentsSummary() {
-  const { colors: c, t, money, locale } = useDesign();
-  const { ledger } = useRepaymentLedger();
-  return (
-    <View style={{ backgroundColor: c.elevated, borderRadius: 14, padding: 18, gap: 9 }}>
-      <CalendarDays size={19} color={c.primary} />
-      <Heading size={23}>{t('active')}</Heading>
-      <Data q={ledger}>
-        {(value) => (
-          <>
-            {value.loans.length ? (
-              <>
-                <Text small muted>
-                  {t('repaymentsIntro')}
-                </Text>
-                <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 9, gap: 4 }}>
-                  <Text bold small>
-                    {t('repaymentsDueNext')}
-                  </Text>
-                  {value.upcoming.length ? (
-                    <>
-                      <Text bold style={{ fontVariant: ['tabular-nums'] }}>
-                        {money(value.upcomingTotal)}
-                      </Text>
-                      <Text small muted>
-                        {value.upcoming[0].title} · {date(value.upcoming[0].date, locale)}
-                      </Text>
-                    </>
-                  ) : (
-                    <Text small muted>
-                      {t('repaymentsNoDue')}
-                    </Text>
-                  )}
-                </View>
-                {value.overdue.length ? (
-                  <Text small style={{ color: c.warning }}>
-                    {t('repaymentsLate')}: {money(value.overdueTotal)}
-                  </Text>
-                ) : null}
-              </>
-            ) : (
-              <Text small muted>
-                {t('repaymentsUntrackedNote')}
-              </Text>
-            )}
-            <Button
-              label={t('repaymentsOpen')}
-              variant="text"
-              icon={<ArrowUpRight size={15} color={c.primary} />}
-              onPress={() => router.push('/repayments')}
-            />
-          </>
-        )}
-      </Data>
-    </View>
-  );
 }
 
 export function TrackRepaymentCta({ simulation }: { simulation: Saved }) {
