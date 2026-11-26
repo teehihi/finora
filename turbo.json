@@ -4,12 +4,19 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "env": ["EXPO_PUBLIC_API_URL"]
+      "env": ["EXPO_PUBLIC_API_URL"],
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "EXPO_PUBLIC_API_URL",
+        "FINORA_KEEP_LEGACY_LAN",
+        "BETTER_AUTH_URL",
+        "WEB_ORIGINS"
+      ]
     },
     "test": {
       "dependsOn": ["^build"],
@@ -18,6 +25,13 @@
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": []
+    },
+    "@finora/app#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "env": ["EXPO_PUBLIC_API_URL", "EXPO_NO_DOTENV", "EXPO_NO_CLIENT_ENV_VARS"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*", "$TURBO_ROOT$/scripts/expo-lan.mjs"],
+      "passThroughEnv": ["FINORA_KEEP_LEGACY_LAN"]
     }
   }
 }

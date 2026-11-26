@@ -72,8 +72,8 @@ Resend trong tương lai; không cần tài khoản dịch vụ mail để chạ
 - Web dùng callback quay về chính origin ứng dụng có trong `WEB_ORIGINS`.
   Native yêu cầu development build có scheme `finora://`; plugin Expo mở
   trình duyệt hệ thống và chuyển phiên về SecureStore. Không dùng WebView.
-  Dùng `EXPO_PUBLIC_API_URL` phù hợp trên iOS Simulator, Android Emulator và
-  thiết bị thật; xem bảng mạng ở README. Không tắt kiểm tra OAuth state, PKCE,
+  Để trống `EXPO_PUBLIC_API_URL` khi thử với Metro tại chỗ; chỉ đặt cho API
+  riêng hoặc bản phân phối. Xem bảng mạng ở README. Không tắt kiểm tra OAuth state, PKCE,
   callback hoặc trusted origins.
 - Google chọn từ màn hình đăng nhập có thể tạo tài khoản mới bằng địa chỉ
   Google đã xác minh. Finora **không tự nối** tài khoản chỉ vì email khớp.

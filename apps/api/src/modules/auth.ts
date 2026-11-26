@@ -8,7 +8,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { expo } from '@better-auth/expo';
 import type { Request } from 'express';
 import { db } from '../infrastructure/db.js';
-import { env } from '../config/env.js';
+import { env, webOrigins } from '../config/env.js';
 import { logger } from '../common/http.js';
 import { emailService } from '../infrastructure/email.js';
 import { createOtpCooldown } from './otp-policy.js';
@@ -64,8 +64,8 @@ export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   database: prismaAdapter(db, { provider: 'postgresql' }),
-  trustedOrigins: [
-    ...env.WEB_ORIGINS,
+  trustedOrigins: () => [
+    ...webOrigins(),
     'finora://',
     ...(apple ? ['https://appleid.apple.com'] : []),
   ],

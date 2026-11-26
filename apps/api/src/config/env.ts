@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { createWebOrigins } from './dev-network.js';
 import { z } from 'zod';
 const schema = z
   .object({
@@ -90,3 +91,9 @@ if (!parsed.success)
       parsed.error.issues.map((i) => i.path.join('.')).join(', '),
   );
 export const env = parsed.data;
+
+// Only the explicit local development launcher enables automatic LAN browser origins.
+export const webOrigins = createWebOrigins(
+  env.WEB_ORIGINS,
+  env.NODE_ENV === 'development' && process.env.FINORA_DEV_LAN === '1',
+);

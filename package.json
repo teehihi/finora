@@ -22,13 +22,14 @@
     "dev:app": "pnpm run expo:lan && turbo run dev --filter=@finora/app",
     "dev:api": "pnpm run expo:lan && turbo run dev --filter=@finora/api",
     "expo:lan": "node scripts/expo-lan.mjs",
-    "build": "turbo run build",
+    "build": "pnpm run expo:lan && turbo run build",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
-    "test:e2e": "playwright test"
+    "test": "pnpm run test:network && turbo run test",
+    "test:e2e": "playwright test",
+    "test:network": "node --test scripts/expo-lan.test.mjs"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

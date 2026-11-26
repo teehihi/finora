@@ -6,9 +6,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "dev": "tsx watch src/main.ts",
-    "test": "jest --runInBand",
-    "start": "node dist/main.js",
+    "dev": "node ../../scripts/expo-lan.mjs api-dev",
+    "test": "node --test scripts/dev-network-auth.test.mjs && jest --runInBand",
+    "start": "node ../../scripts/expo-lan.mjs api-start",
     "test:auth:local": "node scripts/verify-auth-local.mjs"
   },
   "dependencies": {
