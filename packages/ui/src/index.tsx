@@ -193,6 +193,7 @@ export function Action({
         checked: role === 'checkbox' || role === 'radio' ? selected : undefined,
       }}
       aria-checked={role === 'checkbox' || role === 'radio' ? selected : undefined}
+      aria-selected={role === 'tab' ? selected : undefined}
       disabled={disabled}
       onFocus={() => focus(true)}
       onBlur={() => focus(false)}

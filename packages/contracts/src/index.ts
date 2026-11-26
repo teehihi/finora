@@ -94,3 +94,63 @@ export interface AccountData {
   preferences: Preferences;
 }
 export const zone = 'Asia/Ho_Chi_Minh';
+
+export * from './catalog-intelligence.js';
+export * from './repayments.js';
+
+export * from './intelligence';
+
+export const documentMimeSchema = z.enum(['application/pdf', 'image/jpeg', 'image/png']);
+export type DocumentMime = z.infer<typeof documentMimeSchema>;
+export const maxDocumentBytes = 5 * 1024 * 1024;
+export const documentFieldNames = [
+  'lender',
+  'principal',
+  'months',
+  'annualRate',
+  'method',
+  'firstDue',
+  'monthlyRepayment',
+  'totalRepayment',
+  'totalFees',
+  'serviceFee',
+  'insuranceFee',
+  'latePenalty',
+  'earlyRepayment',
+  'importantClauses',
+] as const;
+export type DocumentFieldName = (typeof documentFieldNames)[number];
+export type DocumentExtractionMode = 'pdf-text' | 'local-ocr' | 'manual';
+export type DocumentField = {
+  state: 'found' | 'missing' | 'conflicting' | 'unsupported';
+  value: string | number | null;
+  sources: { page: number; excerpt: string }[];
+};
+export interface DocumentSummary {
+  id: string;
+  mime: DocumentMime;
+  size: number;
+  createdAt: string;
+  synthetic: boolean;
+  mode: DocumentExtractionMode;
+}
+export interface DocumentReview extends DocumentSummary {
+  fields: Record<DocumentFieldName, DocumentField>;
+  reason?: 'text-unavailable' | 'ocr-unavailable' | 'reader-unavailable';
+}
+export const reviewedDocumentSource = 'finora:confirmed-private-document';
+export const documentReviewSchema = z
+  .object({
+    input: loanSchema,
+    lender: z
+      .string()
+      .trim()
+      .min(1)
+      .max(160)
+      .regex(/^[^\p{Cc}\p{Cf}]+$/u)
+      .optional(),
+    confirmed: z.literal(true),
+  })
+  .strict();
+export const documentSaveSchema = documentReviewSchema.extend({ requestId: z.uuid() });
+export type DocumentReviewInput = z.infer<typeof documentReviewSchema>;

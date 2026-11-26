@@ -23,6 +23,9 @@ model User {
   simulations   LoanSimulation[]
   turns         ChatTurn[]
   documents     UploadedDocument[]
+  documentAnalyses DocumentAnalysis[]
+  intelligenceTurns IntelligenceTurn[]
+  trackedRepayments TrackedRepayment[]
 }
 
 model Session {
@@ -100,16 +103,18 @@ model LoanProduct {
 model LoanSimulation {
   id              String      @id @default(uuid())
   userId          String
-  productId       String
+  productId       String?
   requestId       String
   input           Json
   result          Json
   productSnapshot Json
   createdAt       DateTime    @default(now())
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product         LoanProduct @relation(fields: [productId], references: [id])
+  product         LoanProduct? @relation(fields: [productId], references: [id], onDelete: Restrict)
+  trackedRepayments TrackedRepayment[]
 
   @@unique([userId, requestId])
+  @@unique([id, userId])
   @@index([userId, createdAt])
 }
 
@@ -138,4 +143,61 @@ model UploadedDocument {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+
+model IntelligenceTurn {
+  id           String   @id @default(uuid())
+  userId       String
+  requestId    String
+  prompt       String
+  answer       String
+  locale       String
+  provider     String
+  simulationId String?
+  blocks       Json
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestId])
+  @@index([userId, createdAt])
+}
+
+model DocumentAnalysis {
+  id         String   @id @default(uuid())
+  userId     String
+  mime       String
+  size       Int
+  content    Bytes
+  synthetic  Boolean  @default(false)
+  mode       String
+  extraction Json
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model TrackedRepayment {
+  id           String             @id @default(uuid())
+  userId       String
+  simulationId String
+  title        String
+  createdAt    DateTime           @default(now())
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  simulation   LoanSimulation     @relation(fields: [simulationId, userId], references: [id, userId], onDelete: Cascade)
+  payments     RepaymentPayment[]
+
+  @@unique([userId, simulationId])
+  @@index([userId, createdAt])
+}
+
+model RepaymentPayment {
+  repaymentId String
+  period      Int
+  paid        Boolean
+  updatedAt   DateTime         @updatedAt
+  repayment   TrackedRepayment @relation(fields: [repaymentId], references: [id], onDelete: Cascade)
+
+  @@id([repaymentId, period])
 }

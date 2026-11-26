@@ -72,3 +72,11 @@ Native dùng Expo SecureStore và plugin Expo của Better Auth, web dùng cooki
 - [Phạm vi MVP](docs/product/MVP_SCOPE.md) · [Thương hiệu](docs/design-system/BRAND_GUIDELINES.md) · [Kết quả kiểm tra](docs/VERIFICATION.md).
 
 GitHub Actions thực hiện kiểm tra và build. Việc chuyển sang hạ tầng production được ghi trong ADR.
+
+### Intelligence 3.0
+
+[Run the local Vietnamese borrowing demo and see the data boundaries](docs/architecture/INTELLIGENCE.md).
+Public lender terms are sourced and separate from the sample catalog. AI uses a
+clearly labeled local mode by default; external interpretation is optional,
+server-configured and requires consent for each question. No service deployment
+or lender application is part of the demo.

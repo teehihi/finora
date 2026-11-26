@@ -76,8 +76,11 @@ export class AssistantController {
     @Inject(AI_PROVIDER) private provider: AIProvider,
   ) {}
   @Delete('history') async clear(@Req() req: OwnedRequest) {
-    const result = await db.chatTurn.deleteMany({ where: { userId: req.userId } });
-    return { removed: result.count };
+    const [conversations, analyses] = await db.$transaction([
+      db.chatTurn.deleteMany({ where: { userId: req.userId } }),
+      db.intelligenceTurn.deleteMany({ where: { userId: req.userId } }),
+    ]);
+    return { removed: conversations.count + analyses.count };
   }
   @Get('history') history(@Req() req: OwnedRequest) {
     return db.chatTurn.findMany({

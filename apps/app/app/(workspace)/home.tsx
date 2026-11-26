@@ -131,7 +131,7 @@ export default function Home() {
                 'Try a rate and term before making a decision.',
               )}
               icon={<Compass size={20} color={c.primary} />}
-              onPress={() => router.navigate('/explore')}
+              onPress={() => router.navigate('/explore?mode=sample')}
             />
           </View>
           <LinkRow
@@ -180,7 +180,7 @@ export default function Home() {
                   title={t('emptySaved')}
                   body={t('emptySavedText')}
                   icon={<BookOpen size={18} color={c.primary} />}
-                  onPress={() => router.navigate('/explore')}
+                  onPress={() => router.navigate('/explore?mode=sample')}
                 />
               )}
             </View>

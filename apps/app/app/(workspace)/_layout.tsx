@@ -95,8 +95,10 @@ export default function Workspace() {
     links.findIndex(
       ([key, href]) =>
         path === href ||
-        (key === 'explore' && path.startsWith('/simulate')) ||
-        (key === 'loans' && path.startsWith('/saved')),
+        (key === 'explore' && path.startsWith('/simulate/')) ||
+        (key === 'ai' &&
+          (path === '/intelligence' || path === '/documents' || path.startsWith('/documents/'))) ||
+        (key === 'loans' && (path === '/repayments' || path.startsWith('/saved/'))),
     ),
   );
   useEffect(() => {
@@ -308,7 +310,7 @@ export default function Workspace() {
                     </Text>
                     <ChevronRight size={13} color={c.muted} />
                     <Text small bold>
-                      {t(selected[0])}
+                      {t(path === '/intelligence' ? 'intelligenceLabel' : selected[0])}
                     </Text>
                   </View>
                 ) : (

@@ -36,6 +36,7 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await page.getByRole('button', { name: 'Lưu thay đổi' }).click();
   await expect(page.getByText('Đã lưu thay đổi.')).toBeVisible();
   await page.getByRole('tab', { name: 'Khám phá' }).click();
+  await page.getByRole('radio', { name: 'Bản mô phỏng mẫu', exact: true }).click();
   await page.getByLabel('Tìm sản phẩm hoặc tổ chức').fill('Chi tiêu linh hoạt');
   await page.getByRole('button', { name: 'Mô phỏng trả nợ' }).click();
   await page.getByRole('button', { name: 'Tính lịch trả nợ' }).click();

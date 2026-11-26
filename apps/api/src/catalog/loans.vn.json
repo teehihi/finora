@@ -1,0 +1,280 @@
+[
+  {
+    "id": "home-credit-online-cash",
+    "institution": "Home Credit Việt Nam",
+    "name": "Vay tiền mặt online",
+    "nameEn": "Online cash loan",
+    "category": "personal",
+    "purposes": ["Tiêu dùng cá nhân", "Học phí", "Khám chữa bệnh", "Sửa nhà"],
+    "purposesEn": ["Personal expenses", "Tuition", "Medical expenses", "Home repairs"],
+    "amountMin": 3000000,
+    "amountMax": 250000000,
+    "monthsMin": 3,
+    "monthsMax": 57,
+    "rate": {
+      "advertised": 0.75,
+      "min": null,
+      "max": null,
+      "period": "month",
+      "basis": "declining"
+    },
+    "method": null,
+    "fee": null,
+    "feeDetails": "Trang sản phẩm công bố không thu phí hồ sơ; các khoản phí khác chưa đủ thông tin để tính tổng.",
+    "feeDetailsEn": "The product page says there is no application-processing fee; total fees are not known.",
+    "insurance": null,
+    "insuranceEn": null,
+    "earlyRepayment": "Trang sản phẩm nêu miễn phí tất toán sớm với khoản vay từ 3 đến 10 triệu đồng. Các ngưỡng khác cần kiểm tra hợp đồng.",
+    "earlyRepaymentEn": "The product page says loans from VND 3 to 10 million have no early settlement fee. Confirm other amounts in the contract.",
+    "eligibility": ["Trang sản phẩm nêu yêu cầu giấy tờ căn cước còn hiệu lực."],
+    "eligibilityEn": ["The product page states that a valid identity document is required."],
+    "notes": "Hạn mức và lãi suất theo phần tóm tắt gói online trên trang nguồn. Ví dụ lãi phẳng ở công cụ minh họa không được trộn với lãi dư nợ giảm dần.",
+    "notesEn": "Terms use the online product summary. Flat-rate illustrations are not combined with declining-balance rates.",
+    "maxLoanToValuePercent": null,
+    "provenance": "official_public",
+    "verification": "reviewed_public",
+    "sources": [
+      {
+        "title": "Home Credit – Vay tiền mặt online",
+        "url": "https://www.homecredit.vn/vay-tien-online-nhanh",
+        "kind": "product-page",
+        "collectedAt": "2026-11-26",
+        "verifiedAt": "2026-11-26"
+      }
+    ]
+  },
+  {
+    "id": "shinhan-consumer-unsecured",
+    "institution": "Ngân hàng Shinhan Việt Nam",
+    "name": "Vay tiêu dùng",
+    "nameEn": "Unsecured consumer loan",
+    "category": "personal",
+    "purposes": ["Tiêu dùng cá nhân"],
+    "purposesEn": ["Personal expenses"],
+    "amountMin": null,
+    "amountMax": 1200000000,
+    "monthsMin": null,
+    "monthsMax": 60,
+    "rate": {
+      "advertised": 12.5,
+      "min": null,
+      "max": null,
+      "period": "year",
+      "basis": "declining"
+    },
+    "method": null,
+    "fee": null,
+    "feeDetails": null,
+    "feeDetailsEn": null,
+    "insurance": null,
+    "insuranceEn": null,
+    "earlyRepayment": "Biểu phí cá nhân nêu mức 3% trên dư nợ còn lại trong 3 năm đầu đối với vay tín chấp; sau đó không thu. Xác nhận biểu phí áp dụng với hợp đồng.",
+    "earlyRepaymentEn": "The personal tariff lists 3% of outstanding principal during the first three years for unsecured loans, then no charge. Confirm the applicable tariff against the contract.",
+    "eligibility": [
+      "Giấy tờ căn cước còn hiệu lực, giấy tờ cư trú và chứng minh thu nhập. Trang sản phẩm nêu không cần tài sản bảo đảm."
+    ],
+    "eligibilityEn": [
+      "Valid identity, residence and income documentation. The product page states no collateral is required."
+    ],
+    "notes": "Hạn mức lấy từ mục quyền lợi trên trang sản phẩm, không phải hạn mức được duyệt trước.",
+    "notesEn": "The published ceiling is from the product benefits section, not preapproved credit.",
+    "maxLoanToValuePercent": null,
+    "provenance": "official_public",
+    "verification": "reviewed_public",
+    "sources": [
+      {
+        "title": "Shinhan Bank – Vay tiêu dùng",
+        "url": "https://shinhan.com.vn/vi/personal/vay-tieu-dung.html",
+        "kind": "product-page",
+        "collectedAt": "2026-11-26",
+        "verifiedAt": "2026-11-26"
+      },
+      {
+        "title": "Shinhan Bank – Biểu phí khách hàng cá nhân",
+        "url": "https://shinhan.com.vn/public/uploads/static-file/personal_tariff_vi.pdf",
+        "kind": "tariff",
+        "collectedAt": "2026-11-26",
+        "verifiedAt": "2026-11-26"
+      }
+    ]
+  },
+  {
+    "id": "vpbank-salary-consumer",
+    "institution": "VPBank",
+    "name": "Vay tín chấp theo lương",
+    "nameEn": "Salary-based unsecured loan",
+    "category": "personal",
+    "purposes": ["Tiêu dùng cá nhân", "Mua sắm", "Du lịch", "Sửa nhà"],
+    "purposesEn": ["Personal expenses", "Shopping", "Travel", "Home repairs"],
+    "amountMin": null,
+    "amountMax": 500000000,
+    "monthsMin": null,
+    "monthsMax": 60,
+    "rate": null,
+    "method": null,
+    "fee": null,
+    "feeDetails": null,
+    "feeDetailsEn": null,
+    "insurance": null,
+    "insuranceEn": null,
+    "earlyRepayment": null,
+    "earlyRepaymentEn": null,
+    "eligibility": [
+      "Đối tượng có thu nhập từ lương hằng tháng, nhận qua tiền mặt hoặc chuyển khoản. Có giấy tờ nhân thân, nơi cư trú và thu nhập."
+    ],
+    "eligibilityEn": [
+      "For salaried borrowers receiving wages by cash or bank transfer. Identity, residence and income documentation is required."
+    ],
+    "notes": "Lãi suất áp dụng do ngân hàng và khách hàng thỏa thuận cho từng khoản; lãi suất của quảng cáo hay sản phẩm khác không được dùng thay thế.",
+    "notesEn": "The lender and customer agree the applicable rate for each loan. Rates from promotions or other products are not substituted.",
+    "maxLoanToValuePercent": null,
+    "provenance": "official_public",
+    "verification": "reviewed_public",
+    "sources": [
+      {
+        "title": "VPBank – Vay tín chấp theo lương",
+        "url": "https://www.vpbank.com.vn/ca-nhan/vay/tin-chap-ca-nhan",
+        "kind": "product-page",
+        "collectedAt": "2026-11-26",
+        "verifiedAt": "2026-11-26"
+      }
+    ]
+  },
+  {
+    "id": "shinhan-new-car",
+    "institution": "Ngân hàng Shinhan Việt Nam",
+    "name": "Vay mua ô tô mới",
+    "nameEn": "New car loan",
+    "category": "auto",
+    "purposes": ["Mua ô tô mới"],
+    "purposesEn": ["New car purchase"],
+    "amountMin": null,
+    "amountMax": null,
+    "monthsMin": null,
+    "monthsMax": 120,
+    "rate": {
+      "advertised": 8.78,
+      "min": null,
+      "max": null,
+      "period": "year",
+      "basis": "unknown"
+    },
+    "method": null,
+    "fee": null,
+    "feeDetails": null,
+    "feeDetailsEn": null,
+    "insurance": null,
+    "insuranceEn": null,
+    "earlyRepayment": "Biểu phí cá nhân cho biết phí trả nợ trước hạn của khoản vay mua xe được quy định trong hợp đồng.",
+    "earlyRepaymentEn": "The personal tariff says the car loan early settlement fee is set in the contract.",
+    "eligibility": [
+      "Giấy tờ nhân thân còn hiệu lực, giấy tờ thu nhập theo yêu cầu và hồ sơ mua ô tô."
+    ],
+    "eligibilityEn": [
+      "Valid identity document, income documentation as requested and documents for the vehicle purchase."
+    ],
+    "notes": "Mức từ 8,78%/năm là phương án gắn với lãi suất tham chiếu. Phương án công bố khác từ 10%/năm chỉ cố định 12 tháng; đây không phải hai đầu của cùng một khoảng lãi suất.",
+    "notesEn": "The advertised 8.78% per year option is tied to a reference rate. The other advertised option, from 10% per year, is only fixed for 12 months; these figures are not endpoints of one rate range.",
+    "maxLoanToValuePercent": 85,
+    "provenance": "official_public",
+    "verification": "reviewed_public",
+    "sources": [
+      {
+        "title": "Shinhan Bank – Vay mua xe",
+        "url": "https://shinhan.com.vn/vi/personal/vay-mua-xe.html",
+        "kind": "product-page",
+        "collectedAt": "2026-11-26",
+        "verifiedAt": "2026-11-26"
+      },
+      {
+        "title": "Shinhan Bank – Biểu phí khách hàng cá nhân",
+        "url": "https://shinhan.com.vn/public/uploads/static-file/personal_tariff_vi.pdf",
+        "kind": "tariff",
+        "collectedAt": "2026-11-26",
+        "verifiedAt": "2026-11-26"
+      }
+    ]
+  },
+  {
+    "amountMin": null,
+    "amountMax": null,
+    "monthsMin": null,
+    "monthsMax": 120,
+    "rate": null,
+    "method": null,
+    "fee": null,
+    "feeDetails": null,
+    "feeDetailsEn": null,
+    "insurance": null,
+    "insuranceEn": null,
+    "earlyRepayment": null,
+    "earlyRepaymentEn": null,
+    "notes": "Trang sản phẩm nêu có thể tài trợ tối đa 100% tổng chi phí du học, tùy điều kiện. Không có mức lãi hay hạn mức tuyệt đối công bố trên trang này.",
+    "notesEn": "The product page lists funding up to 100% of total study-abroad expenses, subject to conditions. It does not publish a numeric rate or a fixed currency limit.",
+    "maxLoanToValuePercent": null,
+    "institution": "BIDV",
+    "provenance": "official_public",
+    "verification": "reviewed_public",
+    "id": "bidv-study-abroad",
+    "name": "Vay du học",
+    "nameEn": "Study-abroad loan",
+    "category": "education",
+    "purposes": ["Chi phí du học", "Học tập ở nước ngoài"],
+    "purposesEn": ["Study-abroad expenses", "Overseas education"],
+    "eligibility": [
+      "Tài sản bảo đảm của người vay hoặc bên thứ ba; giấy tờ về mục đích du học và nguồn trả nợ."
+    ],
+    "eligibilityEn": [
+      "Collateral from the borrower or a third party; documents showing the study purpose and source of repayments."
+    ],
+    "sources": [
+      {
+        "title": "BIDV – Vay du học",
+        "url": "https://bidv.com.vn/vn/ca-nhan/san-pham-dich-vu/vay-ca-nhan/vay-du-hoc/",
+        "kind": "product-page",
+        "collectedAt": "2026-11-26",
+        "verifiedAt": "2026-11-26"
+      }
+    ]
+  },
+  {
+    "amountMin": null,
+    "amountMax": null,
+    "monthsMin": null,
+    "monthsMax": 360,
+    "rate": null,
+    "method": null,
+    "fee": null,
+    "feeDetails": null,
+    "feeDetailsEn": null,
+    "insurance": null,
+    "insuranceEn": null,
+    "earlyRepayment": null,
+    "earlyRepaymentEn": null,
+    "notes": "Trang sản phẩm nêu có thể tài trợ đến 100% giá trị hợp đồng hoặc phương án vay; không phải 100% định giá tài sản. Kỳ trả gốc/lãi có thể theo tháng, quý, nửa năm hoặc năm.",
+    "notesEn": "The product page lists financing up to 100% of the contract or borrowing plan amount, not 100% of the appraised property value. Payments may be monthly, quarterly, half-yearly or annually.",
+    "maxLoanToValuePercent": null,
+    "institution": "BIDV",
+    "provenance": "official_public",
+    "verification": "reviewed_public",
+    "id": "bidv-housing",
+    "name": "Vay nhu cầu nhà ở",
+    "nameEn": "Housing loan",
+    "category": "home",
+    "purposes": ["Mua nhà", "Xây nhà", "Sửa chữa nhà ở"],
+    "purposesEn": ["Home purchase", "Home construction", "Home repairs"],
+    "eligibility": ["Giấy tờ về nhà hoặc đất, nguồn trả nợ và tài sản bảo đảm."],
+    "eligibilityEn": [
+      "Documentation for the home or land, the source of repayments, and collateral."
+    ],
+    "sources": [
+      {
+        "title": "BIDV – Vay nhu cầu nhà ở",
+        "url": "https://bidv.com.vn/vn/ca-nhan/san-pham-dich-vu/vay-ca-nhan/vay-nhu-cau-nha-o",
+        "kind": "product-page",
+        "collectedAt": "2026-11-26",
+        "verifiedAt": "2026-11-26"
+      }
+    ]
+  }
+]

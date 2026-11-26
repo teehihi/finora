@@ -1,6 +1,8 @@
 import type {
   AccountData,
   Product,
+  PublicLoanProduct,
+  PublicLoanSearch,
   LoanInput,
   Estimate,
   Saved,
@@ -8,6 +10,10 @@ import type {
   Preferences,
   ChatTurn,
   ChatRequest,
+  RepaymentLedger,
+  RepaymentPaymentUpdate,
+  TrackedRepayment,
+  TrackRepaymentInput,
 } from '@finora/contracts';
 export interface Readiness {
   monthlyBudget: number;
@@ -39,6 +45,16 @@ export function createApi(
     profile: (p: Profile) => request<Profile>('profile', 'PUT', p),
     preferences: (p: Preferences) => request<Preferences>('preferences', 'PUT', p),
     catalog: () => request<Product[]>('catalog'),
+    publicCatalog: (filters: PublicLoanSearch = {}) => {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(filters)) {
+        if (value !== undefined) params.set(key, String(value));
+      }
+      const query = params.toString();
+      return request<PublicLoanProduct[]>('intelligence/catalog' + (query ? '?' + query : ''));
+    },
+    publicProduct: (id: string) =>
+      request<PublicLoanProduct>('intelligence/catalog/' + encodeURIComponent(id)),
     product: (id: string) => request<Product>('catalog/' + encodeURIComponent(id)),
     preview: (productId: string, input: LoanInput) =>
       request<Estimate>('simulations/preview', 'POST', { productId, input }),
@@ -46,6 +62,15 @@ export function createApi(
       request<Saved>('simulations', 'POST', { productId, input, requestId }),
     saved: () => request<Saved[]>('simulations'),
     detail: (id: string) => request<Saved>('simulations/' + encodeURIComponent(id)),
+    repayments: () => request<RepaymentLedger>('repayments'),
+    trackRepayment: (input: TrackRepaymentInput) =>
+      request<TrackedRepayment>('repayments', 'POST', input),
+    setRepaymentPaid: (id: string, period: number, input: RepaymentPaymentUpdate) =>
+      request<{ paid: boolean; statusChangedAt: string }>(
+        'repayments/' + encodeURIComponent(id) + '/payments/' + encodeURIComponent(period),
+        'PUT',
+        input,
+      ),
     clearHistory: () => request<{ removed: number }>('assistant/history', 'DELETE'),
     history: () => request<ChatTurn[]>('assistant/history'),
     async stream(input: ChatRequest, signal: AbortSignal, onDelta: (text: string) => void) {
