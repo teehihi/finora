@@ -3,7 +3,7 @@ import { ActivityIndicator, Platform, View, useWindowDimensions } from 'react-na
 import { Redirect, router, useLocalSearchParams, type Href } from 'expo-router';
 import { ArrowUpRight, LockKeyhole, MailCheck, ShieldCheck } from 'lucide-react-native';
 import { z } from 'zod';
-import { accessStrings, type Key } from '@finora/i18n';
+import { getAccessStrings, type Key } from '@finora/i18n';
 import { Action, Button, Field, Heading, Text, useDesign } from '@finora/ui';
 import { PublicPage } from '../src/components/layout';
 import { ResendCode, VerificationField, resendDelay } from '../src/features/auth/Verification';
@@ -26,6 +26,7 @@ export default function Auth() {
   const params = useLocalSearchParams<{ returnTo?: string; oauth?: string }>();
   const returnTo = allowedAuthReturn(params.returnTo);
   const { colors: c, locale, t } = useDesign();
+  const accessCopy = getAccessStrings(locale);
   const { width } = useWindowDimensions();
   const wide = width >= 1024;
   const session = auth.useSession();
@@ -428,7 +429,7 @@ export default function Auth() {
           </View>
           {step === 'email' && Platform.OS === 'web' ? (
             <Action
-              label={accessStrings[locale].preview}
+              label={accessCopy.preview}
               onPress={() => router.push('/showcase')}
               style={{
                 flexDirection: 'row',
@@ -438,7 +439,7 @@ export default function Auth() {
               }}
             >
               <Text small bold style={{ color: c.primary }}>
-                {accessStrings[locale].preview}
+                {accessCopy.preview}
               </Text>
               <ArrowUpRight size={15} color={c.primary} />
             </Action>

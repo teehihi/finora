@@ -68,3 +68,7 @@ export const accessStrings = {
     completeProfile: 'Complete your profile to see your estimated repayment capacity.',
   },
 } as const;
+
+export function getAccessStrings(locale?: string) {
+  return accessStrings[locale === 'en-US' ? 'en-US' : 'vi-VN'];
+}
