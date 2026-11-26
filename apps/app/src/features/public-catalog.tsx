@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { Linking, View, useWindowDimensions } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, BadgeCheck, Check, Columns2, SlidersHorizontal } from 'lucide-react-native';
+import {
+  ArrowUpRight,
+  Check,
+  Columns2,
+  FileText,
+  Landmark,
+  SlidersHorizontal,
+} from 'lucide-react-native';
 import {
   Action,
   BottomSheet,
@@ -19,8 +26,16 @@ import {
 import { publicLoanSearchSchema, type PublicLoanProduct } from '@finora/contracts';
 import { date, numeric, percent, type Key } from '@finora/i18n';
 import { Data } from '../components/layout';
+import { SignatureIcon } from '../components/signature';
 import { api } from '../services/client';
-import { ComparisonGrid, MarketNotice, MarketPanel, ProductIcon } from './market-ui';
+import {
+  ComparisonGrid,
+  MarketFacts,
+  MarketNotice,
+  MarketPanel,
+  MarketRate,
+  ProductIcon,
+} from './market-ui';
 import { hasUnknownRelevantBounds, matchesPublishedLoan } from './market-filters';
 import { normalizeIntegerInput } from './simulation-model';
 
@@ -85,18 +100,20 @@ function PublicLoanTerms({
   onClose: () => void;
 }) {
   const { colors: c, locale, t } = useDesign();
-  const { fields, local } = useTermsFormat();
+  const { fields, local, rate } = useTermsFormat();
   const [linkError, setLinkError] = useState(false);
   const note = local(product.notes, product.notesEn);
   const feeDetails = local(product.feeDetails, product.feeDetailsEn);
   const requirements = local(product.eligibility, product.eligibilityEn);
   const purposes = local(product.purposes, product.purposesEn);
-  const rows: [Key, string][] = [...fields(product)];
+  const rows: [Key, string][] = fields(product).filter(
+    ([label]) => label !== 'publicRate' && label !== 'marketBasis',
+  );
   if (product.maxLoanToValuePercent !== null)
     rows.push(['publicLoanToValue', percent(product.maxLoanToValuePercent, locale)]);
   rows.push(['category', purposes.join(' · ')]);
   return (
-    <View style={{ gap: 14 }}>
+    <View style={{ gap: 15 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <ProductIcon category={product.category} />
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -106,56 +123,41 @@ function PublicLoanTerms({
           </Text>
         </View>
       </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {rows.map(([label, value]) => (
-          <View
-            key={label}
-            style={{
-              flexBasis: '45%',
-              flexGrow: 1,
-              minWidth: 0,
-              gap: 3,
-              borderRadius: 12,
-              padding: 11,
-              backgroundColor: c.elevated,
-            }}
-          >
-            <Text muted small>
-              {t(label)}
+      <MarketRate
+        published
+        label={t('publicRate')}
+        value={rate(product)}
+        detail={t('marketBasis') + ' · ' + fields(product)[3][1]}
+      />
+      <MarketFacts facts={rows.map(([label, value]) => [t(label), value] as const)} />
+      <View style={{ gap: 6, paddingTop: 12, borderTopWidth: 1, borderColor: c.border }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+          <SignatureIcon icon={FileText} size={32} tone="blue" />
+          <Heading size={16}>{t('publicEligibility')}</Heading>
+        </View>
+        {requirements.length ? (
+          requirements.map((line) => (
+            <Text small key={line}>
+              {line}
             </Text>
-            <Text bold small style={{ fontVariant: ['tabular-nums'] }}>
-              {value}
-            </Text>
-          </View>
-        ))}
-      </View>
-      <Text small bold>
-        {t('publicEligibility')}
-      </Text>
-      {requirements.length ? (
-        requirements.map((line) => (
-          <Text small key={line}>
-            {line}
+          ))
+        ) : (
+          <Text small muted>
+            {t('unknown')}
           </Text>
-        ))
-      ) : (
-        <Text small muted>
-          {t('unknown')}
-        </Text>
-      )}
-      {feeDetails && (
-        <Text small muted>
-          {feeDetails}
-        </Text>
-      )}
-      {note && (
-        <Text small muted>
-          {note}
-        </Text>
-      )}
-      <Text small muted>
-        {t('publicCatalogNotice')}
-      </Text>
+        )}
+        {feeDetails && (
+          <Text small muted>
+            {feeDetails}
+          </Text>
+        )}
+        {note && (
+          <Text small muted>
+            {note}
+          </Text>
+        )}
+      </View>
+      <MarketNotice>{t('publicCatalogNotice')}</MarketNotice>
       <View style={{ alignSelf: 'flex-start', gap: 8 }}>
         <Button
           label={local('Mô phỏng từ điều khoản của tôi', 'Simulate with my terms')}
@@ -183,9 +185,16 @@ function PublicLoanTerms({
           }}
         />
       </View>
-      <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 10, gap: 6 }}>
+      <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 11, gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+          <SignatureIcon icon={Landmark} size={32} />
+          <Heading size={16}>{local('Tài liệu công bố', 'Lender disclosures')}</Heading>
+        </View>
         {product.sources.map((source) => (
-          <View key={source.url} style={{ gap: 1 }}>
+          <View
+            key={source.url}
+            style={{ gap: 1, backgroundColor: c.elevated, borderRadius: 12, padding: 10 }}
+          >
             <Action
               label={t('publicSourceOpen') + ': ' + source.title}
               onPress={() => {
@@ -423,6 +432,9 @@ export function PublicCatalogView() {
                           style={{
                             borderColor: selected ? c.primary : c.border,
                             width: wide ? '49%' : undefined,
+                            borderRadius: 22,
+                            padding: 16,
+                            gap: 14,
                           }}
                         >
                           <View style={{ flexDirection: 'row', gap: 11, alignItems: 'flex-start' }}>
@@ -434,46 +446,20 @@ export function PublicCatalogView() {
                               <Heading size={20}>{name}</Heading>
                             </View>
                           </View>
-                          <View
-                            style={{
-                              backgroundColor: c.elevated,
-                              borderRadius: 12,
-                              padding: 11,
-                              gap: 8,
-                            }}
-                          >
-                            <View style={{ gap: 2 }}>
-                              <Text
-                                bold
-                                style={{ color: c.primary, fontVariant: ['tabular-nums'] }}
-                              >
-                                {rate(p)}
-                              </Text>
-                              <Text small muted>
-                                {t('publicRate')} · {terms[3][1]}
-                              </Text>
-                            </View>
-                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-                                <Text small muted>
-                                  {t('amount')}
-                                </Text>
-                                <Text small bold style={{ fontVariant: ['tabular-nums'] }}>
-                                  {amountText}
-                                </Text>
-                              </View>
-                              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-                                <Text small muted>
-                                  {t('term')}
-                                </Text>
-                                <Text small bold style={{ fontVariant: ['tabular-nums'] }}>
-                                  {terms[1][1]}
-                                </Text>
-                              </View>
-                            </View>
-                          </View>
+                          <MarketRate
+                            published
+                            label={t('publicRate')}
+                            value={rate(p)}
+                            detail={terms[3][1]}
+                          />
+                          <MarketFacts
+                            facts={[
+                              [t('amount'), amountText],
+                              [t('term'), terms[1][1]],
+                            ]}
+                          />
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <BadgeCheck size={15} color={c.success} />
+                            <Landmark size={15} color={c.muted} />
                             <Text small muted>
                               {t('publicCompleteness')} · {p.completeness.known}/
                               {p.completeness.total}
@@ -496,7 +482,7 @@ export function PublicCatalogView() {
                                 gap: 6,
                                 alignItems: 'center',
                                 paddingHorizontal: 11,
-                                borderRadius: 10,
+                                borderRadius: 12,
                                 backgroundColor: c.secondary,
                               }}
                             >
@@ -523,7 +509,10 @@ export function PublicCatalogView() {
                                 flexDirection: 'row',
                                 gap: 5,
                                 alignItems: 'center',
-                                paddingHorizontal: 9,
+                                paddingHorizontal: 10,
+                                borderRadius: 12,
+                                borderWidth: 1,
+                                borderColor: selected ? c.primary : c.border,
                                 backgroundColor: selected ? c.elevated : 'transparent',
                               }}
                             >

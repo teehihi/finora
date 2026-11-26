@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
-import { Image, View, type ViewStyle } from 'react-native';
-import { ArrowUpRight, ChevronRight, Sparkles } from 'lucide-react-native';
-import Svg, { Path } from 'react-native-svg';
+import { Image, View, useWindowDimensions, type ViewStyle } from 'react-native';
+import { ArrowUpRight, ChevronRight, Globe2, ShieldCheck, Sparkles } from 'lucide-react-native';
+import { useId } from 'react';
+import { tokens } from '@finora/design-tokens';
+import { SignatureSweep } from '../../components/signature';
 import { Action, Heading, Text, useDesign } from '@finora/ui';
 import fin from '../../../assets/brand/fin-assistant.png';
 
 export function FinAvatar({ large = false }: { large?: boolean }) {
   const { colors: c } = useDesign();
-  const size = large ? 43 : 30;
+  const size = large ? 43 : 34;
   return (
     <View
       accessible={false}
@@ -44,38 +46,21 @@ export function FinIntro({
   signature?: boolean;
 }) {
   const { t, colors: c, locale } = useDesign();
+  const id = 'finora-ai-' + useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const { fontScale } = useWindowDimensions();
+  const compactFin = signature && fontScale >= 1.25;
   return (
     <View
       style={{
-        minHeight: wide ? 182 : 154,
-        borderRadius: 23,
+        minHeight: signature ? (wide ? 235 : 181) : wide ? 182 : 154,
+        borderRadius: signature ? tokens.signature.radius : 23,
         backgroundColor: c.forest,
-        padding: wide ? 22 : 16,
+        padding: signature ? (wide ? 27 : 18) : wide ? 22 : 16,
         overflow: 'hidden',
       }}
     >
       {signature ? (
-        <View
-          pointerEvents="none"
-          accessible={false}
-          style={{
-            position: 'absolute',
-            bottom: -13,
-            right: -13,
-            width: wide ? 340 : 197,
-            height: wide ? 211 : 151,
-            opacity: 0.25,
-          }}
-        >
-          <Svg viewBox="0 0 222 150" width="100%" height="100%">
-            <Path
-              fill="none"
-              stroke={c.onForestMuted}
-              strokeWidth="1.3"
-              d="M6 146 C67 119 74 79 152 56 C176 49 201 43 221 20 M31 152 C87 127 95 94 163 74 C190 65 209 59 222 45 M68 150 C100 128 127 111 170 100 C195 93 206 86 221 72"
-            />
-          </Svg>
-        </View>
+        <SignatureSweep name={id} />
       ) : (
         <View
           pointerEvents="none"
@@ -93,9 +78,25 @@ export function FinIntro({
           }}
         />
       )}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 7 }}>
-        <Sparkles size={15} color={c.onForest} />
-        <Text small bold style={{ color: c.onForest }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          alignSelf: 'flex-start',
+          gap: 6,
+          marginBottom: signature ? 12 : 7,
+          ...(signature
+            ? {
+                backgroundColor: c.signatureLime,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 8,
+              }
+            : {}),
+        }}
+      >
+        <Sparkles size={13} color={signature ? c.signatureInk : c.onForest} />
+        <Text small bold style={{ color: signature ? c.signatureInk : c.onForest, fontSize: 11 }}>
           {signature
             ? locale === 'vi-VN'
               ? 'TRỢ LÝ VAY & TRẢ NỢ'
@@ -105,7 +106,10 @@ export function FinIntro({
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
         <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
-          <Heading size={wide ? 32 : 22} style={{ color: c.onForest }}>
+          <Heading
+            size={signature ? (wide ? 39 : 27) : wide ? 32 : 22}
+            style={{ color: c.onForest }}
+          >
             {title}
           </Heading>
           <Text small style={{ color: c.onForestMuted, maxWidth: 430 }}>
@@ -116,7 +120,10 @@ export function FinIntro({
           accessible={false}
           source={fin}
           resizeMode="contain"
-          style={{ width: wide ? 116 : 82, height: wide ? 111 : 82 }}
+          style={{
+            width: compactFin ? 64 : signature ? (wide ? 165 : 98) : wide ? 116 : 82,
+            height: compactFin ? 64 : signature ? (wide ? 143 : 98) : wide ? 111 : 82,
+          }}
         />
       </View>
       {mode ? (
@@ -128,8 +135,9 @@ export function FinIntro({
   );
 }
 
-export function ModeMark({ label }: { label: string }) {
+export function ModeMark({ label, external = false }: { label: string; external?: boolean }) {
   const { colors: c } = useDesign();
+  const Icon = external ? Globe2 : ShieldCheck;
   return (
     <View
       style={{
@@ -140,12 +148,12 @@ export function ModeMark({ label }: { label: string }) {
         alignSelf: 'flex-start',
         paddingHorizontal: 9,
         paddingVertical: 5,
-        borderRadius: 8,
-        backgroundColor: c.secondary,
+        borderRadius: 99,
+        backgroundColor: external ? c.actionBlueSurface : c.secondary,
       }}
     >
-      <View style={{ backgroundColor: c.success, width: 6, height: 6, borderRadius: 3 }} />
-      <Text small bold style={{ color: c.primary }}>
+      <Icon size={13} color={external ? c.actionBlue : c.success} />
+      <Text small bold style={{ color: external ? c.actionBlue : c.primary }}>
         {label}
       </Text>
     </View>
@@ -157,12 +165,14 @@ export function FinancePrompt({
   icon,
   onPress,
   external,
+  tile = false,
   style,
 }: {
   label: string;
   icon: ReactNode;
   onPress: () => void;
   external?: boolean;
+  tile?: boolean;
   style?: ViewStyle;
 }) {
   const { colors: c } = useDesign();
@@ -171,24 +181,24 @@ export function FinancePrompt({
       label={label}
       onPress={onPress}
       style={{
-        gap: 11,
-        minHeight: 50,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 7,
+        gap: tile ? 9 : 11,
+        minHeight: tile ? 102 : 50,
+        flexDirection: tile ? 'column' : 'row',
+        alignItems: tile ? 'flex-start' : 'center',
+        paddingVertical: tile ? 11 : 7,
         paddingHorizontal: 10,
         backgroundColor: c.surface,
         borderColor: c.border,
         borderWidth: 1,
-        borderRadius: 13,
+        borderRadius: tile ? 19 : 13,
         ...style,
       }}
     >
       <View
         style={{
-          backgroundColor: c.secondary,
-          width: 31,
-          height: 31,
+          backgroundColor: tile ? undefined : c.secondary,
+          width: tile ? 40 : 31,
+          height: tile ? 40 : 31,
           borderRadius: 9,
           alignItems: 'center',
           justifyContent: 'center',
@@ -196,10 +206,16 @@ export function FinancePrompt({
       >
         {icon}
       </View>
-      <Text small bold style={{ flex: 1 }}>
+      <Text small bold style={{ flex: 1, lineHeight: tile ? 18 : 19 }}>
         {label}
       </Text>
-      {external ? (
+      {tile ? (
+        <ArrowUpRight
+          size={13}
+          color={c.muted}
+          style={{ position: 'absolute', right: 8, top: 9 }}
+        />
+      ) : external ? (
         <ArrowUpRight size={15} color={c.primary} />
       ) : (
         <ChevronRight size={16} color={c.muted} />

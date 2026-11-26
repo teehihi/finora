@@ -15,10 +15,11 @@ import {
   EmptyState,
   useDesign,
 } from '@finora/ui';
-import { Calculator, Columns2, SlidersHorizontal } from 'lucide-react-native';
+import { ArrowUpRight, Calculator, Columns2, SlidersHorizontal } from 'lucide-react-native';
 import { numeric, percent } from '@finora/i18n';
 import { api } from '../../src/services/client';
 import { Page, Data } from '../../src/components/layout';
+import { SignatureIcon, SignatureSweep } from '../../src/components/signature';
 import { LoanProductCard, ProductComparison } from '../../src/features/catalog';
 import { PublicCatalogView } from '../../src/features/public-catalog';
 import { MarketNotice, MarketPanel } from '../../src/features/market-ui';
@@ -46,14 +47,35 @@ export default function Explore() {
           { value: 'sample', label: t('sampleCatalogMode') },
         ]}
       />
-      <View style={{ alignSelf: 'flex-start' }}>
-        <Button
-          variant="outline"
-          label={locale === 'vi-VN' ? 'Nhập điều khoản của tôi' : 'Use my own loan terms'}
-          icon={<Calculator size={17} color={c.primary} />}
-          onPress={() => router.push('/simulate/custom')}
-        />
-      </View>
+      <Action
+        label={locale === 'vi-VN' ? 'Nhập điều khoản của tôi' : 'Use my own loan terms'}
+        onPress={() => router.push('/simulate/custom')}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          overflow: 'hidden',
+          padding: 13,
+          gap: 12,
+          borderRadius: 19,
+          backgroundColor: c.signatureStart,
+        }}
+      >
+        <SignatureSweep name="explore-own-terms" />
+        <SignatureIcon icon={Calculator} size={43} tone="lime" />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            small
+            bold
+            style={{ color: c.signatureLime, fontSize: 11, letterSpacing: 1.1, lineHeight: 17 }}
+          >
+            {locale === 'vi-VN' ? 'TỰ LẬP PHƯƠNG ÁN' : 'PERSONAL SIMULATION'}
+          </Text>
+          <Text bold style={{ color: c.onForest }}>
+            {locale === 'vi-VN' ? 'Nhập điều khoản của tôi' : 'Use my own loan terms'}
+          </Text>
+        </View>
+        <ArrowUpRight size={19} color={c.onForest} />
+      </Action>
       {mode === 'public' ? (
         <PublicCatalogView />
       ) : (

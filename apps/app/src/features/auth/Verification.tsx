@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import { Action, Text, useDesign } from '@finora/ui';
+import { tokens } from '@finora/design-tokens';
 import { normaliseCode } from './identity';
 
 export const resendDelay = 30_000;
@@ -30,20 +31,23 @@ export function VerificationField({
           aria-hidden
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={{ flexDirection: 'row', gap: 6 }}
+          style={{ flexDirection: 'row', gap: 5 }}
         >
           {Array.from({ length: 6 }, (_, index) => {
             const active = editable && focused && index === Math.min(code.length, 5);
+            const entered = Boolean(code[index]);
             return (
               <View
                 key={index}
                 style={{
                   flex: 1,
-                  minHeight: 53,
-                  borderRadius: 11,
+                  minWidth: 0,
+                  minHeight: 58,
+                  marginRight: index === 2 ? 5 : 0,
+                  borderRadius: 14,
                   borderWidth: active ? 2 : 1,
-                  borderColor: active ? c.focus : c.borderStrong,
-                  backgroundColor: active ? c.secondary : c.input,
+                  borderColor: active ? c.focus : entered ? c.border : c.borderStrong,
+                  backgroundColor: active || entered ? c.secondary : c.input,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -51,9 +55,10 @@ export function VerificationField({
                 <Text
                   bold
                   style={{
-                    color: code[index] ? c.foreground : c.muted,
-                    fontSize: 21,
-                    lineHeight: 29,
+                    color: entered ? c.foreground : c.muted,
+                    fontFamily: tokens.font.heading,
+                    fontSize: 22,
+                    lineHeight: 30,
                     fontVariant: ['tabular-nums'],
                   }}
                 >

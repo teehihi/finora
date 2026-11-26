@@ -440,7 +440,7 @@ function Review({
         style={{
           flexDirection: 'row',
           flexWrap: 'wrap',
-          columnGap: 8,
+          columnGap: 5,
           rowGap: 6,
           alignItems: 'center',
         }}
@@ -606,8 +606,8 @@ function ReviewPanel({ children, styleFlex }: { children: ReactNode; styleFlex?:
       style={{
         flex: styleFlex,
         minWidth: 0,
-        padding: 14,
-        borderRadius: 17,
+        padding: 15,
+        borderRadius: 19,
         borderWidth: 1,
         borderColor: c.border,
         backgroundColor: c.surface,
@@ -635,10 +635,12 @@ function ReviewStep({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 5,
-        padding: 5,
-        paddingRight: 7,
+        gap: 4,
+        paddingVertical: 5,
+        paddingHorizontal: 4,
         borderRadius: 10,
+        borderWidth: 1,
+        borderColor: active ? c.signatureEdge : c.border,
         backgroundColor: active ? c.secondary : c.surface,
       }}
     >
@@ -647,7 +649,7 @@ function ReviewStep({
           width: 22,
           height: 22,
           borderRadius: 7,
-          backgroundColor: active || complete ? c.primary : c.elevated,
+          backgroundColor: active ? c.signatureLime : complete ? c.primary : c.elevated,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -655,7 +657,7 @@ function ReviewStep({
         {complete ? (
           <Check size={13} color={c.onPrimary} />
         ) : (
-          <Text small bold style={{ color: active ? c.onPrimary : c.muted }}>
+          <Text small bold style={{ color: active ? c.signatureInk : c.muted }}>
             {number}
           </Text>
         )}

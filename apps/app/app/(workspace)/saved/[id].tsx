@@ -11,7 +11,7 @@ import { TrackRepaymentCta } from '../../../src/features/repayments';
 import { MarketPanel, ProductIcon } from '../../../src/features/market-ui';
 export default function Saved() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { locale, t, money } = useDesign();
+  const { locale, t, money, colors: c } = useDesign();
   const user = auth.useSession();
   const q = useQuery({
     queryKey: ['savedOne', user.data?.user.id, id],
@@ -26,7 +26,7 @@ export default function Saved() {
           description={t('savedDate') + ' ' + date(s.createdAt, locale)}
           top={<Back to={() => router.navigate('/loans')} />}
         >
-          <MarketPanel>
+          <MarketPanel style={{ borderRadius: 22, gap: 15 }}>
             <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
               <ProductIcon category={s.product.category} />
               <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -42,12 +42,24 @@ export default function Saved() {
                 </Text>
               </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 10,
+                flexWrap: 'wrap',
+                borderTopWidth: 1,
+                borderColor: c.border,
+                paddingTop: 12,
+              }}
+            >
               <View style={{ flex: 1.4, minWidth: 0 }}>
                 <Text muted small>
                   {t('amount')}
                 </Text>
-                <Text bold style={{ fontVariant: ['tabular-nums'] }}>
+                <Text
+                  bold
+                  style={{ fontVariant: ['tabular-nums'], color: c.primary, fontSize: 17 }}
+                >
                   {money(s.input.principal)}
                 </Text>
               </View>

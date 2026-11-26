@@ -64,7 +64,15 @@ export function AmountControl({
           label={local('Giảm số tiền vay', 'Lower loan amount')}
           onPress={() => onChange(Math.max(min, bounded - step))}
           disabled={disabled || bounded <= min}
-          style={{ width: 44, height: 44, alignItems: 'center', backgroundColor: c.secondary }}
+          style={{
+            width: 44,
+            height: 44,
+            alignItems: 'center',
+            borderRadius: 13,
+            backgroundColor: c.surface,
+            borderWidth: 1,
+            borderColor: c.border,
+          }}
         >
           <Minus color={c.primary} size={18} />
         </Action>
@@ -88,11 +96,11 @@ export function AmountControl({
           >
             <View
               pointerEvents="none"
-              style={{ height: 6, borderRadius: 4, backgroundColor: c.border }}
+              style={{ height: 7, borderRadius: 4, backgroundColor: c.border }}
             >
               <View
                 style={{
-                  height: 6,
+                  height: 7,
                   width: (fraction * 100 + '%') as `${number}%`,
                   borderRadius: 4,
                   backgroundColor: c.primary,
@@ -101,14 +109,14 @@ export function AmountControl({
               <View
                 style={{
                   position: 'absolute',
-                  top: -6,
+                  top: -7,
                   left: (fraction * 100 + '%') as `${number}%`,
-                  width: 18,
-                  height: 18,
-                  marginLeft: -9,
-                  borderRadius: 9,
-                  backgroundColor: c.primary,
-                  borderColor: c.surface,
+                  width: 21,
+                  height: 21,
+                  marginLeft: -10.5,
+                  borderRadius: 11,
+                  backgroundColor: c.signatureLime,
+                  borderColor: c.signatureInk,
                   borderWidth: 2,
                 }}
               />
@@ -119,16 +127,24 @@ export function AmountControl({
           label={local('Tăng số tiền vay', 'Raise loan amount')}
           onPress={() => onChange(Math.min(max, bounded + step))}
           disabled={disabled || bounded >= max}
-          style={{ width: 44, height: 44, alignItems: 'center', backgroundColor: c.secondary }}
+          style={{
+            width: 44,
+            height: 44,
+            alignItems: 'center',
+            borderRadius: 13,
+            backgroundColor: c.surface,
+            borderWidth: 1,
+            borderColor: c.border,
+          }}
         >
           <Plus color={c.primary} size={18} />
         </Action>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-        <Text small muted>
+        <Text small muted style={{ fontVariant: ['tabular-nums'] }}>
           {money(min)}
         </Text>
-        <Text small muted>
+        <Text small muted style={{ fontVariant: ['tabular-nums'] }}>
           {money(max)}
         </Text>
       </View>

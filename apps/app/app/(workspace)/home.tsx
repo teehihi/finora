@@ -43,7 +43,7 @@ export default function Home() {
       title={copy.next}
       link={copy.schedule}
       onPress={openRepayments}
-      style={{ borderBottomWidth: 1, borderColor: c.border, paddingBottom: 6 }}
+      style={{ borderBottomWidth: 1, borderColor: c.border, paddingBottom: 12 }}
     >
       <Data q={ledger}>
         {(value) => {
@@ -117,15 +117,15 @@ export default function Home() {
         paddingBottom: dockInset + 20,
       }}
     >
-      <View style={{ width: '100%', maxWidth: 1080, gap: 14 }}>
+      <View style={{ width: '100%', maxWidth: 1120, gap: mobile ? 16 : 20 }}>
         {!mobile ? (
           <Heading size={desktop ? 29 : 25}>
             {name ? t('greet') + ', ' + name + '.' : t('greet') + '!'}
           </Heading>
         ) : null}
         {desktop ? (
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 29 }}>
-            <View style={{ flex: 1.23, minWidth: 0, gap: 19 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 34 }}>
+            <View style={{ flex: 1.23, minWidth: 0, gap: 22 }}>
               <HomeCapacity account={account} desktop />
               <HomeTools />
               <HomeFin />

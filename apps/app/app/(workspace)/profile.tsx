@@ -27,6 +27,7 @@ import {
 import { profileSchema, type Profile, type Preferences } from '@finora/contracts';
 import { getAccessStrings } from '@finora/i18n';
 import { Page, Data } from '../../src/components/layout';
+import { SignatureSweep } from '../../src/components/signature';
 import { AccountIdentity } from '../../src/components/AccountIdentity';
 import { ProfileInsights } from '../../src/features/profile-insights';
 import { clearIntelligenceHistory } from '../../src/features/intelligence/transport';
@@ -208,14 +209,16 @@ export default function ProfileScreen() {
     <Page title={t('profileTitle')} description={t('settingsIntro')}>
       <View
         style={{
-          borderRadius: 21,
+          borderRadius: 24,
           backgroundColor: c.forest,
-          padding: 16,
+          overflow: 'hidden',
+          padding: 18,
           gap: 11,
           alignItems: 'center',
           flexDirection: 'row',
         }}
       >
+        <SignatureSweep name="finora-profile-identity" />
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
@@ -225,10 +228,10 @@ export default function ProfileScreen() {
             height: 46,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#C4F49D',
+            backgroundColor: c.signatureLime,
           }}
         >
-          <Text bold style={{ color: '#064B36', fontSize: 22, lineHeight: 29 }}>
+          <Text bold style={{ color: c.signatureInk, fontSize: 22, lineHeight: 29 }}>
             {initial}
           </Text>
         </View>

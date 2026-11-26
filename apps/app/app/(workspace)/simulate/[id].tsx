@@ -7,9 +7,12 @@ import { useForm, useWatch, Controller } from 'react-hook-form';
 import type { Product, LoanInput, Estimate, Method } from '@finora/contracts';
 import { simulate } from '@finora/financial-engine';
 import { percent } from '@finora/i18n';
-import { Calculator, ChevronRight } from 'lucide-react-native';
+import { Calculator, CalendarDays, ChevronRight } from 'lucide-react-native';
+import { tokens } from '@finora/design-tokens';
 import { Action, Text, Heading, Button, Choices, Dialog, Field, useDesign } from '@finora/ui';
 import { Data, Page, Back, Columns } from '../../../src/components/layout';
+import { SignatureIcon } from '../../../src/components/signature';
+import { PlanningSnapshot } from '../../../src/features/simulator-signature';
 import { Breakdown } from '../../../src/features/breakdown';
 import { LoanProductTerms } from '../../../src/features/catalog';
 import { api } from '../../../src/services/client';
@@ -192,8 +195,15 @@ function Simulator({
             editable={!controlsLocked}
             style={
               k === 'principal'
-                ? { fontSize: 26, fontVariant: ['tabular-nums'], minHeight: 60 }
-                : undefined
+                ? {
+                    fontSize: 30,
+                    minHeight: 62,
+                    fontFamily: tokens.font.heading,
+                    fontVariant: ['tabular-nums'],
+                    letterSpacing: -0.6,
+                    color: c.foreground,
+                  }
+                : { fontVariant: ['tabular-nums'] }
             }
             onChangeText={(value) => {
               field.onChange(integer ? normalizeIntegerInput(value, locale) : value);
@@ -208,7 +218,7 @@ function Simulator({
   );
   const peak = (result: Estimate) => Math.max(...result.schedule.map((row) => row.payment));
   const comparison = reference ? (
-    <MarketPanel>
+    <MarketPanel style={{ padding: 18, borderRadius: 22 }}>
       <Heading size={21}>{local('Mốc so sánh', 'Comparison baseline')}</Heading>
       {preview ? (
         <>
@@ -270,11 +280,13 @@ function Simulator({
               )}
             </Text>
           ) : null}
-          <Text bold>
-            {local('Chênh lệch kỳ đầu', 'Difference in first payment')}:{' '}
-            {preview.result.firstPayment > reference.result.firstPayment ? '+' : ''}
-            {money(preview.result.firstPayment - reference.result.firstPayment)}
-          </Text>
+          <View style={{ backgroundColor: c.secondary, borderRadius: 13, padding: 11 }}>
+            <Text bold style={{ fontVariant: ['tabular-nums'], color: c.primary }}>
+              {local('Chênh lệch kỳ đầu', 'Difference in first payment')}:{' '}
+              {preview.result.firstPayment > reference.result.firstPayment ? '+' : ''}
+              {money(preview.result.firstPayment - reference.result.firstPayment)}
+            </Text>
+          </View>
         </>
       ) : (
         <>
@@ -317,23 +329,42 @@ function Simulator({
       }
       top={<Back to={() => router.navigate(p ? '/explore?mode=sample' : '/explore')} />}
     >
-      <Columns style={{ gap: desktop ? 32 : 20, alignItems: 'stretch' }}>
+      <Columns style={{ gap: desktop ? 30 : 19, alignItems: desktop ? 'flex-start' : 'stretch' }}>
         <View style={{ flex: desktop ? 1 : undefined, minWidth: 0, gap: 22 }}>
-          <MarketPanel style={{ padding: desktop ? 21 : 16, gap: 13 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-              <Calculator size={21} color={c.primary} />
-              <Heading size={22}>{local('Lập phương án', 'Set up your scenario')}</Heading>
+          <MarketPanel style={{ padding: desktop ? 22 : 16, gap: 16, borderRadius: 24 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+              <SignatureIcon icon={Calculator} size={42} />
+              <View style={{ minWidth: 0, flex: 1 }}>
+                <Text
+                  small
+                  bold
+                  style={{ color: c.primary, fontSize: 11, letterSpacing: 1.1, lineHeight: 16 }}
+                >
+                  {local('01 · ĐIỀU KHOẢN', '01 · LOAN TERMS')}
+                </Text>
+                <Heading size={21}>{local('Lập phương án', 'Set up your scenario')}</Heading>
+              </View>
             </View>
-            {inputField('principal')}
-            {p ? (
-              <AmountControl
-                value={Number(principal)}
-                min={p.amountMin}
-                max={p.amountMax}
-                disabled={controlsLocked}
-                onChange={setAmount}
-              />
-            ) : null}
+            <View
+              style={{
+                borderRadius: 18,
+                padding: 12,
+                paddingBottom: p ? 10 : 12,
+                gap: 6,
+                backgroundColor: c.elevated,
+              }}
+            >
+              {inputField('principal')}
+              {p ? (
+                <AmountControl
+                  value={Number(principal)}
+                  min={p.amountMin}
+                  max={p.amountMax}
+                  disabled={controlsLocked}
+                  onChange={setAmount}
+                />
+              ) : null}
+            </View>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1, minWidth: 0 }}>{inputField('annualRate')}</View>
               <View style={{ flex: 1, minWidth: 0 }}>{inputField('months')}</View>
@@ -352,9 +383,12 @@ function Simulator({
                       changeScenario();
                     }}
                     style={{
-                      borderRadius: 10,
-                      backgroundColor: Number(months) === value ? c.secondary : c.elevated,
-                      paddingHorizontal: 9,
+                      borderRadius: 11,
+                      borderWidth: 1,
+                      borderColor: Number(months) === value ? c.primary : c.border,
+                      backgroundColor: Number(months) === value ? c.secondary : c.surface,
+                      alignItems: 'center',
+                      paddingHorizontal: 10,
                     }}
                   >
                     <Text small bold style={{ color: c.primary }}>
@@ -364,7 +398,15 @@ function Simulator({
                 ))}
               </View>
             )}
-            {inputField('firstDue')}
+            <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 13, gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <CalendarDays size={15} color={c.primary} />
+                <Text small bold style={{ color: c.primary, fontSize: 11, letterSpacing: 0.9 }}>
+                  {local('LỊCH THANH TOÁN', 'REPAYMENT TIMING')}
+                </Text>
+              </View>
+              {inputField('firstDue')}
+            </View>
             {p ? (
               <MarketNotice title={t('method') + ': ' + t(p.method)}>{t('planHint')}</MarketNotice>
             ) : (
@@ -451,46 +493,24 @@ function Simulator({
               />
             </View>
           ) : (
-            <MarketPanel
-              style={{ backgroundColor: c.secondary, borderColor: c.secondary, padding: 18 }}
+            <PlanningSnapshot
+              live
+              heading={local('Xem từng kỳ trước khi vay', 'See each payment before borrowing')}
+              label={local('Ước tính kỳ đầu', 'Estimated first payment')}
+              amount={live && live.input === liveInput ? live.result.firstPayment : undefined}
             >
-              {live && live.input === liveInput ? (
-                <View style={{ gap: 5 }}>
-                  <Text muted small>
-                    {local('Ước tính kỳ đầu', 'Estimated first payment')}
-                  </Text>
-                  <Text
-                    bold
-                    style={{
-                      fontSize: 27,
-                      lineHeight: 33,
-                      color: c.primary,
-                      fontVariant: ['tabular-nums'],
-                    }}
-                  >
-                    {money(live.result.firstPayment)}
-                  </Text>
-                  <Text muted small>
-                    {local(
+              <Text small style={{ color: c.onForestMuted }}>
+                {live && live.input === liveInput
+                  ? local(
                       'Bấm tính lịch để xem đầy đủ các kỳ và khoản phí.',
                       'Calculate the schedule to review every payment and fee.',
-                    )}
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <Heading size={20}>
-                    {local('Xem từng kỳ trước khi vay', 'See each payment before borrowing')}
-                  </Heading>
-                  <Text muted small>
-                    {local(
+                    )
+                  : local(
                       'Tính lịch để xem kỳ đầu, gốc, lãi và các khoản phí đã biết.',
                       'Calculate a schedule to see the first payment, principal, interest and known fees.',
                     )}
-                  </Text>
-                </>
-              )}
-            </MarketPanel>
+              </Text>
+            </PlanningSnapshot>
           )}
           {!preview ? comparison : null}
           {!desktop && p ? <LoanProductTerms p={p} /> : null}

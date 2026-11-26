@@ -8,7 +8,7 @@ import { simulate } from '@finora/financial-engine';
 import { getAccessStrings, showcaseStrings } from '@finora/i18n';
 import { Language, Logo } from '../src/components/layout';
 import mascot from '../assets/brand/fin-assistant.png';
-import { BrandLines } from '../src/features/auth/BrandLines';
+import { SignatureIcon, SignatureSweep } from '../src/components/signature';
 
 const samplePrincipal = 20_000_000;
 const terms = [12, 24] as const;
@@ -36,10 +36,10 @@ function ProductPreview() {
       style={{ width: '100%', backgroundColor: c.surface, borderRadius: 24, overflow: 'hidden' }}
     >
       <View style={{ backgroundColor: c.forest, padding: 19, gap: 8, overflow: 'hidden' }}>
-        <BrandLines />
+        <SignatureSweep name="finora-public-preview" />
         <Eyebrow tone="onForest">{copy.sample}</Eyebrow>
         <Text style={{ color: c.onForestMuted }}>{copy.sampleTitle}</Text>
-        <Heading size={31} style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}>
+        <Heading size={38} style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}>
           {money(samplePrincipal)}
         </Heading>
       </View>
@@ -204,7 +204,7 @@ export default function Showcase() {
           >
             <View style={{ flex: wide ? 1 : undefined, minWidth: 0, gap: 12 }}>
               <Eyebrow tone="forest">{legacy.tagline}</Eyebrow>
-              <Heading size={wide ? 47 : 33} style={{ maxWidth: 410 }}>
+              <Heading size={wide ? 52 : 36} style={{ maxWidth: 425 }}>
                 {wide ? copy.previewHeadingWide : copy.previewHeading}
               </Heading>
               <Text muted style={{ maxWidth: 398, lineHeight: 24 }}>
@@ -252,18 +252,11 @@ export default function Showcase() {
                       gap: 12,
                     }}
                   >
-                    <View
-                      style={{
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: c.secondary,
-                        borderRadius: 11,
-                        width: 36,
-                        height: 36,
-                      }}
-                    >
-                      <Icon size={18} color={c.primary} />
-                    </View>
+                    <SignatureIcon
+                      icon={Icon}
+                      tone={i === 0 ? 'blue' : i === 1 ? 'amber' : 'emerald'}
+                      size={43}
+                    />
                     <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                       <Text bold>{title}</Text>
                       <Text small muted>

@@ -28,6 +28,7 @@ import { tokens } from '@finora/design-tokens';
 import { date } from '@finora/i18n';
 import { Action, BottomSheet, Button, Dialog, Heading, Text, Switch, useDesign } from '@finora/ui';
 import { useWorkspaceDockInset } from '../../components/layout';
+import { SignatureIcon } from '../../components/signature';
 import { AnalysisBlocks } from './blocks';
 import { FinancePrompt, FinAvatar, FinIntro, ModeMark } from './presentation';
 import { chooseDraftPrompt, chooseSimulationId } from './model';
@@ -79,7 +80,8 @@ function Desk({
   const { t, colors: c, locale, money } = useDesign();
   const vi = locale === 'vi-VN';
   const title = vi ? 'Cùng Fin tính khoản vay' : 'Plan your loan with Fin';
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
+  const compactStarters = width >= 370 && fontScale < 1.25;
   const wide = width >= 1150;
   const dock = useWorkspaceDockInset();
   const [externalConsent, setConsent] = useState(false);
@@ -267,8 +269,15 @@ function Desk({
   }
 
   const toolsPanel = (
-    <View style={{ gap: 8 }}>
-      <Heading size={17}>{t('intelligenceTools')}</Heading>
+    <View
+      style={{
+        gap: 9,
+        padding: wide ? 13 : 0,
+        borderRadius: 22,
+        backgroundColor: wide ? c.elevated : undefined,
+      }}
+    >
+      <Heading size={19}>{t('intelligenceTools')}</Heading>
       <FinancePrompt
         label={t('intelligenceCatalog')}
         icon={<BookOpen color={c.primary} size={17} />}
@@ -315,27 +324,32 @@ function Desk({
         width: '100%',
         alignSelf: 'center',
         maxWidth: 1240,
-        paddingHorizontal: wide ? 34 : 18,
+        paddingHorizontal: wide ? 38 : 16,
         paddingBottom: dock || 14,
       }}
     >
       <View
         style={{
-          paddingVertical: 5,
+          paddingVertical: 7,
+          borderBottomWidth: 1,
+          borderColor: c.border,
           flexDirection: 'row',
-          gap: 12,
+          gap: 8,
           alignItems: 'center',
           justifyContent: 'space-between',
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 0 }}>
           <FinAvatar />
-          <Text bold style={{ color: c.primary }}>
+          <Text bold style={{ color: c.foreground, fontSize: 17 }}>
             {t('ai')}
           </Text>
         </View>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
-          <ModeMark label={modeLabel} />
+          <ModeMark
+            label={modeLabel}
+            external={provider ? provider !== 'mock' : allowConsent && externalConsent}
+          />
         </View>
         {!wide ? (
           <Action
@@ -356,7 +370,7 @@ function Desk({
       <View style={{ flex: 1, minHeight: 0, flexDirection: 'row', gap: wide ? 27 : 0 }}>
         <View style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
           {engaged ? (
-            <Heading size={wide ? 26 : 21} style={{ paddingTop: 8, paddingBottom: 7 }}>
+            <Heading size={wide ? 28 : 22} style={{ paddingTop: 10, paddingBottom: 7 }}>
               {title}
             </Heading>
           ) : null}
@@ -395,7 +409,7 @@ function Desk({
             style={{ flex: 1, minHeight: 0 }}
             contentContainerStyle={{
               gap: 16,
-              paddingTop: 9,
+              paddingTop: 11,
               paddingBottom: 17,
               paddingRight: wide ? 7 : 0,
             }}
@@ -427,34 +441,50 @@ function Desk({
                   }
                   wide={wide}
                 />
-                <View style={{ gap: 8 }}>
-                  <Heading size={17}>{t('intelligenceStarter')}</Heading>
-                  {starters.map(([question, title], index) => {
-                    const Icon = [CircleDollarSign, Scale, ChartNoAxesCombined][index]!;
-                    const journeyStarter = !scoped && question === 'intelligencePromptCompare';
-                    return (
-                      <FinancePrompt
-                        key={question}
-                        label={
-                          journeyStarter
-                            ? vi
-                              ? 'So sánh 12 và 24 tháng'
-                              : 'Compare 12 and 24 months'
-                            : t(title)
-                        }
-                        icon={<Icon size={16} color={c.primary} />}
-                        onPress={() =>
-                          fill(
+                <View style={{ gap: 10 }}>
+                  <Heading size={18}>{t('intelligenceStarter')}</Heading>
+                  <View
+                    style={{
+                      flexDirection: compactStarters ? 'row' : 'column',
+                      alignItems: 'stretch',
+                      gap: 7,
+                    }}
+                  >
+                    {starters.map(([question, title], index) => {
+                      const Icon = [CircleDollarSign, Scale, ChartNoAxesCombined][index]!;
+                      const journeyStarter = !scoped && question === 'intelligencePromptCompare';
+                      return (
+                        <FinancePrompt
+                          key={question}
+                          label={
                             journeyStarter
                               ? vi
-                                ? 'Tôi muốn vay 50 triệu để mua xe. Nếu trả trong 12 hay 24 tháng thì khác nhau thế nào?'
-                                : 'I want to borrow 50 million VND to buy a vehicle. How do 12 and 24 months compare?'
-                              : t(question),
-                          )
-                        }
-                      />
-                    );
-                  })}
+                                ? 'So sánh 12 và 24 tháng'
+                                : 'Compare 12 and 24 months'
+                              : t(title)
+                          }
+                          tile={compactStarters}
+                          style={compactStarters ? { flex: 1, minWidth: 0 } : undefined}
+                          icon={
+                            <SignatureIcon
+                              icon={Icon}
+                              size={compactStarters ? 36 : 31}
+                              tone={(['emerald', 'blue', 'amber'] as const)[index]}
+                            />
+                          }
+                          onPress={() =>
+                            fill(
+                              journeyStarter
+                                ? vi
+                                  ? 'Tôi muốn vay 50 triệu để mua xe. Nếu trả trong 12 hay 24 tháng thì khác nhau thế nào?'
+                                  : 'I want to borrow 50 million VND to buy a vehicle. How do 12 and 24 months compare?'
+                                : t(question),
+                            )
+                          }
+                        />
+                      );
+                    })}
+                  </View>
                 </View>
               </>
             ) : null}
@@ -506,7 +536,17 @@ function Desk({
                   followUp={current.stage === 'done' && !prompt.trim() ? fill : undefined}
                 />
                 {current.stage === 'sending' && !current.answer ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View
+                    style={{
+                      alignSelf: 'flex-start',
+                      borderRadius: 16,
+                      padding: 10,
+                      backgroundColor: c.secondary,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
                     <ActivityIndicator size="small" color={c.primary} />
                     <Text small muted>
                       {t('intelligenceWorking')}
@@ -557,7 +597,7 @@ function Desk({
           </View>
           <View
             style={{
-              paddingTop: 5,
+              paddingTop: 7,
               gap: 5,
             }}
           >
@@ -566,11 +606,19 @@ function Desk({
                 flexDirection: 'row',
                 alignItems: 'flex-end',
                 borderWidth: 1,
-                borderColor: focus ? c.focus : c.border,
+                borderColor: focus ? c.focus : c.borderStrong,
                 backgroundColor: c.surface,
-                borderRadius: 17,
+                borderRadius: 23,
                 padding: 6,
                 gap: 7,
+                ...(focus
+                  ? {
+                      shadowColor: c.focus,
+                      shadowOpacity: 0.15,
+                      shadowRadius: 5,
+                      shadowOffset: { width: 0, height: 0 },
+                    }
+                  : {}),
               }}
             >
               <TextInput
@@ -591,7 +639,7 @@ function Desk({
                   minWidth: 0,
                   minHeight: 44,
                   maxHeight: 94,
-                  paddingHorizontal: 7,
+                  paddingHorizontal: 11,
                   paddingVertical: 9,
                   color: c.foreground,
                   fontFamily: tokens.font.body,
@@ -604,16 +652,27 @@ function Desk({
                 disabled={!stream && (!prompt.trim() || scopeUnavailable || clearing)}
                 onPress={() => (stream ? active.current?.abort() : void submit())}
                 style={{
-                  width: 44,
+                  width: 46,
+                  minHeight: 46,
                   alignItems: 'center',
-                  backgroundColor: c.primary,
-                  borderRadius: tokens.radius.control,
+                  backgroundColor:
+                    !stream && (!prompt.trim() || scopeUnavailable || clearing)
+                      ? c.elevated
+                      : c.signatureLime,
+                  borderRadius: 17,
                 }}
               >
                 {stream ? (
-                  <Square size={15} color={c.onPrimary} fill={c.onPrimary} />
+                  <Square size={15} color={c.signatureInk} fill={c.signatureInk} />
                 ) : (
-                  <ArrowUp size={21} color={c.onPrimary} />
+                  <ArrowUp
+                    size={21}
+                    color={
+                      !stream && (!prompt.trim() || scopeUnavailable || clearing)
+                        ? c.muted
+                        : c.signatureInk
+                    }
+                  />
                 )}
               </Action>
             </View>
@@ -736,7 +795,15 @@ function Turn({
             </Text>
           </View>
           {answer ? (
-            <View style={{ backgroundColor: c.surface, borderRadius: 14, padding: 12 }}>
+            <View
+              style={{
+                borderLeftWidth: 3,
+                borderColor: c.signatureEdge,
+                backgroundColor: c.surface,
+                borderRadius: 13,
+                padding: 13,
+              }}
+            >
               <Text style={{ maxWidth: tokens.layout.reading }}>{answer}</Text>
             </View>
           ) : null}

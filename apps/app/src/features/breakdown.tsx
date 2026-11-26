@@ -3,7 +3,9 @@ import { View } from 'react-native';
 import { Text, Heading, Button, RiskIndicator, useDesign } from '@finora/ui';
 import { date } from '@finora/i18n';
 import type { Estimate, LoanInput } from '@finora/contracts';
-import { CalendarDays } from 'lucide-react-native';
+import { CalendarDays, ChartPie } from 'lucide-react-native';
+import { SignatureIcon } from '../components/signature';
+import { PaymentRhythm, PlanningSnapshot } from './simulator-signature';
 import { MarketPanel } from './market-ui';
 
 export function Breakdown({
@@ -40,45 +42,40 @@ export function Breakdown({
   return (
     <View style={{ gap: 18 }}>
       <View style={{ gap: 12 }} accessibilityLiveRegion="polite">
-        <View style={{ backgroundColor: c.forest, borderRadius: 20, padding: 18, gap: 8 }}>
-          <Heading size={21} style={{ color: c.onForest }}>
-            {t('breakdown')}
-          </Heading>
-          <Text small style={{ color: c.onForestMuted }}>
-            {t('firstPayment')}
-          </Text>
-          <Text
-            bold
-            style={{
-              color: c.onForest,
-              fontSize: 34,
-              lineHeight: 43,
-              fontVariant: ['tabular-nums'],
-            }}
-          >
-            {money(result.firstPayment)}
-          </Text>
-          {highest > result.firstPayment ? (
-            <Text small style={{ color: c.onForestMuted }}>
-              {local('Kỳ cao nhất theo lịch', 'Highest scheduled payment')}: {money(highest)}
-            </Text>
-          ) : null}
-          {largerFinalPayment ? (
-            <Text small style={{ color: c.onForestMuted }}>
-              {local(
-                'Kỳ cuối cao hơn kỳ đầu đáng kể. Hãy kiểm tra lịch trước khi dùng phương án này.',
-                'The last payment is substantially larger than the first. Review the schedule before using this estimate.',
-              )}
-            </Text>
-          ) : null}
-        </View>
-        <MarketPanel>
-          <Heading size={17}>{local('Cơ cấu chi phí', 'Cost breakdown')}</Heading>
+        <PlanningSnapshot
+          heading={t('breakdown')}
+          label={t('firstPayment')}
+          amount={result.firstPayment}
+          children={
+            highest > result.firstPayment || largerFinalPayment ? (
+              <>
+                {highest > result.firstPayment ? (
+                  <Text small style={{ color: c.onForestMuted }}>
+                    {local('Kỳ cao nhất theo lịch', 'Highest scheduled payment')}: {money(highest)}
+                  </Text>
+                ) : null}
+                {largerFinalPayment ? (
+                  <Text small style={{ color: c.onForestMuted }}>
+                    {local(
+                      'Kỳ cuối cao hơn kỳ đầu đáng kể. Hãy kiểm tra lịch trước khi dùng phương án này.',
+                      'The last payment is substantially larger than the first. Review the schedule before using this estimate.',
+                    )}
+                  </Text>
+                ) : null}
+              </>
+            ) : undefined
+          }
+        />
+        <MarketPanel style={{ padding: 17, borderRadius: 22, gap: 13 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <SignatureIcon icon={ChartPie} size={36} tone="amber" />
+            <Heading size={19}>{local('Cơ cấu chi phí', 'Cost breakdown')}</Heading>
+          </View>
           <View
             accessible={false}
             style={{
-              height: 10,
-              borderRadius: 5,
+              height: 12,
+              borderRadius: 6,
               overflow: 'hidden',
               flexDirection: 'row',
               gap: 2,
@@ -92,7 +89,7 @@ export function Breakdown({
                   style={{
                     flexGrow: chartTotal > 0 ? part.value / chartTotal : 0,
                     flexBasis: 0,
-                    height: 10,
+                    height: 12,
                     backgroundColor: part.color,
                   }}
                 />
@@ -103,10 +100,10 @@ export function Breakdown({
               <View
                 key={label}
                 style={{
-                  paddingVertical: i === 5 ? 9 : 4,
-                  paddingHorizontal: i === 5 ? 8 : 0,
+                  paddingVertical: i === ledger.length - 1 ? 10 : 5,
+                  paddingHorizontal: i === ledger.length - 1 ? 8 : 0,
                   borderRadius: 8,
-                  backgroundColor: i === 5 ? c.elevated : undefined,
+                  backgroundColor: i === ledger.length - 1 ? c.elevated : undefined,
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   gap: 10,
@@ -127,7 +124,15 @@ export function Breakdown({
                     {label}
                   </Text>
                 </View>
-                <Text small bold style={{ fontVariant: ['tabular-nums'], textAlign: 'right' }}>
+                <Text
+                  small
+                  bold
+                  style={{
+                    fontVariant: ['tabular-nums'],
+                    textAlign: 'right',
+                    ...(i === ledger.length - 1 ? { color: c.primary, fontSize: 15 } : {}),
+                  }}
+                >
                   {value}
                 </Text>
               </View>
@@ -144,9 +149,13 @@ export function Breakdown({
         ) : null}
         {actions}
       </View>
-      <MarketPanel style={{ gap: 11 }}>
-        <Heading size={20}>{t('schedule')}</Heading>
-        <View style={{ gap: 3 }}>
+      <MarketPanel style={{ gap: 13, padding: 17, borderRadius: 22 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <SignatureIcon icon={CalendarDays} size={36} tone="blue" />
+          <Heading size={20}>{t('schedule')}</Heading>
+        </View>
+        <PaymentRhythm rows={result.schedule} />
+        <View>
           {result.schedule.slice(0, limit).map((row) => (
             <View
               key={row.period}
@@ -154,9 +163,11 @@ export function Breakdown({
                 flexDirection: 'row',
                 alignItems: 'flex-start',
                 gap: 9,
-                backgroundColor: row.period === 1 ? c.secondary : c.elevated,
+                backgroundColor: row.period === 1 ? c.secondary : undefined,
                 padding: 10,
-                borderRadius: 10,
+                borderRadius: row.period === 1 ? 12 : 0,
+                borderBottomWidth: row.period === 1 ? 0 : 1,
+                borderBottomColor: c.border,
               }}
             >
               <CalendarDays size={16} color={c.primary} style={{ marginTop: 2 }} />

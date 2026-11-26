@@ -14,6 +14,7 @@ import { useDesign, Text, Heading, Button } from '@finora/ui';
 import { date, documentStrings } from '@finora/i18n';
 import { auth } from '../../../src/services/client';
 import { Back, Data, LinkRow, Page } from '../../../src/components/layout';
+import { SignatureIcon, SignatureSweep } from '../../../src/components/signature';
 import {
   DocumentApiError,
   docApi,
@@ -113,25 +114,16 @@ function PrivateIntake({ userId }: { userId: string }) {
         <View
           style={{
             flex: wide ? 1 : undefined,
-            borderRadius: 22,
-            padding: wide ? 22 : 16,
+            borderRadius: 25,
+            overflow: 'hidden',
+            padding: wide ? 24 : 18,
             gap: 12,
             backgroundColor: c.forest,
           }}
         >
+          <SignatureSweep name="finora-document-intake" />
           <View style={{ flexDirection: 'row', gap: 11, alignItems: 'center' }}>
-            <View
-              style={{
-                backgroundColor: 'rgba(190,239,203,0.18)',
-                borderRadius: 13,
-                width: 46,
-                height: 46,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <ScanLine size={23} color={c.onForest} />
-            </View>
+            <SignatureIcon icon={ScanLine} tone="lime" size={46} />
             <View style={{ flex: 1, gap: 2 }}>
               <Heading size={19} style={{ color: c.onForest }}>
                 {s.intake}
@@ -180,7 +172,11 @@ function PrivateIntake({ userId }: { userId: string }) {
             ] as const
           ).map(([Icon, label], i) => (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-              <Icon size={17} color={c.primary} />
+              <SignatureIcon
+                icon={Icon}
+                tone={i === 0 ? 'blue' : i === 1 ? 'amber' : 'emerald'}
+                size={32}
+              />
               <Text small>
                 <Text small bold style={{ color: c.primary }}>
                   {i + 1}.{' '}
