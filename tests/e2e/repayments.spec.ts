@@ -88,8 +88,9 @@ test('saving a simulation does not create an obligation; tracking and payment bo
     ).status(),
   ).toBe(400);
   await page.getByRole('button', { name: 'Xác nhận đã trả', exact: true }).click();
-  await expect(page.getByText('Đã xác nhận 1/12 kỳ', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bỏ dấu đã trả', exact: true })).toBeVisible();
   expect((await ledger()).upcomingTotal).toBe(0);
+  expect((await ledger()).loans[0].paidPeriods).toBe(1);
   await page.goto('/loans');
   await expect(page.getByText('Kỳ thanh toán tiếp theo', { exact: true })).toBeVisible();
   await expect(page.getByRole('progressbar', { name: 'Đã xác nhận 1/12 kỳ' })).toBeVisible();
@@ -97,12 +98,13 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   await expect(page).toHaveURL(/\/repayments$/);
   await expect(page.getByRole('heading', { name: input.title })).toBeVisible();
   await page.reload();
-  await expect(page.getByText('Đã xác nhận 1/12 kỳ', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bỏ dấu đã trả', exact: true })).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.screenshot({ path: info.outputPath('repayments-1440.png'), fullPage: true });
   await page.getByRole('button', { name: 'Bỏ dấu đã trả', exact: true }).click();
   await page.getByRole('button', { name: 'Xác nhận bỏ đánh dấu', exact: true }).click();
-  await expect(page.getByText('Đã xác nhận 0/12 kỳ', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bỏ dấu đã trả', exact: true })).toHaveCount(0);
+  expect((await ledger()).loans[0].paidPeriods).toBe(0);
   expect((await ledger()).upcomingTotal).toBe(result.firstPayment);
 
   await page.setViewportSize({ width: 390, height: 844 });
