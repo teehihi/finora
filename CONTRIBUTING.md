@@ -1,21 +1,30 @@
-# Đóng góp cho FINORA
+# Contributing to FINORA
 
-Đọc [README](README.md) để chạy dự án và [AGENTS.md](AGENTS.md) để biết quy ước kỹ thuật áp dụng cho cả người viết code lẫn trợ lý lập trình. Repo chưa công bố giấy phép mã nguồn; xem [tình trạng giấy phép và tài sản](docs/maintainers/LICENSING.md). Không gửi mã, ảnh, font hoặc dữ liệu mà bạn không có quyền đưa vào repo.
+Read [README](README.md) for local setup and [AGENTS.md](AGENTS.md) for the engineering rules that apply to contributors and coding assistants. This repository has not published a source-code license; see the [license and asset inventory](docs/maintainers/LICENSING.md). Only contribute code, images, fonts, or data you have permission to submit.
 
-## Từ nhánh đến pull request
+## Branches and pull requests
 
-1. Bắt đầu từ `main` mới nhất của **`teehihi/finora`**. Dùng nhánh riêng, ví dụ `feat/repayment-calendar`, `fix/otp-resend` hoặc `docs/local-setup`. Không push trực tiếp hoặc force-push lên `main`.
-2. Mỗi PR giải quyết một việc. Đặt tiêu đề nói rõ thay đổi, ví dụ `fix(auth): giữ email khi gửi lại OTP`. Nếu PR đóng issue, dùng `Closes #123` trong phần mô tả.
-3. Mở PR vào `main`, hoặc mở **Draft** nếu còn mốc chưa hoàn tất. Mô tả cách kiểm thử, phần chưa kiểm và rủi ro để người review biết chỗ cần xem.
-4. Chờ CI xanh và một người khác rà thay đổi trước khi merge. Người có quyền merge của dự án quyết định merge; ưu tiên squash cho PR có nhiều commit nháp. Đây là quy ước nhóm, không phải mô tả ruleset đang bật trên GitHub.
+1. Start from the latest `main` in **`teehihi/finora`**. Use a separate branch such as `feat/repayment-planner`, `fix/otp-resend`, or `docs/local-setup`. Do not push directly or force-push to `main`.
+2. Keep each pull request focused. Use a descriptive title such as `fix(auth): preserve the email when resending an OTP`.
+3. Open the PR against `main`; use a draft if it is not ready for review. You can leave the generated description template untouched. GitHub fills it after the PR is created, then refreshes it when commits are pushed. The compare page only shows the static placeholder before you click **Create pull request**.
+4. Wait for passing CI and another person's review before merging. A maintainer decides when to merge. Prefer squash when a PR has several work-in-progress commits. These are team conventions, not a claim that GitHub branch protection is enabled.
 
-## Bằng chứng trước khi mở PR
+## What the PR description includes
 
-| Thay đổi                                               | Bằng chứng cần gửi                                                                                                                                                                                                                |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chỉ tài liệu                                           | `pnpm format:check` hoặc kiểm Prettier trên các file đã đổi; thử các bước hoặc đường dẫn vừa sửa.                                                                                                                                 |
-| Mã nguồn                                               | `pnpm lint`, `pnpm typecheck`, `pnpm test` và `pnpm build`. Nếu không chạy được lệnh nào, ghi rõ lý do.                                                                                                                           |
-| Luồng UI, đăng nhập, lưu hoặc đọc dữ liệu              | Thêm/chạy E2E phù hợp. Với UI, đính kèm ảnh hoặc clip dùng dữ liệu mẫu và ghi thiết bị/trình duyệt; không gọi ảnh web là kiểm thử native. Với thay đổi thanh điều hướng, kiểm cả safe area, đổi tab và fallback của Liquid Glass. |
-| Tính toán, xác thực, dữ liệu, tài liệu tải lên hoặc AI | Kiểm các ca biên có liên quan. Nêu tác động lên dữ liệu cũ, quyền truy cập, consent, bí mật môi trường, schema và cách khôi phục nếu đổi migration.                                                                               |
+- The changed areas, line counts, and commit subjects come from GitHub metadata.
+- The **Verification** section links to the live PR checks. It reports touched test files, not whether a local command was run or passed.
+- The **Risk and rollout** section flags paths related to migrations, environment config, data handling, or workflow permissions. No flag is not proof there is no risk.
+- The workflow never links or closes an issue on its own. Add `Closes #123` only if the PR actually closes that issue. If you have manual test results or screenshots, add them outside the generated block. That text is preserved. Use synthetic data, and label web captures as web, not native device testing.
 
-Dùng môi trường dev và fixture tổng hợp; không chạy test lên database production. Không đưa secret, OTP, tài liệu vay thật hay thông tin người dùng vào commit, ảnh, issue hoặc log đính kèm. Báo vấn đề bảo mật qua [kênh riêng](SECURITY.md).
+Only the marker-delimited block is regenerated. The workflow runs from trusted `main`; it does not check out or execute fork contributions. CI runs separately.
+
+## Evidence before review
+
+| Change                                  | Evidence                                                                                                                                                       |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Documentation only                      | Run `pnpm format:check` or Prettier on the changed files. Try the updated instructions and links.                                                              |
+| Application or package code             | Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. Note any check you could not run.                                                            |
+| UI, authentication, or read/write flows | Run relevant E2E tests. If you attach screenshots, label the browser, simulator, or device. Check safe areas and Liquid Glass fallback when changing the dock. |
+| Calculations, data, documents, or AI    | Check relevant edge cases and note effects on existing data, access, consent, environment variables, and migration rollback.                                   |
+
+Use a development environment and synthetic fixtures. Do not run tests against a production database or add secrets, OTPs, real loan documents, or personal information to commits, screenshots, issues, or logs. Report security issues through the [private channel](SECURITY.md).

@@ -1,0 +1,33 @@
+name: FINORA PR description
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: finora-pr-description-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  describe:
+    name: Refresh the generated PR description
+    if: github.repository == 'teehihi/finora'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # This privileged workflow must only read and run the trusted base revision.
+      # Never install PR dependencies, run PR scripts, or check out the PR head here.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Write generated metadata to the PR description
+        run: node scripts/pr-description.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
