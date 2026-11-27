@@ -3,6 +3,7 @@ import {
   AccessibilityInfo,
   Animated,
   BackHandler,
+  Easing,
   Keyboard,
   Platform,
   Pressable,
@@ -11,9 +12,11 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { router } from 'expo-router';
+import { Menu, X } from 'lucide';
+import { MorphIcon } from 'morphicons/react-native';
 import { dark } from '@finora/design-tokens';
 import { Action, Text, useDesign, useReducedMotion } from '@finora/ui';
 import { workspaceTabs } from '../../components/workspace-tabs';
@@ -196,6 +199,7 @@ export function FinBarButton({
 
 export function FinTabsButton({ open, onPress }: { open: boolean; onPress: () => void }) {
   const { t, colors: c } = useDesign();
+  const reduceMotion = useReducedMotion();
   return (
     <FinBarButton
       label={t('intelligenceTabs')}
@@ -205,23 +209,14 @@ export function FinTabsButton({ open, onPress }: { open: boolean; onPress: () =>
       visualSize={38}
       square
     >
-      <Svg width={20} height={20} viewBox="0 0 20 20" aria-hidden>
-        {[1.5, 11.2].flatMap((x) =>
-          [1.5, 11.2].map((y) => (
-            <Rect
-              key={`${x}-${y}`}
-              x={x}
-              y={y}
-              width={7}
-              height={7}
-              rx={2}
-              fill="none"
-              stroke={c.primary}
-              strokeWidth={1.55}
-            />
-          )),
-        )}
-      </Svg>
+      <MorphIcon
+        icon={open ? X : Menu}
+        color={c.primary}
+        size={20}
+        strokeWidth={1.7}
+        spring="smooth"
+        reducedMotion={reduceMotion ? 'always' : 'never'}
+      />
     </FinBarButton>
   );
 }
@@ -240,9 +235,11 @@ export function FinTabPicker({
   const night = c === dark;
   const reduceMotion = useReducedMotion();
   const menuHeight = Math.min(FIN_MENU_HEIGHT, maxHeight);
+  const menuItems = workspaceTabs.filter(([key]) => key !== 'ai');
   // UIKit Glass should not sit inside a fading or transforming host.
   const skipIntro = reduceMotion || material.nativeGlass;
   const enter = useRef(new Animated.Value(skipIntro ? 1 : 0)).current;
+  const itemEntries = useRef(menuItems.map(() => new Animated.Value(reduceMotion ? 1 : 0))).current;
   useEffect(() => {
     if (skipIntro) {
       enter.setValue(1);
@@ -256,6 +253,26 @@ export function FinTabPicker({
     animation.start();
     return () => animation.stop();
   }, [enter, skipIntro]);
+  useEffect(() => {
+    if (reduceMotion) {
+      itemEntries.forEach((progress) => progress.setValue(1));
+      return;
+    }
+    itemEntries.forEach((progress) => progress.setValue(0));
+    const animation = Animated.stagger(
+      34,
+      itemEntries.map((progress) =>
+        Animated.timing(progress, {
+          toValue: 1,
+          duration: 190,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [itemEntries, reduceMotion]);
   useEffect(() => {
     const back = BackHandler.addEventListener('hardwareBackPress', () => {
       onClose();
@@ -338,11 +355,22 @@ export function FinTabPicker({
             contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 5 }}
             showsVerticalScrollIndicator={menuHeight < FIN_MENU_HEIGHT}
           >
-            {workspaceTabs
-              .filter(([key]) => key !== 'ai')
-              .map(([key, href, Icon], index) => (
+            {menuItems.map(([key, href, Icon], index) => (
+              <Animated.View
+                key={key}
+                style={{
+                  opacity: itemEntries[index],
+                  transform: [
+                    {
+                      translateY: itemEntries[index].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [7, 0],
+                      }),
+                    },
+                  ],
+                }}
+              >
                 <Action
-                  key={key}
                   label={t(key)}
                   onPress={() => {
                     onClose();
@@ -364,7 +392,8 @@ export function FinTabPicker({
                   <Icon size={20} strokeWidth={1.6} color={c.foreground} />
                   <Text style={{ fontSize: 16, lineHeight: 21 }}>{t(key)}</Text>
                 </Action>
-              ))}
+              </Animated.View>
+            ))}
           </ScrollView>
         </View>
       </Animated.View>
