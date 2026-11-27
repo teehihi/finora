@@ -41,9 +41,24 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
     }
   };
   await checkAligned();
+  const singleLine = (await bar.boundingBox())!;
+  await expect(send).toBeDisabled();
+  await expect(send.locator('svg')).toBeVisible();
   await expect(input).toHaveAttribute('placeholder', 'Hỏi Fin…');
   await page.screenshot({ path: info.outputPath('fin-single-toolbar.png') });
 
+  await input.fill('Dòng đầu.\nDòng thứ hai.\nDòng cuối.');
+  await expect(send).toBeEnabled();
+  await expect(send.locator('svg')).toBeVisible();
+  await expect
+    .poll(async () => (await bar.boundingBox())!.height)
+    .toBeGreaterThan(singleLine.height + 20);
+  await checkAligned();
+  await page.screenshot({ path: info.outputPath('fin-composer-typed.png') });
+  await input.fill('Ok');
+  await expect
+    .poll(async () => (await bar.boundingBox())!.height)
+    .toBeCloseTo(singleLine.height, 0);
   await input.fill('Bản nháp mua xe, chưa gửi');
   await checkAligned();
   await tabs.click();

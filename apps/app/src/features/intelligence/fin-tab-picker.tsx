@@ -23,11 +23,12 @@ export function FinComposerSurface() {
   const night = c === dark;
   const shape = { ...StyleSheet.absoluteFill, borderRadius: 28 };
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View collapsable={false} pointerEvents="none" style={StyleSheet.absoluteFill}>
       {useNativeFinGlass ? (
         <LiquidGlassView
           pointerEvents="none"
           effect="regular"
+          animated={false}
           colorScheme={night ? 'dark' : 'light'}
           tintColor={night ? 'rgba(21,39,31,0.78)' : 'rgba(252,255,250,0.78)'}
           style={shape}
@@ -65,10 +66,10 @@ function FinMenuMaterial({ height }: { height: number }) {
   return (
     <LiquidGlassView
       pointerEvents="none"
-      effect="regular"
+      effect="clear"
       animated={false}
       colorScheme={night ? 'dark' : 'light'}
-      tintColor={night ? 'rgba(24,40,34,0.27)' : 'rgba(250,253,248,0.27)'}
+      tintColor={night ? 'rgba(24,40,34,0.24)' : 'rgba(250,253,248,0.14)'}
       style={shape}
     />
   );
@@ -80,6 +81,7 @@ export function FinBarButton({
   disabled,
   onPress,
   backgroundColor,
+  borderColor,
   children,
 }: {
   label: string;
@@ -87,6 +89,7 @@ export function FinBarButton({
   disabled?: boolean;
   onPress: () => void;
   backgroundColor: string;
+  borderColor?: string;
   children: ReactNode;
 }) {
   return (
@@ -96,13 +99,17 @@ export function FinBarButton({
       accessibilityLabel={label}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.barButton,
-        { backgroundColor, opacity: disabled ? 0.55 : pressed ? 0.82 : 1 },
-      ]}
+      style={({ pressed }) => [styles.barButton, { opacity: pressed ? 0.82 : 1 }]}
     >
-      <View pointerEvents="none" style={styles.barGlyph}>
-        {children}
+      <View
+        collapsable={false}
+        pointerEvents="none"
+        style={[
+          styles.barButtonFill,
+          { backgroundColor, borderColor, borderWidth: borderColor ? 1 : 0 },
+        ]}
+      >
+        <View style={styles.barGlyph}>{children}</View>
       </View>
     </Pressable>
   );
@@ -204,10 +211,12 @@ export function FinTabPicker({
       >
         <FinMenuMaterial height={menuHeight} />
         <View
+          collapsable={false}
           style={[
             styles.menuContent,
             useNativeFinGlass && {
-              backgroundColor: c === dark ? 'rgba(24,40,34,0.14)' : 'rgba(250,253,248,0.14)',
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: c === dark ? '#ffffff4d' : '#ffffffc0',
             },
           ]}
         >
@@ -256,11 +265,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     flexShrink: 0,
-    alignSelf: 'flex-end',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 22,
     zIndex: 2,
+  },
+  barButtonFill: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   barGlyph: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
 });

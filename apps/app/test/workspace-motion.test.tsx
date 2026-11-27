@@ -25,3 +25,12 @@ it.each([
   expect(overlayMotion(true, reduced, platform)).toBe('none');
   expect(overlayMotion(false, reduced, platform)).toBe('none');
 });
+
+it('uses a native horizontal pop only on the Fin edge return', () => {
+  expect(workspaceMotion('home', false, 'ios', true)).toEqual({
+    animation: 'default',
+    animationTypeForReplace: 'pop',
+  });
+  expect(workspaceMotion('home', false, 'ios').animation).toBe('fade');
+  expect(workspaceMotion('home', true, 'ios', true).animation).toBe('none');
+});
