@@ -11,7 +11,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import { Action, Button, Heading, Text, useDesign } from '@finora/ui';
+import {
+  Action,
+  Button,
+  Heading,
+  Text,
+  overlayMotion,
+  useReducedMotion,
+  useDesign,
+} from '@finora/ui';
 import { date } from '@finora/i18n';
 import { repaymentPlan } from '@finora/financial-engine';
 import fin from '../../assets/brand/fin-assistant.png';
@@ -32,6 +40,7 @@ export function RepaymentPlanner({
   onClose: () => void;
 }) {
   const { t, colors: c, money, locale } = useDesign();
+  const reduced = useReducedMotion();
   const { bottom, top } = useSafeAreaInsets();
   const [amounts, setAmounts] = useState({ reserved: '', income: '', expenses: '' });
   const [submitted, setSubmitted] = useState(false);
@@ -65,7 +74,7 @@ export function RepaymentPlanner({
   return (
     <Modal
       visible
-      animationType="fade"
+      animationType={overlayMotion(true, reduced, Platform.OS)}
       transparent
       onRequestClose={onClose}
       statusBarTranslucent

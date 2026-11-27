@@ -1,6 +1,8 @@
+import { awaitUploadResponse, UploadOutcomeUnknown } from './upload-response';
 import { Platform } from 'react-native';
 import { File } from 'expo-file-system';
 import { getDocumentAsync } from 'expo-document-picker';
+import { withReadDeadline } from '@finora/api-client';
 import { fetch as expoFetch } from 'expo/fetch';
 import {
   maxDocumentBytes,
@@ -25,16 +27,19 @@ async function request<T>(
 ) {
   const web = Platform.OS === 'web';
   const post = web ? fetch : expoFetch;
-  const response = await post(base + '/api/document-analysis' + path, {
-    body,
-    signal,
-    method,
-    credentials: web ? 'include' : 'omit',
-    ...(web ? { cache: 'no-store' as const } : {}),
-    headers: web ? headers : { ...headers, cookie: auth.getCookie() },
-  });
-  if (!response.ok) throw new DocumentApiError(response.status);
-  return (await response.json()) as T;
+  async function read(readSignal?: AbortSignal) {
+    const response = await post(base + '/api/document-analysis' + path, {
+      body,
+      signal: readSignal,
+      method,
+      credentials: web ? 'include' : 'omit',
+      ...(web ? { cache: 'no-store' as const } : {}),
+      headers: web ? headers : { ...headers, cookie: auth.getCookie() },
+    });
+    if (!response.ok) throw new DocumentApiError(response.status);
+    return (await response.json()) as T;
+  }
+  return method === 'GET' ? withReadDeadline(read, signal) : read(signal);
 }
 function json<T>(
   path: string,
@@ -47,16 +52,23 @@ export const docApi = {
   get: (id: string, signal?: AbortSignal) =>
     request<DocumentReview>(segments(id), 'GET', {}, undefined, signal),
   remove: (id: string) => request<{ deleted: true }>(segments(id), 'DELETE'),
-  upload: (body: BodyInit, mime: DocumentMime, synthetic = false) =>
-    request<DocumentReview>(
-      '',
-      'POST',
-      {
-        'Content-Type': mime,
-        ...(synthetic ? { 'x-finora-synthetic': '1' } : {}),
-      },
-      body,
-    ),
+  upload: async (body: BodyInit, mime: DocumentMime, synthetic = false) => {
+    try {
+      return await awaitUploadResponse((signal) =>
+        request<DocumentReview>(
+          '',
+          'POST',
+          { 'Content-Type': mime, ...(synthetic ? { 'x-finora-synthetic': '1' } : {}) },
+          body,
+          signal,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof DocumentApiError) throw error;
+      // Network loss (including while reading the response) cannot prove the POST failed.
+      throw new UploadOutcomeUnknown();
+    }
+  },
   preview: (id: string, body: DocumentReviewInput) =>
     json<Estimate>(segments(id) + '/preview', body),
   save: (id: string, body: DocumentReviewInput, requestId: string) =>
@@ -74,15 +86,17 @@ export async function loadPrivateImage(
 ) {
   const web = Platform.OS === 'web';
   const get = web ? fetch : expoFetch;
-  const response = await get(privateDocumentFileUrl(id), {
-    signal,
-    method: 'GET',
-    credentials: web ? 'include' : 'omit',
-    headers: web ? {} : { cookie: auth.getCookie() },
-    ...(web ? { cache: 'no-store' as const } : {}),
-  });
-  if (!response.ok) throw new DocumentApiError(response.status);
-  const bytes = new Uint8Array(await response.arrayBuffer());
+  const bytes = await withReadDeadline(async (readSignal) => {
+    const response = await get(privateDocumentFileUrl(id), {
+      signal: readSignal,
+      method: 'GET',
+      credentials: web ? 'include' : 'omit',
+      headers: web ? {} : { cookie: auth.getCookie() },
+      ...(web ? { cache: 'no-store' as const } : {}),
+    });
+    if (!response.ok) throw new DocumentApiError(response.status);
+    return new Uint8Array(await response.arrayBuffer());
+  }, signal);
   if (bytes.byteLength > maxDocumentBytes) throw new DocumentApiError(413);
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   const chunks: string[] = [];

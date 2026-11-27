@@ -1,3 +1,5 @@
+import { UploadOutcomeUnknown } from '../../../src/features/documents/upload-response';
+import { DocumentProcessing } from '../../../src/components/task-surface';
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -9,7 +11,7 @@ import {
   ScanLine,
   ShieldCheck,
 } from 'lucide-react-native';
-import { ActivityIndicator, View, useWindowDimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { useDesign, Text, Heading, Button } from '@finora/ui';
 import { date, documentStrings } from '@finora/i18n';
 import { auth } from '../../../src/services/client';
@@ -82,8 +84,10 @@ function PrivateIntake({ userId }: { userId: string }) {
     setPickError(null);
     upload.mutate(file ? { file } : { synthetic: true });
   }
-  const error =
-    pickError instanceof DocumentApiError
+  const unknownOutcome = pickError instanceof UploadOutcomeUnknown;
+  const error = unknownOutcome
+    ? s.uploadUnknown
+    : pickError instanceof DocumentApiError
       ? pickError.status === 409
         ? s.tooMany
         : pickError.status === 503 || pickError.status === 429
@@ -188,27 +192,7 @@ function PrivateIntake({ userId }: { userId: string }) {
         </View>
       </View>
       {upload.isPending ? (
-        <View
-          accessibilityLiveRegion="polite"
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            padding: 14,
-            borderRadius: 15,
-            backgroundColor: c.secondary,
-          }}
-        >
-          <ActivityIndicator size="small" color={c.primary} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text small bold>
-              {s.uploadReading}
-            </Text>
-            <Text small muted>
-              {s.uploadPrivacy}
-            </Text>
-          </View>
-        </View>
+        <DocumentProcessing title={s.uploadReading} detail={s.uploadPrivacy} />
       ) : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
         <Button
@@ -228,11 +212,22 @@ function PrivateIntake({ userId }: { userId: string }) {
           <Text role="alert" style={{ color: c.error }}>
             {error}
           </Text>
-          <Text small muted>
-            {vi
-              ? 'Bạn có thể chọn lại tệp hoặc thử với mẫu.'
-              : 'Choose another file or try the sample.'}
-          </Text>
+          {unknownOutcome ? (
+            <Button
+              variant="outline"
+              label={s.refreshRecent}
+              loading={q.isFetching}
+              onPress={() => {
+                if (!q.isFetching) void q.refetch();
+              }}
+            />
+          ) : (
+            <Text small muted>
+              {vi
+                ? 'Bạn có thể chọn lại tệp hoặc thử với mẫu.'
+                : 'Choose another file or try the sample.'}
+            </Text>
+          )}
         </View>
       ) : null}
       <View style={{ gap: 10 }}>

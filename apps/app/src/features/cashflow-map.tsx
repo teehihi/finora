@@ -1,3 +1,4 @@
+import { canShowReadData } from '../components/read-state';
 import { useId, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
@@ -339,7 +340,7 @@ function CashflowWorkspace({
   const [submitted, setSubmitted] = useState(false);
   const sample = mode === 'sample';
   const checked = cashflowInputs(draft);
-  const { data } = ledger;
+  const data = canShowReadData(ledger) ? ledger.data : undefined;
   const calculated = useMemo(() => {
     try {
       let input: CashflowInput;
@@ -499,7 +500,7 @@ function CashflowWorkspace({
           </Action>
         ))}
       </View>
-      {!sample && (ledger.isError || ledger.isFetching) ? (
+      {!sample && (ledger.isError || ledger.isFetching || ledger.fetchStatus === 'paused') ? (
         <View>
           <TaskNotice query={ledger} stale={!!data} missing={copy.dataError} />
         </View>

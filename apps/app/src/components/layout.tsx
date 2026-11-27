@@ -1,3 +1,5 @@
+import { canShowReadData } from './read-state';
+import { TaskData, TaskNotice, type LoadState } from './task-surface';
 import logo from '../../assets/brand/lockup.png';
 import React, { createContext, useContext } from 'react';
 import {
@@ -12,16 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { ArrowLeft, ArrowRight, Globe2 } from 'lucide-react-native';
-import {
-  Heading,
-  Text,
-  useDesign,
-  Action,
-  Button,
-  LoadingState,
-  ErrorState,
-  Eyebrow,
-} from '@finora/ui';
+import { Heading, Text, useDesign, Action, Button, Eyebrow } from '@finora/ui';
 import { tokens } from '@finora/design-tokens';
 import { usePrefs } from '../providers/AppProviders';
 import { useCYLScrollTarget } from './cyl-scroll-target';
@@ -298,17 +291,33 @@ export function Data<T>({
   pendingDetail,
 }: {
   pendingDetail?: { title: string; onBack: () => void };
-  q: { data: T | undefined; isError: boolean; refetch: () => unknown };
+  q: LoadState & { data: T | undefined };
   children: (v: T) => React.ReactNode;
 }) {
-  if (!q.isError && q.data !== undefined) return <>{children(q.data)}</>;
-  const state = q.isError ? <ErrorState retry={() => q.refetch()} /> : <LoadingState />;
-  return pendingDetail ? (
+  if (!pendingDetail)
+    return (
+      <TaskData query={q} kind="rows">
+        {children}
+      </TaskData>
+    );
+  if (canShowReadData(q) && q.data !== undefined)
+    return (
+      <>
+        <View>
+          <TaskNotice query={q} stale />
+        </View>
+        {children(q.data)}
+      </>
+    );
+  const state = (
+    <TaskData query={q} kind="rows">
+      {() => null}
+    </TaskData>
+  );
+  return (
     <Page title={pendingDetail.title} detail={{ onBack: pendingDetail.onBack }}>
       {state}
     </Page>
-  ) : (
-    state
   );
 }
 export function Columns({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {

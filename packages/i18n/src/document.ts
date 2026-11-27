@@ -101,6 +101,9 @@ export const documentStrings = {
     uploadError: 'Không đọc được tệp. Chọn PDF, JPEG hoặc PNG hợp lệ, nhỏ hơn hoặc bằng 5 MB.',
     tooMany: 'Tối đa 10 tài liệu; xóa một tài liệu cũ hoặc thử lại sau.',
     busy: 'Bộ đọc tài liệu đang bận. Thử lại sau ít giây.',
+    uploadUnknown:
+      'Chưa nhận được phản hồi. Hãy kiểm tra tài liệu gần đây trước khi gửi lại để tránh tạo bản trùng.',
+    refreshRecent: 'Làm mới tài liệu gần đây',
     requestError: 'Không thực hiện được thao tác. Kiểm tra kết nối rồi thử lại.',
     pdf: 'PDF',
     jpg: 'JPEG',
@@ -227,6 +230,9 @@ export const documentStrings = {
     uploadError: 'Could not read this file. Choose a valid PDF, JPEG or PNG up to 5 MB.',
     tooMany: 'A maximum of 10 documents can be stored. Delete an older file or try again.',
     busy: 'The document reader is busy. Try again in a few seconds.',
+    uploadUnknown:
+      'No response received. Check recent documents before sending the file again to avoid a duplicate.',
+    refreshRecent: 'Refresh recent documents',
     requestError: 'Something went wrong. Check your connection and try again.',
     pdf: 'PDF',
     jpg: 'JPEG',

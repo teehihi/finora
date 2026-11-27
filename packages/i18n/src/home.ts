@@ -1,6 +1,11 @@
 import type { Locale } from './index';
 
 const vi = {
+  search: 'Tìm tiện ích',
+  searchHint: 'Tìm lịch trả, hợp đồng…',
+  searchEmpty: 'Không có tiện ích phù hợp. Thử “lịch trả” hoặc “hợp đồng”.',
+  cashflowSearch: 'Sổ dòng tiền',
+  savedSearch: 'Mô phỏng đã lưu',
   capacity: 'Khả năng trả thêm mỗi tháng',
   estimate: 'Ước tính theo hồ sơ bạn nhập · Không phải hạn mức vay',
   missingTitle: 'Bạn có thể trả bao nhiêu?',
@@ -30,6 +35,11 @@ const vi = {
 };
 
 const en: Record<keyof typeof vi, string> = {
+  search: 'Find a tool',
+  searchHint: 'Search schedules, contracts…',
+  searchEmpty: 'No matching tools. Try “schedule” or “contract”.',
+  cashflowSearch: 'Cash flow journal',
+  savedSearch: 'Saved simulations',
   capacity: 'Estimated room to repay each month',
   estimate: 'Based on your profile · Not a credit limit',
   missingTitle: 'What could you afford?',

@@ -1,7 +1,6 @@
 import { dark, tokens } from '@finora/design-tokens';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
-  AccessibilityInfo,
   Animated,
   Keyboard,
   PanResponder,
@@ -24,7 +23,8 @@ import {
   UserRound,
   LockKeyhole,
 } from 'lucide-react-native';
-import { useDesign, Text, Eyebrow, Action, Avatar, LoadingState, ErrorState } from '@finora/ui';
+import { useDesign, Text, Eyebrow, Action, Avatar, ErrorState } from '@finora/ui';
+import { LaunchScene } from '../../src/components/LaunchScene';
 import { Logo, WorkspaceDockInsetContext } from '../../src/components/layout';
 import {
   DockChrome,
@@ -36,6 +36,8 @@ import { auth } from '../../src/services/client';
 import { CYLScrollContext, cylScrollTarget } from '../../src/components/cyl-scroll-target';
 import CYLDock, { cylDockAvailable } from '../../src/components/CYLDock';
 import { date } from '@finora/i18n';
+import { useReducedMotion } from '@finora/ui';
+import { workspaceMotion } from '../../src/features/navigation/workspace-motion';
 import { workspaceAuthReturn } from '../../src/features/auth/return-path';
 
 const links = [
@@ -47,22 +49,10 @@ const links = [
 ] as const;
 
 function useDockPreferences() {
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useReducedMotion();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-      if (!media) return;
-      const read = () => setReduceMotion(media.matches);
-      read();
-      media.addEventListener('change', read);
-      return () => media.removeEventListener('change', read);
-    }
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((value) => {
-      if (active) setReduceMotion(value);
-    });
-    const motion = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    if (Platform.OS === 'web') return;
     const show = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       () => setKeyboardVisible(true),
@@ -72,8 +62,6 @@ function useDockPreferences() {
       () => setKeyboardVisible(false),
     );
     return () => {
-      active = false;
-      motion.remove();
       show.remove();
       hide.remove();
     };
@@ -288,7 +276,7 @@ export default function Workspace() {
     };
   }, [indicatorX, reduceMotion, showDock, userId]);
 
-  if (isPending) return <LoadingState />;
+  if (isPending) return <LaunchScene checking />;
   if (error) return <ErrorState retry={() => refetch()} />;
   if (!data) {
     return (
@@ -488,11 +476,11 @@ export default function Workspace() {
               ) : null}
               <CYLScrollContext.Provider value={usesCYLScroll ? reportCYLScroll : undefined}>
                 <Stack
-                  screenOptions={{
+                  screenOptions={({ route }) => ({
                     headerShown: false,
-                    animation: reduceMotion || Platform.OS === 'web' ? 'none' : 'fade',
+                    ...workspaceMotion(route.name, reduceMotion, Platform.OS),
                     contentStyle: { backgroundColor: c.background },
-                  }}
+                  })}
                 />
               </CYLScrollContext.Provider>
             </View>

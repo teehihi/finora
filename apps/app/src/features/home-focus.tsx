@@ -54,7 +54,9 @@ export function HomeFocus({ ledger }: { ledger: RepaymentLedger }) {
         paddingHorizontal: large ? 26 : 20,
         paddingTop: large ? 24 : 18,
         paddingBottom: large ? 24 : 17,
-        backgroundColor: c.forest,
+        backgroundColor: c.surface,
+        borderColor: c.border,
+        borderWidth: 1,
         overflow: 'hidden',
       }}
     >
@@ -73,20 +75,20 @@ export function HomeFocus({ ledger }: { ledger: RepaymentLedger }) {
             width: 7,
             height: 7,
             borderRadius: 4,
-            backgroundColor: late ? c.chartInterest : c.signatureLime,
+            backgroundColor: late ? c.warning : c.success,
           }}
         />
-        <Text small bold style={{ color: c.onForestMuted }}>
+        <Text small bold style={{ color: c.muted }}>
           {label}
         </Text>
       </View>
       <Heading
         size={pay ? (title.length > 17 || fontScale > 1.3 ? 30 : large ? 44 : 38) : large ? 31 : 27}
-        style={{ fontVariant: ['tabular-nums'], color: c.onForest }}
+        style={{ fontVariant: ['tabular-nums'], color: c.foreground }}
       >
         {title}
       </Heading>
-      <Text small style={{ color: c.onForestMuted, marginTop: 5 }}>
+      <Text small style={{ color: c.muted, marginTop: 5 }}>
         {body}
       </Text>
       <View
@@ -99,7 +101,7 @@ export function HomeFocus({ ledger }: { ledger: RepaymentLedger }) {
           columnGap: 11,
           marginTop: 14,
           borderTopWidth: pay ? 1 : 0,
-          borderColor: c.forestBorder,
+          borderColor: c.border,
           paddingTop: pay ? 12 : 0,
         }}
       >
@@ -114,21 +116,21 @@ export function HomeFocus({ ledger }: { ledger: RepaymentLedger }) {
             paddingHorizontal: 15,
             paddingVertical: 6,
             borderRadius: 26,
-            backgroundColor: c.signatureLime,
+            backgroundColor: c.primary,
             maxWidth: '100%',
           }}
         >
-          <Text small bold style={{ color: c.signatureInk }}>
+          <Text small bold style={{ color: c.onPrimary }}>
             {action}
           </Text>
-          <ArrowRight size={16} color={c.signatureInk} />
+          <ArrowRight size={16} color={c.onPrimary} />
         </Action>
         {dateLabel ? (
           <View style={{ gap: 1, alignItems: 'flex-start' }}>
-            <Text small style={{ fontSize: 12, lineHeight: 16, color: c.onForestMuted }}>
+            <Text small style={{ fontSize: 12, lineHeight: 16, color: c.muted }}>
               {pay?.date === ledger.today ? t('loanCenterToday') : vi ? 'Hạn trả' : 'Due date'}
             </Text>
-            <Text small bold style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}>
+            <Text small bold style={{ color: c.foreground, fontVariant: ['tabular-nums'] }}>
               {dateLabel}
             </Text>
           </View>

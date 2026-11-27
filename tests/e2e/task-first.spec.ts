@@ -86,6 +86,7 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   pause();
   await page.goto('/home');
   const skeleton = page.getByTestId('task-hero-skeleton');
+  const tools = page.getByRole('heading', { name: 'Công cụ', exact: true });
   await expect(skeleton).toBeVisible();
   await expect(page.getByRole('button', { name: 'Xem kỳ trả' })).toHaveCount(0);
   expect(await skeleton.evaluate((node) => getComputedStyle(node.firstElementChild!).opacity)).toBe(
@@ -101,6 +102,7 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   await expect
     .poll(() => skeleton.evaluate((node) => getComputedStyle(node.firstElementChild!).opacity))
     .toBe('1');
+  const toolsBefore = (await tools.boundingBox())!.y;
   await page.screenshot({ path: info.outputPath('01-loading-390.png') });
   resume();
 
@@ -109,6 +111,7 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   await expect(page.getByText(title, { exact: true })).toBeVisible();
   const amount = await page.getByRole('heading', { name: /₫/ }).first().textContent();
   expect(amount).toBeTruthy();
+  expect(Math.abs((await tools.boundingBox())!.y - toolsBefore)).toBeLessThan(8);
   await page.screenshot({ path: info.outputPath('02-home-390.png') });
 
   const refresh = page.getByRole('button', { name: 'Làm mới dữ liệu' });

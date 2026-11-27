@@ -630,6 +630,19 @@ const copy = {
   none: ['Câu hỏi chung', 'General question'],
   you: ['Bạn', 'You'],
   calc: ['Kết quả từ bộ máy tính', 'Calculated by Finora'],
+  readSlow: [
+    'Kết nối chậm hơn thường lệ. Dữ liệu sẽ hiện khi tải xong.',
+    'This is taking longer than usual. Your data will appear when ready.',
+  ],
+  readPaused: ['Đang chờ kết nối để tải dữ liệu.', 'Waiting for a connection to load data.'],
+  readPausedCached: [
+    'Đang chờ kết nối. Đây là dữ liệu từ lần tải gần nhất.',
+    'Waiting for a connection. Showing the last available data.',
+  ],
+  documentProcessingSlow: [
+    'Tài liệu đang được xử lý. Bạn không cần gửi lại.',
+    'Your document is still processing. No need to send it again.',
+  ],
   retry: ['Thử lại', 'Try again'],
   loading: ['Đang tải…', 'Loading…'],
   error: [

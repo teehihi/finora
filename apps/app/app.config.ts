@@ -1,4 +1,5 @@
 import type { ExpoConfig } from 'expo/config';
+import launch from './src/components/launch-palette.json';
 const config: ExpoConfig = {
   name: 'Finora',
   slug: 'finora',
@@ -16,7 +17,12 @@ const config: ExpoConfig = {
     'expo-secure-store',
     [
       'expo-splash-screen',
-      { image: './assets/brand/lockup.png', imageWidth: 160, backgroundColor: '#F5F7FA' },
+      {
+        image: './assets/brand/lockup.png',
+        imageWidth: launch.markWidth,
+        backgroundColor: launch.light,
+        dark: { image: './assets/brand/lockup-night.png', backgroundColor: launch.dark },
+      },
     ],
   ],
   experiments: { autolinkingModuleResolution: true },
