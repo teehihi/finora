@@ -21,7 +21,7 @@ const config: ExpoConfig = {
         image: './assets/brand/lockup.png',
         imageWidth: launch.markWidth,
         backgroundColor: launch.light,
-        dark: { image: './assets/brand/lockup-night.png', backgroundColor: launch.dark },
+        // The OS launch cannot read account preferences. Always match the app default.
       },
     ],
   ],

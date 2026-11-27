@@ -48,6 +48,7 @@ export default function Home() {
   });
   const desktop = width >= tokens.breakpoints.desktop;
   const mobile = width < tokens.breakpoints.rail;
+  const gutter = width < 370 ? 16 : desktop ? 36 : 20;
   const firstName = user?.name?.trim().split(/\s+/).at(-1);
   const [refreshing, setRefreshing] = useState(false);
   const refresh = async () => {
@@ -128,13 +129,14 @@ export default function Home() {
       }
       contentContainerStyle={{
         alignItems: 'center',
-        paddingHorizontal: width < 370 ? 16 : desktop ? 36 : 20,
-        paddingTop: mobile ? 21 : 28,
+        paddingHorizontal: gutter,
+        paddingTop: mobile ? 0 : 20,
         paddingBottom: dockInset + 24,
       }}
     >
       <View style={{ width: '100%', maxWidth: 1120, gap: desktop ? 23 : 17 }}>
         <HomeSearch
+          gutter={mobile ? gutter : 0}
           greeting={
             mobile
               ? firstName

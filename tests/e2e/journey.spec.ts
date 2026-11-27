@@ -60,8 +60,15 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await expect(page).toHaveURL(/\/loans/);
   await page.getByRole('tab', { name: 'Khám phá' }).click();
   await page.getByRole('radio', { name: 'Bản mô phỏng mẫu', exact: true }).click();
-  await page.getByLabel('Tìm sản phẩm hoặc tổ chức').fill('Chi tiêu linh hoạt');
-  await page.getByRole('button', { name: 'Mô phỏng trả nợ' }).click();
+  const filter = page.getByLabel('Tìm sản phẩm hoặc tổ chức');
+  const simulations = page.getByRole('button', { name: /^Mô phỏng trả nợ:/ });
+  await expect(simulations).not.toHaveCount(0);
+  await filter.fill('Chi tiêu linh hoạt');
+  await expect(filter).toHaveValue('Chi tiêu linh hoạt');
+  await expect(simulations).toHaveCount(1);
+  await page
+    .getByRole('button', { name: 'Mô phỏng trả nợ: Chi tiêu linh hoạt', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Tính lịch trả nợ' }).click();
   await expect(page.getByText('Phí chưa xác định.', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Lưu bản mô phỏng' }).click();

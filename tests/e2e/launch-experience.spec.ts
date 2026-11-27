@@ -16,7 +16,7 @@ test('brand launch is visible only while the session is pending', async ({
     ).ok(),
   ).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' });
   let release: () => void = () => undefined;
   const pending = new Promise<void>((resolve) => {
     release = resolve;
@@ -30,10 +30,16 @@ test('brand launch is visible only while the session is pending', async ({
     const splash = page.getByTestId('finora-launch');
     await expect(splash).toBeVisible();
     await expect(splash).toHaveAttribute('role', 'progressbar');
+    // The application default is light even when the OS asks for dark.
+    await expect(splash).toHaveCSS('background-color', 'rgb(241, 245, 240)');
     await page.screenshot({ path: info.outputPath('01-launch-390.png') });
     release();
     await expect(page).toHaveURL(/\/home$/);
     await expect(splash).toHaveCount(0);
+    await expect(page.getByTestId('home-ledger-focus')).toHaveCSS(
+      'background-color',
+      'rgb(255, 255, 255)',
+    );
     await expect(page.getByRole('tab', { name: 'Tổng quan', exact: true })).toBeVisible();
   } finally {
     release();

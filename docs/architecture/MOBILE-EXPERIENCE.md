@@ -15,7 +15,9 @@ nhau không cho thấy đâu là chuyển tab ngang cấp và đâu là đi vào
 
 ## Startup và mạng
 
-- Splash native và bề mặt khởi động dùng cùng màu và dấu hiệu FINORA. Chỉ
+- Splash native và bề mặt khởi động mặc định dùng cùng giao diện sáng,
+  kể cả khi hệ điều hành đang tối. Lựa chọn Tối hoặc Theo thiết bị đã lưu
+  được áp dụng cho giao diện tài khoản khi đọc được thiết lập. Chỉ
   chạy trong lúc có việc xảy ra, không giữ màn thêm để kéo dài hiệu ứng.
   Họa tiết đường nét là bản vẽ mới, lấy ý tưởng nền bản đồ nhẹ từ
   [Findora](https://github.com/teehihi/findora-new), không chép ảnh hay nhãn hiệu.
