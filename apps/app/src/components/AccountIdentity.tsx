@@ -15,7 +15,7 @@ import {
   useIdentityOptions,
 } from '../features/auth/identity';
 
-export function AccountIdentity() {
+export function AccountIdentity({ showEmail = true }: { showEmail?: boolean }) {
   const { colors: c, t } = useDesign();
   const params = useLocalSearchParams<{ oauth?: string }>();
   const session = auth.useSession();
@@ -95,8 +95,8 @@ export function AccountIdentity() {
     void perform('google', 'authAccountLinkError', async () => {
       const result = await auth.linkSocial({
         provider: 'google',
-        callbackURL: oauthCallback('/profile'),
-        errorCallbackURL: oauthCallback('/profile?oauth=link-error'),
+        callbackURL: oauthCallback('/profile/personal'),
+        errorCallbackURL: oauthCallback('/profile/personal?oauth=link-error'),
       });
       if (result.error) return setError('authAccountLinkError');
       if (Platform.OS !== 'web') {
@@ -112,14 +112,16 @@ export function AccountIdentity() {
       <Text role="header" bold style={{ fontSize: 17 }}>
         {t('authAccountTitle')}
       </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <Mail size={17} color={c.muted} />
-        <Text>{email}</Text>
-        {user.emailVerified ? <CheckCircle2 size={15} color={c.success} /> : null}
-        <Text small style={{ color: user.emailVerified ? c.success : c.muted }}>
-          {t(user.emailVerified ? 'authEmailVerified' : 'authEmailNotVerified')}
-        </Text>
-      </View>
+      {showEmail ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <Mail size={17} color={c.muted} />
+          <Text>{email}</Text>
+          {user.emailVerified ? <CheckCircle2 size={15} color={c.success} /> : null}
+          <Text small style={{ color: user.emailVerified ? c.success : c.muted }}>
+            {t(user.emailVerified ? 'authEmailVerified' : 'authEmailNotVerified')}
+          </Text>
+        </View>
+      ) : null}
       {!user.emailVerified && options.data?.emailOtp === true ? (
         <View style={{ gap: 8 }}>
           <Text small muted>

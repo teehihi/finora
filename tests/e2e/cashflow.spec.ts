@@ -130,7 +130,7 @@ test('small dark mode and desktop keep the sample readable and within the viewpo
     ).ok(),
   ).toBe(true);
   await page.setViewportSize({ width: 320, height: 740 });
-  await page.goto('/profile');
+  await page.goto('/profile/preferences');
   const dark = page.getByRole('radio', { name: 'Tối', exact: true });
   await dark.click();
   await expect(dark).toHaveAttribute('aria-checked', 'true');
@@ -146,7 +146,7 @@ test('small dark mode and desktop keep the sample readable and within the viewpo
   await expect(page.getByRole('heading', { name: /1\.200\.000/ })).toBeInViewport();
   await page.screenshot({ path: info.outputPath('cashflow-sample-320-dark.png') });
   await page.setViewportSize({ width: 1440, height: 960 });
-  await page.goto('/profile');
+  await page.goto('/profile/preferences');
   const light = page.getByRole('radio', { name: 'Sáng', exact: true });
   await light.click();
   await expect(light).toHaveAttribute('aria-checked', 'true');

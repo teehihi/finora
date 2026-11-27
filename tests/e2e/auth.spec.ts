@@ -97,7 +97,8 @@ test('an authenticated legacy user verifies their own email without losing passw
   }
 
   await page.goto('/profile');
-  await expect(page).toHaveURL(/\/profile$/);
+  await page.getByRole('button', { name: 'Hồ sơ cá nhân', exact: true }).click();
+  await expect(page).toHaveURL(/\/profile\/personal$/);
   await expect(page.getByText('Email chưa xác minh', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Xác minh email này' }).click();
   await expect.poll(() => receivedCode(request, email)).toMatch(/^\d{6}$/);
@@ -107,11 +108,14 @@ test('an authenticated legacy user verifies their own email without losing passw
   await page.getByRole('button', { name: 'Xác minh và tiếp tục' }).click();
   await expect(page.getByText('Email đã xác minh', { exact: true })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click();
+  await expect(page).toHaveURL(/\/profile$/);
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
   await expect(page).toHaveURL(/\/auth$/);
   await signIn();
   await expect(page).toHaveURL(/\/home$/);
   await page.getByRole('tab', { name: 'Hồ sơ' }).click();
+  await page.getByRole('button', { name: 'Hồ sơ cá nhân', exact: true }).click();
   await expect(page.getByText('Email đã xác minh', { exact: true })).toBeVisible();
 });
 

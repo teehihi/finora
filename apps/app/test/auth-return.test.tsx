@@ -9,6 +9,8 @@ describe('authentication return paths', () => {
       ['/loans', { pane: 'simulations' }, '/loans?pane=simulations'],
       ['/loans', { pane: 'schedule' }, '/loans?pane=schedule'],
       ['/saved/owned-example', {}, '/saved/owned-example'],
+      ['/profile/personal', { oauth: 'link-error' }, '/profile/personal'],
+      ['/profile/finance', {}, '/profile/finance'],
       ['/search', { term: 'private' }, '/search'],
     ] as const;
 
@@ -50,6 +52,8 @@ describe('authentication return paths', () => {
       '/saved/../profile',
       '/saved/%2e%2e',
       '/profile\n',
+      '/profile/invalid',
+      '/profile/personal?email=someone@example.test',
     ].map((target) => ({ target })),
   )('rejects invalid auth input $target', ({ target }) => {
     expect(allowedAuthReturn(target)).toBe('/home');

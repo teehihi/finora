@@ -104,6 +104,7 @@ export default function Workspace() {
       ([key, href]) =>
         path === href ||
         (key === 'explore' && path.startsWith('/simulate/')) ||
+        (key === 'profile' && path.startsWith('/profile/')) ||
         (key === 'ai' &&
           (path === '/intelligence' || path === '/documents' || path.startsWith('/documents/'))) ||
         (key === 'loans' &&

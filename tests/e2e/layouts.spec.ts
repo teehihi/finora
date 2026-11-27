@@ -46,13 +46,15 @@ test('five destinations adapt at all widths and persist appearance and English',
         .toBeLessThanOrEqual(0);
     }
   }
+  await page.getByRole('button', { name: 'Tùy chọn sử dụng', exact: true }).click();
   await page.getByRole('radio', { name: 'English' }).click();
-  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Preferences', exact: true })).toBeVisible();
   await page.getByRole('radio', { name: 'Dark' }).click();
   await expect(page.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Preferences', exact: true })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
+  await page.goto('/profile/privacy');
   await page.getByRole('button', { name: 'Clear Finora AI history', exact: true }).click();
   await expect(
     page.getByText(/Only the selected history for this account is removed/),
