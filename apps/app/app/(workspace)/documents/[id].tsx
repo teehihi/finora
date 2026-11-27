@@ -29,7 +29,7 @@ import {
 } from '@finora/contracts';
 import { documentStrings } from '@finora/i18n';
 import { auth } from '../../../src/services/client';
-import { Back, Data, Page } from '../../../src/components/layout';
+import { backTo, Data, Page } from '../../../src/components/layout';
 import { Breakdown } from '../../../src/features/breakdown';
 import { DocumentApiError, docApi } from '../../../src/features/documents/client';
 import { PrivatePreview } from '../../../src/features/documents/PrivatePreview';
@@ -488,7 +488,7 @@ function Review({
       description={s.reviewDescription}
       style={{ gap: split ? 17 : 13 }}
       scrollRef={scroll}
-      top={<Back to={() => router.navigate('/documents')} />}
+      detail={{ onBack: () => backTo('/documents') }}
     >
       <View
         style={{
@@ -696,7 +696,11 @@ export default function ReviewRoute() {
   });
   if (q.error instanceof DocumentApiError && [401, 404].includes(q.error.status))
     return (
-      <Page title={s.reviewTitle} description={s.documentUnavailable}>
+      <Page
+        title={s.reviewTitle}
+        description={s.documentUnavailable}
+        detail={{ onBack: () => backTo('/documents') }}
+      >
         <Button
           variant="outline"
           label={s.documentUnavailableAction}
@@ -705,7 +709,7 @@ export default function ReviewRoute() {
       </Page>
     );
   return (
-    <Data q={q}>
+    <Data q={q} pendingDetail={{ title: s.reviewTitle, onBack: () => backTo('/documents') }}>
       {(documentReview) =>
         userId ? (
           <Review

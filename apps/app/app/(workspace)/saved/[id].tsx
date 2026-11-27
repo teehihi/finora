@@ -5,7 +5,7 @@ import { Button, Badge, Heading, SourceAttribution, Text, useDesign } from '@fin
 import { date, documentStrings, intelligenceDecision, percent } from '@finora/i18n';
 import { reviewedDocumentSource, savedStressAnalysisSchema } from '@finora/contracts';
 import { api, auth } from '../../../src/services/client';
-import { Page, Data, Back } from '../../../src/components/layout';
+import { Page, Data, backTo } from '../../../src/components/layout';
 import { Breakdown } from '../../../src/features/breakdown';
 import { TrackRepaymentCta } from '../../../src/features/repayments';
 import { MarketPanel, ProductIcon } from '../../../src/features/market-ui';
@@ -20,12 +20,15 @@ export default function Saved() {
     enabled: !!user.data?.user.id && !!id,
   });
   return (
-    <Data q={q}>
+    <Data
+      q={q}
+      pendingDetail={{ title: t('saved'), onBack: () => backTo('/loans?pane=simulations') }}
+    >
       {(s) => (
         <Page
           title={locale === 'vi-VN' ? s.product.name : s.product.nameEn}
           description={t('savedDate') + ' ' + date(s.createdAt, locale)}
-          top={<Back to={() => router.navigate('/loans')} />}
+          detail={{ onBack: () => backTo('/loans?pane=simulations') }}
         >
           <MarketPanel style={{ borderRadius: 22, gap: 15 }}>
             <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>

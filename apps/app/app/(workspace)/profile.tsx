@@ -206,7 +206,7 @@ export default function ProfileScreen() {
   const name = session.data?.user.name?.trim() || t('accountMember');
   const initial = (name[0] || 'F').toLocaleUpperCase(locale);
   return (
-    <Page title={t('profileTitle')} description={t('settingsIntro')}>
+    <Page title={t('profileTitle')} description={t('settingsIntro')} showDescriptionOnPhone={false}>
       <View
         style={{
           borderRadius: 24,

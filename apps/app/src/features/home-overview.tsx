@@ -1,16 +1,14 @@
 import { Image, View, useWindowDimensions, type TextStyle, type ViewStyle } from 'react-native';
 import { useState } from 'react';
-import { tokens } from '@finora/design-tokens';
 import {
   Activity,
   ArrowRight,
   ArrowUpRight,
-  ChartNoAxesCombined,
+  CalendarDays,
   Calculator,
   ChevronRight,
   Columns2,
   FileScan,
-  Sparkles,
   WalletCards,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -143,19 +141,18 @@ export function HomeCapacity({
     <View
       style={{
         backgroundColor: c.surface,
-        borderWidth: 1,
+        borderTopWidth: desktop ? 0 : 1,
         borderColor: c.border,
         position: 'relative',
-        overflow: 'hidden',
-        borderRadius: tokens.signature.radius,
+        borderLeftWidth: desktop ? 1 : 0,
       }}
     >
       <TaskData query={account} kind="rows">
         {(data) => (
           <View
             style={{
-              paddingHorizontal: desktop ? 28 : tokens.signature.inset,
-              paddingVertical: desktop ? 25 : 17,
+              paddingLeft: desktop ? 22 : 0,
+              paddingTop: desktop ? 5 : 20,
               gap: 6,
             }}
           >
@@ -169,13 +166,7 @@ export function HomeCapacity({
               <>
                 <Heading
                   size={
-                    data.readiness.monthlyBudget >= 100_000_000 || compact
-                      ? desktop
-                        ? 40
-                        : 34
-                      : desktop
-                        ? tokens.signature.heroDesktop
-                        : tokens.signature.heroMobile
+                    data.readiness.monthlyBudget >= 100_000_000 || compact ? 26 : desktop ? 34 : 30
                   }
                   style={{ ...amountInk, color: c.foreground }}
                 >
@@ -313,13 +304,7 @@ export function HomeTools() {
   const vi = locale === 'vi-VN';
   const entries = [
     [copy.simulate, vi ? 'Mô phỏng' : 'Simulate', '/simulate/personal-flex', Calculator, 'emerald'],
-    [
-      vi ? 'Dòng tiền' : 'Cash flow',
-      vi ? 'Dòng tiền' : 'Cash flow',
-      '/cashflow',
-      ChartNoAxesCombined,
-      'blue',
-    ],
+    [copy.repayments, vi ? 'Lịch trả' : 'Schedule', '/repayments', CalendarDays, 'blue'],
     [
       copy.compare,
       vi ? 'So sánh' : 'Compare',
@@ -327,11 +312,11 @@ export function HomeTools() {
       Columns2,
       'violet',
     ],
-    [copy.documents, vi ? 'Đọc báo giá' : 'Read terms', '/documents', FileScan, 'amber'],
+    [copy.documents, vi ? 'Hợp đồng' : 'Contracts', '/documents', FileScan, 'amber'],
   ] as const;
   return (
     <HomeSection
-      title={vi ? 'Làm nhanh' : 'Quick actions'}
+      title={vi ? 'Công cụ' : 'Tools'}
       link={copy.find}
       onPress={() => router.navigate('/explore')}
     >
@@ -353,7 +338,7 @@ export function HomeTools() {
               borderRadius: 12,
             }}
           >
-            <SignatureIcon icon={Icon} tone={tone} size={42} />
+            <SignatureIcon icon={Icon} tone={tone} size={44} style={{ borderRadius: 22 }} />
             <Text small bold style={{ fontSize: 12, lineHeight: 16, textAlign: 'center' }}>
               {visible}
             </Text>
@@ -372,40 +357,29 @@ export function HomeFin() {
       label={copy.finButton}
       onPress={() => router.navigate('/assistant')}
       style={{
-        backgroundColor: c.secondary,
-        borderRadius: 23,
-        paddingLeft: 16,
-        paddingRight: 12,
+        borderTopWidth: 1,
+        borderColor: c.border,
+        borderRadius: 0,
         paddingVertical: 12,
         flexDirection: 'row',
-        gap: 8,
+        gap: 12,
         alignItems: 'center',
       }}
     >
-      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Sparkles size={13} color={c.primary} />
-          <Text small bold style={{ color: c.primary }}>
-            Finora AI
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text bold style={{ color: c.primary, fontSize: 18, lineHeight: 23, flexShrink: 1 }}>
-            {copy.finTitle}
-          </Text>
-          <ArrowUpRight size={15} color={c.primary} />
-        </View>
-        <Text small muted style={{ fontSize: 13, lineHeight: 18 }}>
-          {copy.finBody}
-        </Text>
-      </View>
       <Image
         accessibilityIgnoresInvertColors
         accessible={false}
         source={fin}
         resizeMode="contain"
-        style={{ width: 71, height: 67 }}
+        style={{ width: 46, height: 46 }}
       />
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text bold>{copy.finTitle}</Text>
+        <Text small muted>
+          {copy.finBody}
+        </Text>
+      </View>
+      <ArrowUpRight size={16} color={c.primary} />
     </Action>
   );
 }
@@ -416,12 +390,14 @@ export function HomeSection({
   onPress,
   children,
   style,
+  secondary = false,
 }: {
   title: string;
   link: string;
   onPress: () => void;
   children: React.ReactNode;
   style?: ViewStyle;
+  secondary?: boolean;
 }) {
   const { colors: c } = useDesign();
   return (
@@ -434,7 +410,7 @@ export function HomeSection({
           gap: 10,
         }}
       >
-        <Heading size={20} style={{ flexShrink: 1 }}>
+        <Heading size={secondary ? 16 : 21} style={{ flexShrink: 1 }}>
           {title}
         </Heading>
         <Action
@@ -455,60 +431,34 @@ export function HomeSection({
 
 export function HomeActivityRow({
   title,
-  accessibleTitle,
   detail,
   amount,
   icon: Icon,
-  badge,
-  warning,
-  featured,
   onPress,
 }: {
   title: string;
-  accessibleTitle?: string;
   detail: string;
   amount?: number;
   icon: LucideIcon;
-  badge?: React.ReactNode;
-  warning?: boolean;
-  featured?: boolean;
   onPress: () => void;
 }) {
   const { colors: c, money } = useDesign();
   const value = amount === undefined ? undefined : money(amount);
   return (
     <Action
-      label={[accessibleTitle ?? title, detail, value].filter(Boolean).join(', ')}
+      label={[title, detail, value].filter(Boolean).join(', ')}
       onPress={onPress}
       style={{
-        minHeight: featured ? 72 : 54,
-        paddingVertical: featured ? 9 : 6,
-        paddingHorizontal: featured ? 12 : 0,
-        borderWidth: featured ? 1 : 0,
-        borderColor: c.border,
-        borderRadius: 17,
-        backgroundColor: featured ? c.surface : undefined,
+        minHeight: 56,
+        paddingVertical: 7,
         gap: 10,
         flexDirection: 'row',
         alignItems: 'center',
       }}
     >
-      <View
-        accessible={false}
-        style={{
-          width: 41,
-          minHeight: 40,
-          paddingVertical: 3,
-          borderRadius: 12,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: warning ? c.actionAmberSurface : c.secondary,
-        }}
-      >
-        {badge ?? <Icon size={18} color={warning ? c.actionAmber : c.primary} />}
-      </View>
+      <Icon size={21} strokeWidth={1.7} color={c.primary} />
       <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
-        <Text bold small style={warning ? { color: c.actionAmber } : undefined}>
+        <Text bold small>
           {title}
         </Text>
         <Text small muted style={{ fontSize: 12, lineHeight: 16 }}>
@@ -523,8 +473,8 @@ export function HomeActivityRow({
             ...amountInk,
             maxWidth: '43%',
             textAlign: 'right',
-            fontSize: featured ? 15 : 13,
-            color: featured ? c.primary : c.foreground,
+            fontSize: 14,
+            color: c.foreground,
           }}
         >
           {value}
@@ -536,6 +486,5 @@ export function HomeActivityRow({
   );
 }
 
-export const openRepayments = () => router.navigate('/repayments');
 export const openSavedSimulations = () => router.navigate('/loans?pane=simulations');
 export const openSampleSimulator = () => router.navigate('/simulate/personal-flex');
