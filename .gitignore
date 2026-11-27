@@ -18,6 +18,3 @@ apps/app/android/
 
 # Originals are preserved under apps/app/assets/brand.
 /Resource/
-
-# Local iOS experiment opt-in. Never part of a production build checkout.
-/apps/app/modules/finora-cyl-dock

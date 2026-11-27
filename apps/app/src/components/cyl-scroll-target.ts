@@ -1,7 +1,7 @@
 import { useFocusEffect, usePathname } from 'expo-router';
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { pilotDockAvailable } from './CYLDockPilot';
+import { cylDockAvailable } from './CYLDock';
 import { initialCYLScroll, nextCYLScroll } from './cyl-dock-scroll';
 
 export const cylScrollTarget = (path: string) => 'finora-cyl-primary-scroll:' + path;
@@ -20,7 +20,7 @@ export function useCYLScrollTarget() {
   const position = useRef(initialCYLScroll);
   useFocusEffect(
     useCallback(() => {
-      if (!report || !pilotDockAvailable) return;
+      if (!report || !cylDockAvailable) return;
       const target = cylScrollTarget(path);
       active.current = true;
       dragging.current = false;

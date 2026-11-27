@@ -11,7 +11,7 @@ export type CYLDockProps = {
 };
 
 // Metro resolves the iOS implementation separately. Android/web link no CYL code.
-export const pilotDockAvailable = false;
-export default function CYLDockPilot(_props: CYLDockProps) {
+export const cylDockAvailable = false;
+export default function CYLDock(_props: CYLDockProps) {
   return null;
 }
