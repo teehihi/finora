@@ -11,23 +11,23 @@ cô lập riêng shader. API CYL chọn `liquidGlass`, không hứa tương đư
 
 ## Thao tác trên nhánh thử này
 
-- Vuốt ngang **trên thanh CYL** để đổi tab; vuốt nội dung không đổi tab. Giữ
-  chọn tab và tuyến của Expo Router, cùng năm tab và SF Symbols như trước.
-  CYL gắn bộ vuốt mặc định lên trang của controller, không phải scroll React
-  bên ngoài. Vì vậy bridge bắt vuốt ngay trên host và cập nhật tab CYL qua
-  `selectedIndex`; không bật vuốt trên toàn màn để tránh tranh thao tác Back.
-- CYL bật phản hồi nhấn scale nhẹ, không dùng khi Giảm chuyển động đã bật lúc
-  dựng thanh. Không đưa Lottie, rung/âm thanh, số badge giả hay nút `+` thứ
-  sáu vào để tránh trang trí vô nghĩa và làm sai trạng thái tab Fin.
-- Với Home và các màn dùng Page, bridge tìm đúng ScrollView của tuyến đang
-  nhìn thấy rồi dùng UIKit `setContentScrollView(_:for:)` để gắn cho trang
-  đang chọn. CYL bật chế độ thu trên cuộn xuống và dùng scroll-to-top khi
-  bấm lại tab nếu tìm thấy đích. Không bật phần thu khi VoiceOver đang chạy,
-  khi không tìm được đích hay trên màn chat; không chèn chuyển động giả trên web.
-- Trên iPhone, kiểm tra trước ở Home đủ dài: cuộn xuống rồi lên, bấm tab đang
-  chọn để về đầu, sau đó chuyển Khoản vay và quay lại. Nếu không thấy thu,
-  ghi rõ phiên bản hệ điều hành và route: Linux không thể xác nhận liệu UIKit
-  có quan sát scroll view ngoài cây của trang giả lập trong CYL host.
+- Kéo pill ngang **ngay trên dock** để thử chuyển động UIKit. Cử chỉ gốc của
+  thanh được ưu tiên; nếu không nhận, FINORA sẽ xử lý một bước đổi tab. Vuốt
+  trong nội dung không đổi tab. Pill/viền vẫn do cùng một thanh UIKit vẽ ở cả
+  hai kích thước, không có lớp viền Swift/React giả đè lên.
+- Trên Home và các màn dùng Page, vuốt ngón tay lên để đi xuống nội dung:
+  dock thu sau khi đủ khoảng cuộn; kéo ngược lại thì mở. Đây là resize của
+  cùng CYL host, không phải chế độ chỉ còn một tab do UITabBarController điều
+  khiển. Bản trước trông chờ UIKit nhận cuộn của trang React Native bên cạnh
+  controller con; nay chính ScrollView đang focus gửi trạng thái cho host.
+- Giữ khoảng đáy ổn định để nội dung không nhảy và không thu trên chat, với
+  VoiceOver hoặc cỡ chữ trợ năng. Giảm chuyển động đổi kích thước tức thì.
+  Bấm lại tab về đầu tiếp tục dùng cơ chế thử riêng nếu tìm được ScrollView.
+- Cần thử trên iPhone: thử Home đủ dài, rê pill chậm (so viền/hiệu ứng với tap),
+  vuốt lên rồi xuống trên nội dung, đổi tab và mở lại Home. So cả sáng/tối;
+  kiểm tra bấm đủ 5 tab khi dock thu, bàn phím, VoiceOver và Giảm chuyển động.
+  Viền/khúc xạ bên trong pill là do iOS kiểm soát, không có public API trong
+  CYL để ép nó thành viền giống Callstack Clear.
 
 ## Thử trên Mac (iOS 26+, Xcode có SDK iOS 26+, CocoaPods)
 

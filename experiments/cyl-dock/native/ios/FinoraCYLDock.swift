@@ -12,6 +12,7 @@ public final class FinoraCYLDockModule: Module {
       Prop("dark") { (view, dark: Bool) in
         view.overrideUserInterfaceStyle = dark ? .dark : .light
       }
+      Prop("compact") { (view, compact: Bool) in view.setCompact(compact) }
       Prop("routeKey") { (view, route: String) in view.setRoute(route) }
       Prop("scrollTarget") { (view, target: String) in view.setScrollTarget(target) }
     }
@@ -19,8 +20,9 @@ public final class FinoraCYLDockModule: Module {
 }
 
 // The upstream host owns the UIKit tab bar. Expo Router still owns its pages
-// and their history, so explicitly associate the active React ScrollView
-// with the native host's selected placeholder using UIKit's public API.
+// and their history. Keep one real UIKit bar and its native selection
+// platter through both sizes. The React-owned scroll view drives the compact
+// state; the selected UIKit placeholder does not own that scroll hierarchy.
 final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
   private let bar = CYLTabBarHostView(frame: .zero)
   let onTabSelect = EventDispatcher()
@@ -30,6 +32,8 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
   private var scrollTarget = ""
   private var generation = 0
   private var swipeStart: Int?
+  private var compactRequested = false
+  private var compact = false
   private lazy var dockPan: UIPanGestureRecognizer = {
     let gesture = UIPanGestureRecognizer(target: self, action: #selector(handleDockPan(_:)))
     gesture.minimumNumberOfTouches = 1
@@ -54,20 +58,28 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
     super.init(appContext: appContext)
     backgroundColor = .clear
     bar.didSelectTab = { [weak self] index, identifier in
-      self?.onTabSelect(["index": index, "identifier": identifier])
+      guard let self, Self.tabs.indices.contains(index) else { return }
+      // UIKit can report a selection without changing the host's cached index.
+      // Keep the public host property and Router in agreement.
+      if self.bar.selectedIndex != index { self.bar.selectedIndex = index }
+      self.onTabSelect(["index": index, "identifier": identifier])
     }
     bar.preferredHeightDidChange = { [weak self] height in
       self?.onDockHeight(["height": Double(height)])
-      // Height also changes when UIKit minimizes. Do not reset a live
-      // scroll binding in response to every native animation callback.
+      // Keep the full-height inset stable even when the host is visually compact.
       if self?.previousScroll == nil { self?.scheduleBinding() }
     }
     addSubview(bar)
     bar.addGestureRecognizer(dockPan)
-    NotificationCenter.default.addObserver(
-      self, selector: #selector(refreshAccessibility),
-      name: UIAccessibility.voiceOverStatusDidChangeNotification, object: nil
-    )
+    for name in [
+      UIAccessibility.voiceOverStatusDidChangeNotification,
+      UIAccessibility.reduceMotionStatusDidChangeNotification,
+      UIContentSizeCategory.didChangeNotification
+    ] {
+      NotificationCenter.default.addObserver(
+        self, selector: #selector(refreshAccessibility), name: name, object: nil
+      )
+    }
   }
 
   deinit { NotificationCenter.default.removeObserver(self) }
@@ -79,7 +91,15 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
 
   override func layoutSubviews() {
     super.layoutSubviews()
-    bar.frame = bounds
+    // Assign bounds/center, not frame, while the host has a transform.
+    bar.bounds = CGRect(origin: .zero, size: bounds.size)
+    bar.center = CGPoint(x: bounds.midX, y: bounds.midY)
+    if compact { bar.transform = compactTransform }
+  }
+
+  override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+    guard super.point(inside: point, with: event) else { return false }
+    return !compact || bar.bounds.contains(bar.convert(point, from: self))
   }
 
   override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -89,6 +109,44 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
     guard !UIAccessibility.isVoiceOverRunning else { return false }
     let speed = dockPan.velocity(in: bar)
     return abs(speed.x) > abs(speed.y) * 1.35
+  }
+
+  func gestureRecognizer(
+    _ gestureRecognizer: UIGestureRecognizer,
+    shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
+  ) -> Bool {
+    // The system must get first use of its selection-lens drag. The FINORA
+    // recognizer is only a fallback where UIKit doesn't claim the movement.
+    guard gestureRecognizer === dockPan,
+          otherGestureRecognizer is UIPanGestureRecognizer ||
+            otherGestureRecognizer is UILongPressGestureRecognizer,
+          let tabBar = bar.tabBarController?.tabBar,
+          let view = otherGestureRecognizer.view else { return false }
+    return view === tabBar || view.isDescendant(of: tabBar)
+  }
+
+  private var compactTransform: CGAffineTransform {
+    let scale: CGFloat = 0.85
+    let lowerAnchor = max(0, bounds.height / 2 - safeAreaInsets.bottom)
+    return CGAffineTransform(translationX: 0, y: lowerAnchor * (1 - scale))
+      .scaledBy(x: scale, y: scale)
+  }
+
+  func setCompact(_ requested: Bool) {
+    compactRequested = requested
+    let next = requested && !UIAccessibility.isVoiceOverRunning &&
+      !traitCollection.preferredContentSizeCategory.isAccessibilityCategory
+    guard next != compact else { return }
+    compact = next
+    let layout = { self.bar.transform = next ? self.compactTransform : .identity }
+    if UIAccessibility.isReduceMotionEnabled || window == nil {
+      UIView.performWithoutAnimation(layout)
+    } else {
+      UIView.animate(
+        withDuration: 0.30, delay: 0, usingSpringWithDamping: 0.86, initialSpringVelocity: 0,
+        options: [.beginFromCurrentState, .allowUserInteraction], animations: layout
+      )
+    }
   }
 
   @objc private func handleDockPan(_ gesture: UIPanGestureRecognizer) {
@@ -104,7 +162,16 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
       guard Self.tabs.indices.contains(next) else { return }
       // The host's property updates native selection. This explicit event
       // also reaches Expo Router when the host's stock page pan is offscreen.
-      setSelected(next)
+      if UIAccessibility.isReduceMotionEnabled {
+        setSelected(next)
+      } else {
+        UIView.animate(
+          withDuration: 0.25, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]
+        ) {
+          self.setSelected(next)
+          self.bar.layoutIfNeeded()
+        }
+      }
       onTabSelect(["index": next, "identifier": Self.tabs[next].0])
     case .cancelled, .failed:
       swipeStart = nil
@@ -134,15 +201,13 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
   }
 
   @objc private func refreshAccessibility() {
-    clearBinding()
-    scheduleBinding()
+    setCompact(compactRequested)
   }
 
   private func clearBinding() {
     generation += 1
     if #available(iOS 26.0, *) {
       previousPage?.setContentScrollView(nil, for: .bottom)
-      previousController?.cyl_hidesTabBarOnScroll = false
       previousController?.cyl_reselectBehavior = []
     }
     previousController = nil
@@ -177,7 +242,6 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
         self.previousPage = page
         self.previousScroll = scroll
       }
-      controller.cyl_hidesTabBarOnScroll = !UIAccessibility.isVoiceOverRunning
       controller.cyl_reselectBehavior = Self.reselectScrollToTop
     }
   }

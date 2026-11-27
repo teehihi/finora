@@ -191,7 +191,7 @@ export function Page({
         </View>
       ) : null}
       <ScrollView
-        testID={scrollTarget}
+        {...scrollTarget}
         ref={scrollRef}
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
