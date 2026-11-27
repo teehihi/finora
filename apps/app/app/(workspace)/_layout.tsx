@@ -459,6 +459,17 @@ export default function Workspace() {
                     screenOptions={({ route }) => ({
                       headerShown: false,
                       ...workspaceMotion(route.name, reduceMotion, Platform.OS),
+                      statusBarStyle:
+                        Platform.OS === 'ios'
+                          ? (route.name === 'home' && !rail) || c === dark
+                            ? 'light'
+                            : 'dark'
+                          : undefined,
+                      // Home paints its own full-bleed image behind the system icons.
+                      scrollEdgeEffects:
+                        Platform.OS === 'ios' && route.name === 'home' && !rail
+                          ? { top: 'hidden' }
+                          : undefined,
                       contentStyle: {
                         backgroundColor: route.name === 'search' ? c.surface : c.background,
                       },

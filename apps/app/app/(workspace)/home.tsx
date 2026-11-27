@@ -9,7 +9,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -28,7 +28,7 @@ import { useAccount } from '../../src/providers/AppProviders';
 import { useRepaymentLedger } from '../../src/features/repayments';
 import { useWorkspaceDockInset } from '../../src/components/layout';
 import { TaskData } from '../../src/components/task-surface';
-import { HomeBackdrop } from '../../src/features/home-backdrop';
+import { HomeBackdrop, homePanorama } from '../../src/features/home-backdrop';
 import { HomeSearch } from '../../src/features/home-search';
 import { HomeFocus } from '../../src/features/home-focus';
 import {
@@ -62,6 +62,11 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const topInset = mobile ? insets.top : 0;
   const [focused, setFocused] = useState(false);
+  const [cardFrame, setCardFrame] = useState({ top: 131, end: 235 });
+  const backdropHeight = topInset + cardFrame.end;
+  const cardTop = topInset + cardFrame.top;
+  const { fadeTop } = homePanorama(width, backdropHeight, cardTop);
+  const statusCutover = Math.max(36, fadeTop - topInset * 0.45);
   const [statusOverPhoto, setStatusOverPhoto] = useState(true);
   const statusOverPhotoRef = useRef(true);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -74,7 +79,7 @@ export default function Home() {
           dockOnScroll?.(event);
           if (topInset > 0) {
             const y = event.nativeEvent.contentOffset.y;
-            const next = statusOverPhotoRef.current ? y < 28 : y <= 12;
+            const next = statusOverPhotoRef.current ? y < statusCutover : y <= statusCutover - 12;
             if (next !== statusOverPhotoRef.current) {
               statusOverPhotoRef.current = next;
               setStatusOverPhoto(next);
@@ -82,7 +87,7 @@ export default function Home() {
           }
         },
       }),
-    [dockOnScroll, scrollY, topInset],
+    [dockOnScroll, scrollY, statusCutover, topInset],
   );
   useFocusEffect(
     useCallback(() => {
@@ -93,7 +98,6 @@ export default function Home() {
   const gutter = width < 370 ? 16 : desktop ? 36 : 20;
   const firstName = user?.name?.trim().split(/\s+/).at(-1);
   const [refreshing, setRefreshing] = useState(false);
-  const [backdropEnd, setBackdropEnd] = useState(235);
   const artwork = useRef({ focusTop: 0, focusHeight: 204 });
   function updateBackdrop(measurement: Partial<typeof artwork.current>) {
     if (!mobile) return;
@@ -101,7 +105,8 @@ export default function Home() {
     const { focusTop, focusHeight } = artwork.current;
     if (focusTop > 0 && focusHeight > 0) {
       const end = Math.round(focusTop + focusHeight / 2);
-      setBackdropEnd(end);
+      const top = Math.round(focusTop);
+      setCardFrame((prev) => (prev.top === top && prev.end === end ? prev : { top, end }));
     }
   }
   const refresh = async () => {
@@ -165,16 +170,20 @@ export default function Home() {
     </View>
   );
   const refreshLabel = vi ? 'Làm mới dữ liệu' : 'Refresh data';
+  const statusStyle = c === dark || statusOverPhoto ? 'light' : 'dark';
   return (
     <View style={{ flex: 1, backgroundColor: c.surface }}>
-      {mobile && focused ? (
-        <StatusBar style={c === dark || statusOverPhoto ? 'light' : 'dark'} />
+      {mobile && Platform.OS === 'ios' ? (
+        <Stack.Screen options={{ statusBarStyle: statusStyle }} />
+      ) : mobile && focused && Platform.OS === 'android' ? (
+        <StatusBar style={statusStyle} />
       ) : null}
       {mobile ? (
         <HomeBackdrop
           night={c === dark}
           width={width}
-          height={topInset + backdropEnd}
+          height={backdropHeight}
+          cardTop={cardTop}
           statusInset={topInset}
           surface={c.surface}
           scrollY={scrollY}

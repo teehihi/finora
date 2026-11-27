@@ -125,13 +125,20 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   expect(card!.y - greeting!.y - greeting!.height).toBeLessThanOrEqual(42);
   const measureAnchorGap = async () => {
     const [fade, card] = await Promise.all([
-      page.getByTestId('home-backdrop-fade').boundingBox(),
+      page.getByTestId('home-photo-blend').boundingBox(),
       repaymentCard.boundingBox(),
     ]);
     return Math.abs(fade!.y + fade!.height - (card!.y + card!.height / 2));
   };
   await expect.poll(measureAnchorGap).toBeLessThan(3);
   const restArt = (await backdrop.boundingBox())!;
+  const blend = await page.getByTestId('home-photo-blend').boundingBox();
+  expect(blend!.y).toBeGreaterThanOrEqual(card!.y - 10);
+  const reflections = (await page.getByTestId('home-photo-reflections').boundingBox())!;
+  expect(Math.abs(reflections.y + reflections.height - (card!.y + card!.height / 2))).toBeLessThan(
+    3,
+  );
+  expect(blend!.y + blend!.height).toBeCloseTo(restArt.y + restArt.height, 0);
   await page.screenshot({ path: info.outputPath('02-home-390.png') });
 
   await scroll.evaluate((node) => {
