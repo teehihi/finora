@@ -123,6 +123,7 @@ test('analyze verified assumptions, explicitly save, and revisit the repayment s
     expect(item.total).toBeNull();
   }
   await page.reload();
+  await expect(page.getByText('Mô phỏng cục bộ', { exact: true })).toHaveCount(afterShock.length);
   const save = page.getByRole('button', { name: 'Lưu mô phỏng này' }).last();
   await expect(save).toBeVisible();
   await save.click();
