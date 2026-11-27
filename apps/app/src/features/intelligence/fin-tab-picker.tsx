@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import {
   Animated,
   BackHandler,
@@ -16,14 +16,15 @@ import { dark } from '@finora/design-tokens';
 import { Action, Text, useDesign, useReducedMotion } from '@finora/ui';
 import { workspaceTabs } from '../../components/workspace-tabs';
 
-function FinGlass({ kind }: { kind: 'bar' | 'menu' }) {
+const useNativeFinGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
+
+export function FinComposerSurface() {
   const { colors: c } = useDesign();
   const night = c === dark;
-  const radius = kind === 'bar' ? 28 : 20;
-  const shape = { ...StyleSheet.absoluteFill, borderRadius: radius };
+  const shape = { ...StyleSheet.absoluteFill, borderRadius: 28 };
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {Platform.OS === 'ios' && isLiquidGlassSupported ? (
+      {useNativeFinGlass ? (
         <LiquidGlassView
           effect="regular"
           colorScheme={night ? 'dark' : 'light'}
@@ -38,7 +39,37 @@ function FinGlass({ kind }: { kind: 'bar' | 'menu' }) {
     </View>
   );
 }
-export const FinComposerSurface = () => <FinGlass kind="bar" />;
+
+function FinMenuMaterial({ children }: { children: ReactNode }) {
+  const { colors: c } = useDesign();
+  if (!useNativeFinGlass) {
+    return (
+      <View
+        style={[
+          styles.menuSurface,
+          { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+        ]}
+      >
+        {children}
+      </View>
+    );
+  }
+
+  const night = c === dark;
+  return (
+    <LiquidGlassView
+      effect="regular"
+      animated={false}
+      colorScheme={night ? 'dark' : 'light'}
+      tintColor={night ? 'rgba(24,40,34,0.30)' : 'rgba(250,253,248,0.30)'}
+      style={styles.menuSurface}
+    >
+      <View style={{ backgroundColor: night ? 'rgba(24,40,34,0.18)' : 'rgba(250,253,248,0.18)' }}>
+        {children}
+      </View>
+    </LiquidGlassView>
+  );
+}
 
 export function FinTabsButton({ open, onPress }: { open: boolean; onPress: () => void }) {
   const { t, colors: c } = useDesign();
@@ -75,8 +106,7 @@ export function FinTabPicker({
   const reduceMotion = useReducedMotion();
   // Native glass needs a stable backdrop and should not be drawn through a
   // transforming or partially transparent parent while this menu opens.
-  const nativeGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
-  const skipIntro = reduceMotion || nativeGlass;
+  const skipIntro = reduceMotion || useNativeFinGlass;
   const enter = useRef(new Animated.Value(skipIntro ? 1 : 0)).current;
   useEffect(() => {
     if (skipIntro) {
@@ -125,8 +155,6 @@ export function FinTabPicker({
           left: 20,
           bottom,
           width: 188,
-          paddingHorizontal: 7,
-          paddingVertical: 5,
           ...(skipIntro
             ? {}
             : {
@@ -140,50 +168,49 @@ export function FinTabPicker({
           shadowRadius: 12,
           shadowOffset: { width: 0, height: 4 },
           elevation: 5,
-          backgroundColor: nativeGlass
-            ? c === dark
-              ? 'rgba(24,40,34,0.86)'
-              : 'rgba(250,253,248,0.86)'
-            : c.surface,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: c.border,
           borderRadius: 20,
         }}
       >
-        <FinGlass kind="menu" />
-        <ScrollView
-          keyboardShouldPersistTaps="always"
-          style={{ maxHeight }}
-          showsVerticalScrollIndicator={false}
-        >
-          {workspaceTabs
-            .filter(([key]) => key !== 'ai')
-            .map(([key, href, Icon], index) => (
-              <Action
-                key={key}
-                label={t(key)}
-                onPress={() => {
-                  onClose();
-                  Keyboard.dismiss();
-                  router.replace(href);
-                }}
-                style={{
-                  minHeight: 45,
-                  borderRadius: 0,
-                  paddingHorizontal: 10,
-                  gap: 11,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  borderTopWidth: index ? StyleSheet.hairlineWidth : 0,
-                  borderTopColor: c.border,
-                }}
-              >
-                <Icon size={18} strokeWidth={1.7} color={c.primary} />
-                <Text>{t(key)}</Text>
-              </Action>
-            ))}
-        </ScrollView>
+        <FinMenuMaterial>
+          <ScrollView
+            keyboardShouldPersistTaps="always"
+            style={{ maxHeight }}
+            contentContainerStyle={{ paddingHorizontal: 7, paddingVertical: 5 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {workspaceTabs
+              .filter(([key]) => key !== 'ai')
+              .map(([key, href, Icon], index) => (
+                <Action
+                  key={key}
+                  label={t(key)}
+                  onPress={() => {
+                    onClose();
+                    Keyboard.dismiss();
+                    router.replace(href);
+                  }}
+                  style={{
+                    minHeight: 45,
+                    borderRadius: 0,
+                    paddingHorizontal: 10,
+                    gap: 11,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderTopWidth: index ? StyleSheet.hairlineWidth : 0,
+                    borderTopColor: c.border,
+                  }}
+                >
+                  <Icon size={18} strokeWidth={1.7} color={c.primary} />
+                  <Text>{t(key)}</Text>
+                </Action>
+              ))}
+          </ScrollView>
+        </FinMenuMaterial>
       </Animated.View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  menuSurface: { borderRadius: 20, overflow: 'hidden' },
+});

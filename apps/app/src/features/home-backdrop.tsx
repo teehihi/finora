@@ -4,18 +4,13 @@ import riverside from '../../assets/brand/home-saigon.jpg';
 
 // Fit the whole skyline horizontally. The repayment card can move without
 // zooming and cutting off the edge of the panorama to fill its height.
-const waterStart = 0.93;
-
 export function homePanorama(width: number, height: number, cardTop: number) {
-  const photoHeight = Math.min(height - 2, Math.max(width * 0.45, (cardTop + 5) / 0.86));
-  const waterTop = Math.round(photoHeight * waterStart);
-  const fadeTop = Math.min(waterTop, Math.max(cardTop + 10, height - 85));
-  return {
-    photoHeight: waterTop / waterStart,
-    waterTop,
-    waterPhotoHeight: (height - waterTop) / (1 - waterStart),
-    fadeTop,
-  };
+  const photoHeight = Math.floor(
+    Math.min(height - 2, Math.max(width * 0.45, (cardTop + 5) / 0.86)),
+  );
+  const waterBand = Math.max(10, Math.round(photoHeight * 0.1));
+  const fadeTop = Math.min(photoHeight, Math.max(cardTop + 10, height - 80));
+  return { photoHeight, waterBand, fadeTop };
 }
 
 /** Follow positive scroll, but never the negative offset of pull-to-refresh. */
@@ -36,7 +31,9 @@ export function HomeBackdrop({
   surface: string;
   scrollY: Animated.Value;
 }) {
-  const { photoHeight, waterTop, waterPhotoHeight, fadeTop } = homePanorama(width, height, cardTop);
+  const { photoHeight, waterBand, fadeTop } = homePanorama(width, height, cardTop);
+  const reflectionHeight = height - photoHeight;
+  const bands = Math.ceil(reflectionHeight / waterBand);
   const translateY = scrollY.interpolate({
     inputRange: [0, height],
     outputRange: [0, -height],
@@ -52,27 +49,42 @@ export function HomeBackdrop({
       importantForAccessibility="no-hide-descendants"
       style={[styles.backdrop, { height, transform: [{ translateY }] }]}
     >
-      <View style={[styles.layer, styles.clip, { top: 0, height: waterTop + 1 }]}>
-        <Image
-          accessible={false}
-          source={riverside}
-          fadeDuration={0}
-          resizeMode="stretch"
-          style={[styles.layer, { top: 0, height: photoHeight }]}
-        />
-      </View>
-      {/* Extend the bottom reflections only, so a taller card never zooms the skyline. */}
+      <Image
+        accessible={false}
+        source={riverside}
+        fadeDuration={0}
+        resizeMode="stretch"
+        style={[styles.layer, { top: 0, height: photoHeight }]}
+      />
+      {/* Mirror the existing bottom ripples at their original scale, not a vertically stretched crop. */}
       <View
         testID="home-photo-reflections"
-        style={[styles.layer, styles.clip, { top: waterTop, bottom: 0 }]}
+        style={[styles.layer, styles.clip, { top: photoHeight, bottom: 0 }]}
       >
-        <Image
-          accessible={false}
-          source={riverside}
-          fadeDuration={0}
-          resizeMode="stretch"
-          style={[styles.layer, { bottom: 0, height: waterPhotoHeight }]}
-        />
+        {Array.from({ length: bands }, (_, index) => {
+          const flipped = index % 2 === 0;
+          return (
+            <View
+              key={index}
+              style={[styles.layer, styles.clip, { top: index * waterBand, height: waterBand }]}
+            >
+              <Image
+                accessible={false}
+                source={riverside}
+                fadeDuration={0}
+                resizeMode="stretch"
+                style={[
+                  styles.layer,
+                  {
+                    top: flipped ? 0 : waterBand - photoHeight,
+                    height: photoHeight,
+                    transform: [{ scaleY: flipped ? -1 : 1 }],
+                  },
+                ]}
+              />
+            </View>
+          );
+        })}
       </View>
       {night && <View style={[StyleSheet.absoluteFill, { backgroundColor: '#10251B88' }]} />}
       <View testID="home-photo-blend" style={[styles.layer, { top: fadeTop, bottom: 0 }]}>
@@ -80,8 +92,8 @@ export function HomeBackdrop({
           <Defs>
             <LinearGradient id="finora-photo-bottom" x1="0%" y1="0%" x2="0%" y2="100%">
               <Stop offset="0" stopColor={surface} stopOpacity="0" />
-              <Stop offset=".28" stopColor={surface} stopOpacity=".08" />
-              <Stop offset=".62" stopColor={surface} stopOpacity=".60" />
+              <Stop offset=".30" stopColor={surface} stopOpacity=".02" />
+              <Stop offset=".63" stopColor={surface} stopOpacity=".35" />
               <Stop offset="1" stopColor={surface} />
             </LinearGradient>
           </Defs>
@@ -89,15 +101,15 @@ export function HomeBackdrop({
         </Svg>
       </View>
       {statusInset > 0 && (
-        <View style={[styles.layer, { top: 0, height: statusInset + 10 }]}>
+        <View style={[styles.layer, { top: 0, height: statusInset + 3 }]}>
           <Svg width="100%" height="100%">
             <Defs>
-              <RadialGradient id="finora-status-start" cx="14%" cy="37%" rx="35%" ry="85%">
-                <Stop offset="0" stopColor="#11261A" stopOpacity=".55" />
+              <RadialGradient id="finora-status-start" cx="14%" cy="37%" rx="35%" ry="56%">
+                <Stop offset="0" stopColor="#11261A" stopOpacity=".47" />
                 <Stop offset="1" stopColor="#11261A" stopOpacity="0" />
               </RadialGradient>
-              <RadialGradient id="finora-status-end" cx="86%" cy="37%" rx="35%" ry="85%">
-                <Stop offset="0" stopColor="#11261A" stopOpacity=".55" />
+              <RadialGradient id="finora-status-end" cx="86%" cy="37%" rx="35%" ry="56%">
+                <Stop offset="0" stopColor="#11261A" stopOpacity=".47" />
                 <Stop offset="1" stopColor="#11261A" stopOpacity="0" />
               </RadialGradient>
             </Defs>

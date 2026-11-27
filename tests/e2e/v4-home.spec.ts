@@ -68,7 +68,7 @@ test('Home links each quick action to the real tool and opens saved simulations 
   await expect(focus.getByRole('button', { name: 'Mở sổ trả nợ' })).toBeVisible();
   await expect(focus).not.toContainText('₫');
   await expect(page.getByRole('button', { name: 'Finora', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Làm mới dữ liệu' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Làm mới dữ liệu' })).toHaveCount(0);
 
   const destinations = [
     ['Tìm khoản vay', /\/explore$/],
@@ -161,4 +161,27 @@ test('Home search finds local tools without accents and resets on Back', async (
   await field.fill('hop dong');
   await page.getByRole('button', { name: 'Đọc hợp đồng' }).click();
   await expect(page).toHaveURL(/\/documents\/?$/);
+});
+
+test('Home search hint types and rotates while its button stays put', async ({ context, page }) => {
+  const account = await createLegacyAccount(context.request, {
+    email: randomUUID() + '@example.test',
+    name: 'An',
+    password: randomUUID(),
+  });
+  expect(account.ok()).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/home');
+  const launcher = page.getByRole('button', { name: 'Tìm tiện ích', exact: true });
+  const hint = page.getByTestId('home-search-hint');
+  await expect(launcher).toBeVisible();
+  const resting = await launcher.boundingBox();
+  await expect(hint).toHaveText('Tra hợp đồng vay');
+  await expect(hint).toHaveText('Tính thử khoản vay');
+  expect(await launcher.boundingBox()).toEqual(resting);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(hint).toHaveText('Tìm lịch trả, hợp đồng…');
+  await launcher.click();
+  await expect(page).toHaveURL(/\/search\/?$/);
 });

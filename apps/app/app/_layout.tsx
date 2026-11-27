@@ -1,8 +1,8 @@
 import '../global.css';
-import { Stack } from 'expo-router';
-import { Platform } from 'react-native';
+import { Stack, usePathname } from 'expo-router';
+import { Platform, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { dark } from '@finora/design-tokens';
+import { dark, tokens } from '@finora/design-tokens';
 import * as SplashScreen from 'expo-splash-screen';
 import { LaunchScene } from '../src/components/LaunchScene';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -25,12 +25,16 @@ function AppStatusBar() {
 }
 function Routes() {
   const { colors } = useDesign();
+  const path = usePathname();
+  const { width } = useWindowDimensions();
+  const homeStatus = path === '/home' && width < tokens.breakpoints.rail;
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         animation: 'none',
-        statusBarStyle: Platform.OS === 'ios' ? (colors === dark ? 'light' : 'dark') : undefined,
+        statusBarStyle:
+          Platform.OS === 'ios' ? (homeStatus || colors === dark ? 'light' : 'dark') : undefined,
         contentStyle: { backgroundColor: colors.background },
       }}
     />

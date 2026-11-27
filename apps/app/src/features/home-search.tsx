@@ -1,11 +1,22 @@
 import { dark } from '@finora/design-tokens';
-import { View } from 'react-native';
+import { Text as NativeText, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { Action, Heading, Text, useDesign } from '@finora/ui';
+import { Action, Heading, useDesign } from '@finora/ui';
 import { homeCopy } from '@finora/i18n';
+import { HomeSearchHint } from './home-search-hint';
 
-export function HomeSearch({ greeting, gutter }: { greeting: string; gutter: number }) {
+export function HomeSearch({
+  greeting,
+  greetingName,
+  gutter,
+  animateHint,
+}: {
+  greeting: string;
+  greetingName?: string;
+  gutter: number;
+  animateHint: boolean;
+}) {
   const { colors: c, locale } = useDesign();
   const copy = homeCopy(locale);
   return (
@@ -36,11 +47,33 @@ export function HomeSearch({ greeting, gutter }: { greeting: string; gutter: num
         }}
       >
         <Search color={c === dark ? '#BFE5C1' : '#386F49'} size={20} strokeWidth={2.2} />
-        <Text style={{ fontSize: 15, color: c === dark ? '#D0E5D4' : '#41584A' }}>
-          {copy.searchHint}
-        </Text>
+        <HomeSearchHint
+          active={animateHint}
+          fallback={copy.searchHint}
+          vietnamese={locale === 'vi-VN'}
+          color={c === dark ? '#D0E5D4' : '#41584A'}
+        />
       </Action>
-      {gutter > 0 && <Heading size={23}>{greeting}</Heading>}
+      {gutter > 0 && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+          <Heading size={23} style={{ flexShrink: 1 }}>
+            {greeting}
+            {greetingName && (
+              <NativeText testID="home-greeting-name" style={{ color: c.primary }}>
+                {greetingName}
+              </NativeText>
+            )}
+          </Heading>
+          <NativeText
+            testID="home-greeting-wave"
+            aria-hidden
+            accessible={false}
+            style={{ fontSize: 16, lineHeight: 20 }}
+          >
+            👋
+          </NativeText>
+        </View>
+      )}
     </View>
   );
 }
