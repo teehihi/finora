@@ -73,9 +73,13 @@ export function FinTabPicker({
 }) {
   const { t, colors: c } = useDesign();
   const reduceMotion = useReducedMotion();
-  const enter = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  // Native glass needs a stable backdrop and should not be drawn through a
+  // transforming or partially transparent parent while this menu opens.
+  const nativeGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
+  const skipIntro = reduceMotion || nativeGlass;
+  const enter = useRef(new Animated.Value(skipIntro ? 1 : 0)).current;
   useEffect(() => {
-    if (reduceMotion) {
+    if (skipIntro) {
       enter.setValue(1);
       return;
     }
@@ -86,7 +90,7 @@ export function FinTabPicker({
     });
     animation.start();
     return () => animation.stop();
-  }, [enter, reduceMotion]);
+  }, [enter, skipIntro]);
   useEffect(() => {
     const back = BackHandler.addEventListener('hardwareBackPress', () => {
       onClose();
@@ -123,16 +127,26 @@ export function FinTabPicker({
           width: 188,
           paddingHorizontal: 7,
           paddingVertical: 5,
-          opacity: enter,
-          transform: [
-            { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [7, 0] }) },
-          ],
+          ...(skipIntro
+            ? {}
+            : {
+                opacity: enter,
+                transform: [
+                  { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [7, 0] }) },
+                ],
+              }),
           shadowColor: c.foreground,
           shadowOpacity: 0.13,
           shadowRadius: 12,
           shadowOffset: { width: 0, height: 4 },
           elevation: 5,
-          backgroundColor: Platform.OS === 'android' ? c.surface : 'transparent',
+          backgroundColor: nativeGlass
+            ? c === dark
+              ? 'rgba(24,40,34,0.86)'
+              : 'rgba(250,253,248,0.86)'
+            : c.surface,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: c.border,
           borderRadius: 20,
         }}
       >

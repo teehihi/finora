@@ -8,7 +8,12 @@ const config: ExpoConfig = {
   orientation: 'default',
   icon: './assets/brand/icon.png',
   userInterfaceStyle: 'automatic',
-  ios: { bundleIdentifier: 'dev.finora.app', supportsTablet: true },
+  ios: {
+    bundleIdentifier: 'dev.finora.app',
+    supportsTablet: true,
+    // The focused native-stack screen owns status bar contrast.
+    infoPlist: { UIViewControllerBasedStatusBarAppearance: true },
+  },
   android: { package: 'dev.finora.app' },
   web: { bundler: 'metro', output: 'single' },
   plugins: [

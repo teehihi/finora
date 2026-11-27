@@ -30,6 +30,7 @@ function Routes() {
       screenOptions={{
         headerShown: false,
         animation: 'none',
+        statusBarStyle: Platform.OS === 'ios' ? (colors === dark ? 'light' : 'dark') : undefined,
         contentStyle: { backgroundColor: colors.background },
       }}
     />
@@ -45,7 +46,7 @@ export default function Layout() {
     <GestureHandlerRootView onLayout={releaseNativeSplash} style={{ flex: 1 }}>
       <SafeAreaProvider>
         <Providers>
-          <AppStatusBar />
+          {Platform.OS !== 'ios' || !(loaded || error) ? <AppStatusBar /> : null}
           {loaded || error ? <Routes /> : <LaunchScene />}
         </Providers>
       </SafeAreaProvider>
