@@ -38,6 +38,7 @@ export const authProviders = { emailOtp: true, google: Boolean(google) };
 export const isApplePrepared = Boolean(apple);
 const acquireOtpCooldown = createOtpCooldown();
 const emailInput = z.email();
+const failedOtpDeliveries = new Set<string>();
 
 function allowedNativeOAuthTarget(value: unknown) {
   if (typeof value !== 'string') return false;
@@ -84,9 +85,19 @@ export const auth = betterAuth({
         }
         try {
           await emailService.sendOtp(email, otp, type);
-        } catch {
-          logger.warn('Verification email delivery failed');
-          throw new APIError('SERVICE_UNAVAILABLE', { code: 'AUTH_OTP_UNAVAILABLE' });
+        } catch (error) {
+          acquireOtpCooldown.release(email);
+          failedOtpDeliveries.add(email.trim().toLowerCase());
+          const smtpError = error as { code?: unknown; command?: unknown; responseCode?: unknown };
+          logger.warn(
+            {
+              smtpCode: typeof smtpError.code === 'string' ? smtpError.code : undefined,
+              smtpCommand: typeof smtpError.command === 'string' ? smtpError.command : undefined,
+              smtpResponseCode:
+                typeof smtpError.responseCode === 'number' ? smtpError.responseCode : undefined,
+            },
+            'Verification email delivery failed',
+          );
         }
       },
     }),
@@ -140,6 +151,19 @@ export const auth = betterAuth({
       if ((isVerifyEmail || isSignIn) && (typeof otp !== 'string' || !/^\d{6}$/.test(otp)))
         throw new APIError('BAD_REQUEST', { code: 'INVALID_OTP' });
       return { context: { body: { ...ctx.body, email } } };
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== '/email-otp/send-verification-otp') return;
+      const email = String(ctx.body?.email ?? '')
+        .trim()
+        .toLowerCase();
+      if (!failedOtpDeliveries.delete(email)) return;
+      return {
+        response: ctx.json(
+          { message: 'SERVICE_UNAVAILABLE', code: 'AUTH_OTP_UNAVAILABLE' },
+          { status: 503 },
+        ),
+      };
     }),
   },
   account: {

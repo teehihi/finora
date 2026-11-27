@@ -29,10 +29,14 @@ class SmtpEmailProvider implements EmailProvider {
   });
 
   async send(message: Message) {
-    await this.transport.sendMail({
+    const result = await this.transport.sendMail({
       ...message,
       from: { name: 'Finora', address: env.SMTP_FROM },
     });
+    const accepted = result.accepted.some((recipient) =>
+      typeof recipient === 'string' && recipient.toLowerCase() === message.to.toLowerCase(),
+    );
+    if (!accepted) throw Object.assign(new Error('SMTP rejected recipient'), { code: 'ERECIPIENT' });
   }
 }
 
