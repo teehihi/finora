@@ -26,6 +26,7 @@ test('the browser dock supports release navigation, cancellation, and normal act
   await expect(profile).toHaveAttribute('aria-selected', 'true');
   const from = await center(profile);
   const to = await center(loans);
+  expect(Math.abs((await center(ai)).y - to.y)).toBeLessThan(1);
 
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
@@ -62,5 +63,7 @@ test('the browser dock supports release navigation, cancellation, and normal act
   await ai.focus();
   await ai.press('Enter');
   await expect(page).toHaveURL(/\/assistant$/);
-  await expect(ai).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tablist')).toHaveCount(0);
+  await expect(page.getByTestId('fin-composer')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Các tab', exact: true })).toBeVisible();
 });

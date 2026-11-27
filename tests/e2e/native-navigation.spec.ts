@@ -39,7 +39,7 @@ test('phone tabs own their titles; detail screens keep one way back without the 
   }
   await expect(page.getByLabel('Bạn đang cân nhắc khoản vay nào?')).toHaveAttribute(
     'placeholder',
-    'Hỏi về khoản vay…',
+    'Hỏi Fin…',
   );
   // The former masthead is gone, but AI tools stay reachable from the composer.
   await page.getByRole('button', { name: 'Nguồn và công cụ' }).click();
@@ -53,7 +53,11 @@ test('phone tabs own their titles; detail screens keep one way back without the 
   await back.press('Enter');
   await expect(page).toHaveURL(/\/assistant$/);
 
-  await page.getByRole('tab', { name: 'Khám phá', exact: true }).click();
+  await page.getByRole('button', { name: 'Các tab', exact: true }).click();
+  await page
+    .getByTestId('fin-tab-picker')
+    .getByRole('button', { name: 'Khám phá', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Nhập điều khoản của tôi', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Mô phỏng khoản vay của bạn' })).toBeVisible();
   await expect(back).toHaveCount(1);

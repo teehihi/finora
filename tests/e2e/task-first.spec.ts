@@ -120,12 +120,15 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   expect(amount).toBeTruthy();
   expect(Math.abs((await tools.boundingBox())!.y - toolsBefore)).toBeLessThan(8);
   const repaymentCard = page.getByTestId('home-ledger-focus');
+  const greeting = await page.getByRole('heading', { name: 'Chào, QA', exact: true }).boundingBox();
+  const card = await repaymentCard.boundingBox();
+  expect(card!.y - greeting!.y - greeting!.height).toBeLessThanOrEqual(42);
   const measureAnchorGap = async () => {
-    const [reflections, card] = await Promise.all([
-      page.getByTestId('home-backdrop-reflections').boundingBox(),
+    const [fade, card] = await Promise.all([
+      page.getByTestId('home-backdrop-fade').boundingBox(),
       repaymentCard.boundingBox(),
     ]);
-    return Math.abs(reflections!.y + reflections!.height - (card!.y + card!.height / 2));
+    return Math.abs(fade!.y + fade!.height - (card!.y + card!.height / 2));
   };
   await expect.poll(measureAnchorGap).toBeLessThan(3);
   const restArt = (await backdrop.boundingBox())!;

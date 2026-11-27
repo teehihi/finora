@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { SourceSerif4_500Medium } from '@expo-google-fonts/source-serif-4/500Medium';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ActivityIndicator,
@@ -34,6 +34,8 @@ import { date } from '@finora/i18n';
 import { Action, BottomSheet, Button, Dialog, Heading, Text, Switch, useDesign } from '@finora/ui';
 import { useWorkspaceDockInset } from '../../components/layout';
 import { LakeScene } from './lake-scene';
+import { FinComposerSurface, FinTabPicker, FinTabsButton } from './fin-tab-picker';
+import { useFinPromptDraft } from './prompt-session';
 import { AnalysisBlocks } from './blocks';
 import { FinancePrompt, FinAvatar, ModeMark } from './presentation';
 import { chooseDraftPrompt, chooseSimulationId } from './model';
@@ -63,11 +65,12 @@ export default function Intelligence() {
     draftPrompt?: string;
   }>();
   const uid = session.data?.user.id;
+  const scope = chooseSimulationId(simulationId);
   return uid ? (
     <Desk
-      key={uid}
+      key={uid + ':' + (scope ?? '')}
       uid={uid}
-      simulationId={chooseSimulationId(simulationId)}
+      simulationId={scope}
       initialPrompt={chooseDraftPrompt(draftPrompt)}
     />
   ) : null;
@@ -93,7 +96,13 @@ function Desk({
   const [externalConsent, setConsent] = useState(false);
   const [privacy, openPrivacy] = useState(false);
   const [toolSheet, openTools] = useState(false);
-  const [prompt, setPrompt] = useState(initialPrompt);
+  const [prompt, setPrompt] = useFinPromptDraft(simulationId, initialPrompt);
+  const [tabsOpen, showTabs] = useState(false);
+  const closeTabs = useCallback(() => showTabs(false), []);
+  const [frameHeight, setFrameHeight] = useState(height);
+  const [toolbarHeight, setToolbarHeight] = useState(62);
+  const bottomGap = dock || 14;
+  useFocusEffect(useCallback(() => closeTabs, [closeTabs]));
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState(false);
@@ -138,11 +147,11 @@ function Desk({
       ? null
       : draft;
   const engaged = !!current || historyRows.length > 0;
-  const provider = current?.provider;
+  const provider = current?.provider ?? last?.provider;
 
   useEffect(() => {
     if (initialPrompt) setPrompt(initialPrompt);
-  }, [initialPrompt]);
+  }, [initialPrompt, setPrompt]);
   useEffect(() => {
     return () => {
       const previous = active.current;
@@ -344,6 +353,7 @@ function Desk({
 
   return (
     <View
+      onLayout={({ nativeEvent }) => setFrameHeight(nativeEvent.layout.height)}
       style={{
         flex: 1,
         minHeight: 0,
@@ -351,10 +361,10 @@ function Desk({
         alignSelf: 'center',
         paddingHorizontal: wide ? 38 : 20,
         paddingTop: phone ? insets.top : 0,
-        paddingBottom: dock || 14,
+        paddingBottom: bottomGap,
       }}
     >
-      <LakeScene reading={engaged} dockInset={dock} />
+      <LakeScene reading={engaged} dockInset={phone ? toolbarHeight + bottomGap : dock} />
       <View
         style={{
           paddingVertical: 10,
@@ -384,7 +394,9 @@ function Desk({
             {t('ai')}
           </Text>
         </View>
-        <View style={{ marginLeft: 'auto' }}>{providerMark}</View>
+        {provider || (allowConsent && externalConsent) ? (
+          <View style={{ marginLeft: 'auto' }}>{providerMark}</View>
+        ) : null}
         {!wide && !phone ? toolsButton : null}
       </View>
 
@@ -608,24 +620,29 @@ function Desk({
             <NativeText style={{ fontSize: 1, color: c.background }}>{announcement}</NativeText>
           </View>
           <View
-            style={{
-              paddingTop: 7,
-              gap: 5,
-            }}
+            onLayout={({ nativeEvent }) => setToolbarHeight(nativeEvent.layout.height)}
+            style={{ paddingTop: 7, gap: 5 }}
           >
             <View
+              testID="fin-composer"
               style={{
                 flexDirection: 'row',
                 alignItems: 'flex-end',
                 borderWidth: 1,
-                borderColor: focus ? c.focus : c.border,
-                backgroundColor: c.surface,
+                borderColor: focus ? c.focus : phone ? 'transparent' : c.border,
+                backgroundColor: phone ? 'transparent' : c.surface,
                 borderRadius: 28,
                 padding: 6,
-                gap: 7,
+                gap: phone ? 4 : 7,
               }}
             >
-              {phone ? toolsButton : null}
+              {phone ? (
+                <>
+                  <FinComposerSurface />
+                  <FinTabsButton open={tabsOpen} onPress={() => showTabs((open) => !open)} />
+                  {toolsButton}
+                </>
+              ) : null}
               <TextInput
                 ref={composer}
                 accessibilityLabel={t('intelligenceAsk')}
@@ -637,14 +654,16 @@ function Desk({
                 multiline
                 numberOfLines={1}
                 maxLength={1200}
-                placeholder={t(phone ? 'intelligenceAskShort' : 'intelligenceAsk')}
+                placeholder={t(phone ? 'intelligenceComposerHint' : 'intelligenceAsk')}
                 placeholderTextColor={c.muted}
                 style={{
+                  position: 'relative',
+                  zIndex: 1,
                   flex: 1,
                   minWidth: 0,
                   minHeight: 44,
                   maxHeight: 94,
-                  paddingHorizontal: 11,
+                  paddingHorizontal: phone ? 5 : 11,
                   paddingVertical: 9,
                   color: c.foreground,
                   fontFamily: tokens.font.body,
@@ -697,6 +716,16 @@ function Desk({
           </ScrollView>
         ) : null}
       </View>
+      {phone && tabsOpen ? (
+        <FinTabPicker
+          onClose={closeTabs}
+          bottom={toolbarHeight + bottomGap}
+          maxHeight={Math.min(
+            190,
+            Math.max(72, frameHeight - toolbarHeight - bottomGap - insets.top - 12),
+          )}
+        />
+      ) : null}
       <BottomSheet
         title={t('intelligenceTools')}
         visible={toolSheet}

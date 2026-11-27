@@ -13,7 +13,7 @@ test('five destinations adapt at all widths and persist appearance and English',
   });
   expect(created.ok()).toBe(true);
   for (const [route, heading] of [
-    ['home', 'Xin chào, Layout QA.'],
+    ['home', /(?:Xin chào, Layout QA\.|Chào, QA)/],
     ['explore', 'Thư viện khoản vay'],
     ['assistant', 'Cùng Fin tính khoản vay'],
     ['loans', 'Khoản vay'],
@@ -23,8 +23,11 @@ test('five destinations adapt at all widths and persist appearance and English',
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     for (const width of [360, 390, 430, 768, 1024, 1440, 1920]) {
       await page.setViewportSize({ width, height: 900 });
-      await expect(page.getByRole('tab', { name: 'Finora AI' })).toBeVisible();
-      const tab = page.getByRole('tab', { name: 'Khám phá' });
+      const composerNav = route === 'assistant' && width < 768;
+      const tab = composerNav
+        ? page.getByRole('button', { name: 'Các tab', exact: true })
+        : page.getByRole('tab', { name: 'Khám phá' });
+      if (!composerNav) await expect(page.getByRole('tab', { name: 'Finora AI' })).toBeVisible();
       await expect
         .poll(
           async () => {

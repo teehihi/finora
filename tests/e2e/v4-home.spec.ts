@@ -34,7 +34,7 @@ test('Home separates repayment capacity from cash remaining and exposes the feat
   await expect(ai).toHaveAttribute('aria-selected', 'false');
   await ai.click();
   await expect(page).toHaveURL(/\/assistant$/);
-  await expect(ai).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('fin-composer')).toBeVisible();
 
   await profile(16_000_000);
   await expect(page.getByText('Thiếu trước khoản vay mới')).toBeVisible();

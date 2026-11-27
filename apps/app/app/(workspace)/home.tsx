@@ -93,7 +93,7 @@ export default function Home() {
   const gutter = width < 370 ? 16 : desktop ? 36 : 20;
   const firstName = user?.name?.trim().split(/\s+/).at(-1);
   const [refreshing, setRefreshing] = useState(false);
-  const [backdrop, setBackdrop] = useState({ end: 260, cardTop: 158 });
+  const [backdropEnd, setBackdropEnd] = useState(235);
   const artwork = useRef({ focusTop: 0, focusHeight: 204 });
   function updateBackdrop(measurement: Partial<typeof artwork.current>) {
     if (!mobile) return;
@@ -101,10 +101,7 @@ export default function Home() {
     const { focusTop, focusHeight } = artwork.current;
     if (focusTop > 0 && focusHeight > 0) {
       const end = Math.round(focusTop + focusHeight / 2);
-      const cardTop = Math.round(focusTop);
-      setBackdrop((previous) =>
-        previous.end === end && previous.cardTop === cardTop ? previous : { end, cardTop },
-      );
+      setBackdropEnd(end);
     }
   }
   const refresh = async () => {
@@ -177,8 +174,7 @@ export default function Home() {
         <HomeBackdrop
           night={c === dark}
           width={width}
-          height={topInset + backdrop.end}
-          cardTop={topInset + backdrop.cardTop}
+          height={topInset + backdropEnd}
           statusInset={topInset}
           surface={c.surface}
           scrollY={scrollY}
@@ -211,7 +207,7 @@ export default function Home() {
         }}
       >
         <View style={{ width: '100%', maxWidth: 1120, gap: desktop ? 23 : 17 }}>
-          <View style={{ marginBottom: mobile ? 46 : 0 }}>
+          <View style={{ marginBottom: mobile ? (Platform.OS === 'ios' ? 17 : 23) : 0 }}>
             <HomeSearch
               gutter={mobile ? gutter : 0}
               greeting={

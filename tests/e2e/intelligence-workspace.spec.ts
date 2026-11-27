@@ -20,12 +20,11 @@ test('analyze verified assumptions, explicitly save, and revisit the repayment s
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assistant');
   await expect(page).toHaveURL(/\/assistant$/);
-  await expect(page.getByRole('tab', { name: 'Finora AI' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  await expect(page.getByRole('tablist')).toHaveCount(0);
+  await expect(page.getByTestId('fin-composer')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Các tab', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Cùng Fin tính khoản vay' })).toBeVisible();
-  await expect(page.getByText('Cục bộ · mặc định')).toBeVisible();
+  await expect(page.getByText('Cục bộ · mặc định')).toHaveCount(0);
   await page.getByRole('button', { name: 'So sánh 12 và 24 tháng', exact: true }).click();
   await expect(page.getByLabel('Bạn đang cân nhắc khoản vay nào?')).toHaveValue(/50 triệu/);
   expect(await (await context.request.get(api + '/api/intelligence/history')).json()).toEqual([]);
