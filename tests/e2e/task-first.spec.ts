@@ -138,6 +138,7 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   await expect.poll(measureAnchorGap).toBeLessThan(3);
   const restArt = (await backdrop.boundingBox())!;
   const blend = await page.getByTestId('home-photo-blend').boundingBox();
+  expect(blend!.height).toBeLessThanOrEqual(26);
   expect(blend!.y).toBeGreaterThanOrEqual(card!.y - 10);
   const reflections = (await page.getByTestId('home-photo-reflections').boundingBox())!;
   expect(Math.abs(reflections.y + reflections.height - (card!.y + card!.height / 2))).toBeLessThan(
@@ -152,6 +153,16 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   await expect.poll(async () => (await backdrop.boundingBox())!.y).toBeCloseTo(restArt.y - 84, 0);
   await expect.poll(measureAnchorGap).toBeLessThan(3);
   await page.screenshot({ path: info.outputPath('02b-home-scrolled-390.png') });
+  await scroll.evaluate((node, height) => {
+    node.scrollTop = height + 30;
+  }, restArt.height);
+  await expect
+    .poll(async () => {
+      const frame = (await backdrop.boundingBox())!;
+      return frame.y + frame.height;
+    })
+    .toBeLessThanOrEqual(0);
+  await page.screenshot({ path: info.outputPath('02c-home-below-photo-390.png') });
   await scroll.evaluate((node) => {
     node.scrollTop = 0;
   });

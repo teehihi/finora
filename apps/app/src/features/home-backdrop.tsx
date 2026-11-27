@@ -9,7 +9,8 @@ export function homePanorama(width: number, height: number, cardTop: number) {
     Math.min(height - 2, Math.max(width * 0.45, (cardTop + 5) / 0.86)),
   );
   const waterBand = Math.max(10, Math.round(photoHeight * 0.1));
-  const fadeTop = Math.min(photoHeight, Math.max(cardTop + 10, height - 80));
+  const fadeLength = Math.max(14, Math.min(26, Math.round((height - cardTop) * 0.27)));
+  const fadeTop = height - fadeLength;
   return { photoHeight, waterBand, fadeTop };
 }
 
@@ -92,8 +93,8 @@ export function HomeBackdrop({
           <Defs>
             <LinearGradient id="finora-photo-bottom" x1="0%" y1="0%" x2="0%" y2="100%">
               <Stop offset="0" stopColor={surface} stopOpacity="0" />
-              <Stop offset=".30" stopColor={surface} stopOpacity=".02" />
-              <Stop offset=".63" stopColor={surface} stopOpacity=".35" />
+              <Stop offset=".40" stopColor={surface} stopOpacity=".14" />
+              <Stop offset=".73" stopColor={surface} stopOpacity=".65" />
               <Stop offset="1" stopColor={surface} />
             </LinearGradient>
           </Defs>

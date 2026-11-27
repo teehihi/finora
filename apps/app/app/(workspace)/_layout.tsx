@@ -32,6 +32,7 @@ import { workspaceMotion } from '../../src/features/navigation/workspace-motion'
 import { workspaceAuthReturn } from '../../src/features/auth/return-path';
 
 import { workspaceTabs as links } from '../../src/components/workspace-tabs';
+import { useHomeStatus } from '../../src/features/home-status-context';
 import { FinPromptSession } from '../../src/features/intelligence/prompt-session';
 
 function useDockPreferences() {
@@ -74,6 +75,7 @@ export default function Workspace() {
   }, []);
   const { data, isPending, error, refetch } = auth.useSession();
   const { t, colors: c, locale } = useDesign();
+  const { overPhoto: homeOverPhoto } = useHomeStatus();
   const { reduceMotion, keyboardVisible } = useDockPreferences();
   const rail = width >= tokens.breakpoints.rail;
   const full = width >= tokens.breakpoints.desktop;
@@ -469,7 +471,7 @@ export default function Workspace() {
                         : {}),
                       statusBarStyle:
                         Platform.OS === 'ios'
-                          ? (route.name === 'home' && !rail) || c === dark
+                          ? (route.name === 'home' && !rail && homeOverPhoto) || c === dark
                             ? 'light'
                             : 'dark'
                           : undefined,
