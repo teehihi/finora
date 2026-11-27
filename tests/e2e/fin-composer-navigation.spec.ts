@@ -55,6 +55,10 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
   const barBox = await bar.boundingBox();
   expect(popupBox!.y + popupBox!.height).toBeLessThanOrEqual(barBox!.y);
   await page.screenshot({ path: info.outputPath('fin-tabs-popover.png') });
+  await tabs.click();
+  await expect(picker).toHaveCount(0);
+  await tabs.click();
+  await expect(picker).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(picker).toHaveCount(0);
   await input.focus();

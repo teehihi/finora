@@ -45,7 +45,7 @@ import { date } from '@finora/i18n';
 import { Action, BottomSheet, Button, Dialog, Heading, Text, Switch, useDesign } from '@finora/ui';
 import { useWorkspaceDockInset } from '../../components/layout';
 import { LakeScene } from './lake-scene';
-import { FinComposerSurface, FinTabPicker, FinTabsButton } from './fin-tab-picker';
+import { FinBarButton, FinComposerSurface, FinTabPicker, FinTabsButton } from './fin-tab-picker';
 import { useFinPreviousPeer, useFinPromptDraft } from './prompt-session';
 import { AnalysisBlocks } from './blocks';
 import { FinancePrompt, FinAvatar, ModeMark } from './presentation';
@@ -161,6 +161,7 @@ function Desk({
         .activeOffsetX(14)
         .failOffsetY([-22, 22])
         .maxPointers(1)
+        .cancelsTouchesInView(false)
         .runOnJS(true)
         .onEnd((event, success) => {
           if (
@@ -392,19 +393,13 @@ function Desk({
   );
 
   const toolsButton = (
-    <Action
+    <FinBarButton
       label={t('intelligenceTools')}
       onPress={() => openTools(true)}
-      style={{
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        borderRadius: 22,
-        backgroundColor: c.secondary,
-      }}
+      backgroundColor={c.secondary}
     >
       <Plus size={20} color={c.primary} />
-    </Action>
+    </FinBarButton>
   );
 
   const screen = (
@@ -756,20 +751,15 @@ function Desk({
                     : {}),
                 }}
               />
-              <Action
+              <FinBarButton
                 label={t(stream ? 'stop' : 'send')}
                 disabled={!stream && (!prompt.trim() || scopeUnavailable || clearing)}
                 onPress={() => (stream ? active.current?.abort() : void submit())}
-                style={{
-                  width: 44,
-                  height: 44,
-                  alignItems: 'center',
-                  backgroundColor:
-                    !stream && (!prompt.trim() || scopeUnavailable || clearing)
-                      ? c.elevated
-                      : c.primary,
-                  borderRadius: 22,
-                }}
+                backgroundColor={
+                  !stream && (!prompt.trim() || scopeUnavailable || clearing)
+                    ? c.elevated
+                    : c.primary
+                }
               >
                 {stream ? (
                   <Square size={15} color={c.onPrimary} fill={c.onPrimary} />
@@ -783,7 +773,7 @@ function Desk({
                     }
                   />
                 )}
-              </Action>
+              </FinBarButton>
             </View>
             {allowConsent && externalConsent ? (
               <Text small muted>

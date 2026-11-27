@@ -24,6 +24,8 @@ import { useRepaymentLedger } from '../../src/features/repayments';
 import { useWorkspaceDockInset } from '../../src/components/layout';
 import { TaskData } from '../../src/components/task-surface';
 import { HomeBackdrop, homePanorama } from '../../src/features/home-backdrop';
+import { useHomeStatus } from '../../src/features/home-status-context';
+import { homePhotoStatus, homeStatusTransition } from '../../src/features/home-status';
 import { HomeSearch } from '../../src/features/home-search';
 import { HomeFocus } from '../../src/features/home-focus';
 import {
@@ -61,7 +63,12 @@ export default function Home() {
   const backdropHeight = topInset + cardFrame.end;
   const cardTop = topInset + cardFrame.top;
   const { fadeTop } = homePanorama(width, backdropHeight, cardTop);
-  const statusCutover = Math.max(36, fadeTop - topInset * 0.45);
+  const { backingStart, backingEnd, switchTone } = homeStatusTransition(
+    backdropHeight,
+    topInset,
+    fadeTop,
+  );
+  const { setOverPhoto: setIOSStatusOverPhoto } = useHomeStatus();
   const [statusOverPhoto, setStatusOverPhoto] = useState(true);
   const statusOverPhotoRef = useRef(true);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -75,23 +82,36 @@ export default function Home() {
         listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
           dockOnScroll?.(event);
           viewportOffset.current = event.nativeEvent.contentOffset.y;
-          if (Platform.OS === 'android' && topInset > 0) {
-            const y = event.nativeEvent.contentOffset.y;
-            const next = statusOverPhotoRef.current ? y < statusCutover : y <= statusCutover - 12;
+          if (Platform.OS !== 'web' && topInset > 0) {
+            const next = homePhotoStatus(
+              viewportOffset.current,
+              statusOverPhotoRef.current,
+              switchTone,
+            );
             if (next !== statusOverPhotoRef.current) {
               statusOverPhotoRef.current = next;
-              setStatusOverPhoto(next);
+              if (Platform.OS === 'ios') setIOSStatusOverPhoto(next);
+              else setStatusOverPhoto(next);
             }
           }
         },
       }),
-    [dockOnScroll, scrollY, statusCutover, topInset],
+    [dockOnScroll, scrollY, setIOSStatusOverPhoto, switchTone, topInset],
   );
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
+      if (Platform.OS === 'ios') {
+        const next = homePhotoStatus(
+          viewportOffset.current,
+          statusOverPhotoRef.current,
+          switchTone,
+        );
+        statusOverPhotoRef.current = next;
+        setIOSStatusOverPhoto(next);
+      }
       return () => setFocused(false);
-    }, []),
+    }, [setIOSStatusOverPhoto, switchTone]),
   );
   const gutter = width < 370 ? 16 : desktop ? 36 : 20;
   const firstName = user?.name?.trim().split(/\s+/).at(-1);
@@ -188,9 +208,8 @@ export default function Home() {
     </View>
   );
   const statusStyle = c === dark || statusOverPhoto ? 'light' : 'dark';
-  const statusBackingFrom = Math.max(0, fadeTop - topInset);
   const statusBackingOpacity = scrollY.interpolate({
-    inputRange: [statusBackingFrom, statusBackingFrom + Math.max(1, topInset * 0.55)],
+    inputRange: [backingStart, backingEnd],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
@@ -297,7 +316,7 @@ export default function Home() {
             left: 0,
             right: 0,
             height: topInset,
-            backgroundColor: c.forest,
+            backgroundColor: c.surface,
             opacity: statusBackingOpacity,
           }}
         />

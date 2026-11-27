@@ -13,6 +13,7 @@ import { Geist_500Medium } from '@expo-google-fonts/geist/500Medium';
 import { Geist_700Bold } from '@expo-google-fonts/geist/700Bold';
 import { Providers } from '../src/providers/AppProviders';
 import { useDesign } from '@finora/ui';
+import { HomeStatusProvider, useHomeStatus } from '../src/features/home-status-context';
 // The OS owns the static first frame. Release it after the first real JS layout,
 // whether that layout contains a route or the font-loading scene.
 if (Platform.OS !== 'web') void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -27,7 +28,8 @@ function Routes() {
   const { colors } = useDesign();
   const path = usePathname();
   const { width } = useWindowDimensions();
-  const homeStatus = path === '/home' && width < tokens.breakpoints.rail;
+  const { overPhoto } = useHomeStatus();
+  const homeStatus = path === '/home' && width < tokens.breakpoints.rail && overPhoto;
   return (
     <Stack
       screenOptions={{
@@ -50,8 +52,10 @@ export default function Layout() {
     <GestureHandlerRootView onLayout={releaseNativeSplash} style={{ flex: 1 }}>
       <SafeAreaProvider>
         <Providers>
-          {Platform.OS !== 'ios' || !(loaded || error) ? <AppStatusBar /> : null}
-          {loaded || error ? <Routes /> : <LaunchScene />}
+          <HomeStatusProvider>
+            {Platform.OS !== 'ios' || !(loaded || error) ? <AppStatusBar /> : null}
+            {loaded || error ? <Routes /> : <LaunchScene />}
+          </HomeStatusProvider>
         </Providers>
       </SafeAreaProvider>
     </GestureHandlerRootView>

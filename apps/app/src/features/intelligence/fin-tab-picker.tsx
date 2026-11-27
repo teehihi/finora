@@ -26,6 +26,7 @@ export function FinComposerSurface() {
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {useNativeFinGlass ? (
         <LiquidGlassView
+          pointerEvents="none"
           effect="regular"
           colorScheme={night ? 'dark' : 'light'}
           tintColor={night ? 'rgba(21,39,31,0.78)' : 'rgba(252,255,250,0.78)'}
@@ -40,56 +41,84 @@ export function FinComposerSurface() {
   );
 }
 
-function FinMenuMaterial({ children }: { children: ReactNode }) {
+function FinMenuMaterial({ height }: { height: number }) {
   const { colors: c } = useDesign();
+  const night = c === dark;
+  const shape = {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    width: 188,
+    height,
+    borderRadius: 20,
+  };
   if (!useNativeFinGlass) {
     return (
       <View
-        style={[
-          styles.menuSurface,
-          { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
-        ]}
-      >
-        {children}
-      </View>
+        pointerEvents="none"
+        style={[shape, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }]}
+      />
     );
   }
 
-  const night = c === dark;
+  // Native material is decorative; its hosting view must not own button hit testing.
   return (
     <LiquidGlassView
+      pointerEvents="none"
       effect="regular"
       animated={false}
       colorScheme={night ? 'dark' : 'light'}
-      tintColor={night ? 'rgba(24,40,34,0.30)' : 'rgba(250,253,248,0.30)'}
-      style={styles.menuSurface}
+      tintColor={night ? 'rgba(24,40,34,0.27)' : 'rgba(250,253,248,0.27)'}
+      style={shape}
+    />
+  );
+}
+
+export function FinBarButton({
+  label,
+  expanded,
+  disabled,
+  onPress,
+  backgroundColor,
+  children,
+}: {
+  label: string;
+  expanded?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+  backgroundColor: string;
+  children: ReactNode;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      aria-expanded={expanded}
+      accessibilityLabel={label}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.barButton,
+        { backgroundColor, opacity: disabled ? 0.55 : pressed ? 0.82 : 1 },
+      ]}
     >
-      <View style={{ backgroundColor: night ? 'rgba(24,40,34,0.18)' : 'rgba(250,253,248,0.18)' }}>
+      <View pointerEvents="none" style={styles.barGlyph}>
         {children}
       </View>
-    </LiquidGlassView>
+    </Pressable>
   );
 }
 
 export function FinTabsButton({ open, onPress }: { open: boolean; onPress: () => void }) {
   const { t, colors: c } = useDesign();
   return (
-    <Pressable
-      accessibilityRole="button"
-      aria-expanded={open}
-      accessibilityLabel={t('intelligenceTabs')}
+    <FinBarButton
+      label={t('intelligenceTabs')}
+      expanded={open}
       onPress={onPress}
-      style={({ pressed }) => ({
-        height: 44,
-        width: 44,
-        borderRadius: 22,
-        backgroundColor: open || pressed ? c.secondary : 'transparent',
-        alignItems: 'center',
-        justifyContent: 'center',
-      })}
+      backgroundColor={open ? c.secondary : 'transparent'}
     >
-      <Grid2X2 size={21} color={c.primary} strokeWidth={1.8} />
-    </Pressable>
+      <Grid2X2 size={20} color={c.primary} strokeWidth={1.8} />
+    </FinBarButton>
   );
 }
 
@@ -104,6 +133,7 @@ export function FinTabPicker({
 }) {
   const { t, colors: c } = useDesign();
   const reduceMotion = useReducedMotion();
+  const menuHeight = Math.min(190, maxHeight);
   // Native glass needs a stable backdrop and should not be drawn through a
   // transforming or partially transparent parent while this menu opens.
   const skipIntro = reduceMotion || useNativeFinGlass;
@@ -145,7 +175,7 @@ export function FinTabPicker({
         importantForAccessibility="no"
         accessible={false}
         onPress={onClose}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, { bottom: Math.max(0, bottom - 6) }]}
       />
       <Animated.View
         testID="fin-tab-picker"
@@ -155,6 +185,7 @@ export function FinTabPicker({
           left: 20,
           bottom,
           width: 188,
+          height: menuHeight,
           ...(skipIntro
             ? {}
             : {
@@ -171,10 +202,18 @@ export function FinTabPicker({
           borderRadius: 20,
         }}
       >
-        <FinMenuMaterial>
+        <FinMenuMaterial height={menuHeight} />
+        <View
+          style={[
+            styles.menuContent,
+            useNativeFinGlass && {
+              backgroundColor: c === dark ? 'rgba(24,40,34,0.14)' : 'rgba(250,253,248,0.14)',
+            },
+          ]}
+        >
           <ScrollView
             keyboardShouldPersistTaps="always"
-            style={{ maxHeight }}
+            style={{ flex: 1 }}
             contentContainerStyle={{ paddingHorizontal: 7, paddingVertical: 5 }}
             showsVerticalScrollIndicator={false}
           >
@@ -205,12 +244,23 @@ export function FinTabPicker({
                 </Action>
               ))}
           </ScrollView>
-        </FinMenuMaterial>
+        </View>
       </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  menuSurface: { borderRadius: 20, overflow: 'hidden' },
+  menuContent: { flex: 1, borderRadius: 20, overflow: 'hidden' },
+  barButton: {
+    width: 44,
+    height: 44,
+    flexShrink: 0,
+    alignSelf: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    zIndex: 2,
+  },
+  barGlyph: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
 });
