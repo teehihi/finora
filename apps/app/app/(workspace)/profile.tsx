@@ -11,6 +11,7 @@ import {
 } from '../../src/features/profile-account-hub';
 import { queryClient, usePrefs } from '../../src/providers/AppProviders';
 import { auth } from '../../src/services/client';
+import profileCover from '../../assets/brand/profile-cover.png';
 
 export default function ProfileScreen() {
   const { t, colors: c } = useDesign();
@@ -42,6 +43,7 @@ export default function ProfileScreen() {
 
   return (
     <AccountScroll
+      fixedBackground={profileCover}
       header={
         <AccountHero
           name={name}

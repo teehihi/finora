@@ -12,6 +12,7 @@
     "test:auth:local": "node scripts/verify-auth-local.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1178.0",
     "@better-auth/expo": "1.6.35",
     "@finora/contracts": "workspace:*",
     "@finora/database": "workspace:*",
