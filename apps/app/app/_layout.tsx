@@ -1,5 +1,5 @@
 import '../global.css';
-import { Stack, usePathname } from 'expo-router';
+import { Stack, usePathname, useSegments } from 'expo-router';
 import { Platform, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { dark, tokens } from '@finora/design-tokens';
@@ -27,19 +27,26 @@ function AppStatusBar() {
 function Routes() {
   const { colors } = useDesign();
   const path = usePathname();
+  const route = useSegments();
   const { width } = useWindowDimensions();
   const { overPhoto } = useHomeStatus();
-  const homeStatus = path === '/home' && width < tokens.breakpoints.rail && overPhoto;
+  const home = path.replace(/\/+$/, '') === '/home' || route.join('/') === '(workspace)/home';
+  const homeStatus = home && width < tokens.breakpoints.rail && overPhoto;
+  const tone = homeStatus || colors === dark ? 'light' : 'dark';
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: 'none',
-        statusBarStyle:
-          Platform.OS === 'ios' ? (homeStatus || colors === dark ? 'light' : 'dark') : undefined,
-        contentStyle: { backgroundColor: colors.background },
-      }}
-    />
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'none',
+          statusBarStyle: Platform.OS === 'ios' ? tone : undefined,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+      {/* The Expo root may be separated from the stack by the dev launcher.
+          Give that root the same tone so the default black does not win. */}
+      {Platform.OS === 'ios' ? <StatusBar style={tone} /> : null}
+    </>
   );
 }
 export default function Layout() {

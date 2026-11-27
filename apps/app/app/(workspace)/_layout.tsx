@@ -77,6 +77,17 @@ export default function Workspace() {
   const { t, colors: c, locale } = useDesign();
   const { overPhoto: homeOverPhoto } = useHomeStatus();
   const { reduceMotion, keyboardVisible } = useDockPreferences();
+  const [finSwipe, setFinSwipe] = useState<'/home' | '/explore' | '/loans' | '/profile'>();
+  useEffect(() => {
+    if (!finSwipe) return;
+    // Let native-stack apply the exit options before replacing Fin with its peer.
+    const frame = requestAnimationFrame(() => router.replace(finSwipe));
+    const clear = setTimeout(() => setFinSwipe(undefined), 550);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(clear);
+    };
+  }, [finSwipe]);
   const rail = width >= tokens.breakpoints.rail;
   const full = width >= tokens.breakpoints.desktop;
   const inSearch = path === '/search';
@@ -455,12 +466,22 @@ export default function Workspace() {
                   </View>
                 </View>
               ) : null}
-              <FinPromptSession key={data.user.id} path={path}>
+              <FinPromptSession key={data.user.id} path={path} onSwipeReturn={setFinSwipe}>
                 <CYLScrollContext.Provider value={usesCYLScroll ? reportCYLScroll : undefined}>
                   <Stack
                     screenOptions={({ route }) => ({
                       headerShown: false,
-                      ...workspaceMotion(route.name, reduceMotion, Platform.OS),
+                      ...workspaceMotion(
+                        route.name,
+                        reduceMotion,
+                        Platform.OS,
+                        Boolean(
+                          finSwipe &&
+                          (route.name === 'assistant' ||
+                            route.name === 'intelligence' ||
+                            '/' + route.name === finSwipe),
+                        ),
+                      ),
                       // Fin is a peer tab; its left-edge action returns to the
                       // last peer instead of popping an unrelated stack screen.
                       ...(Platform.OS === 'ios' &&

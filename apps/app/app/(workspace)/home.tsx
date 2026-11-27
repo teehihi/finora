@@ -10,7 +10,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -68,7 +68,7 @@ export default function Home() {
     topInset,
     fadeTop,
   );
-  const { setOverPhoto: setIOSStatusOverPhoto } = useHomeStatus();
+  const { overPhoto: iosStatusOverPhoto, setOverPhoto: setIOSStatusOverPhoto } = useHomeStatus();
   const [statusOverPhoto, setStatusOverPhoto] = useState(true);
   const statusOverPhotoRef = useRef(true);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -215,6 +215,11 @@ export default function Home() {
   });
   return (
     <View style={{ flex: 1, backgroundColor: c.surface }}>
+      {Platform.OS === 'ios' && mobile ? (
+        <Stack.Screen
+          options={{ statusBarStyle: c === dark || iosStatusOverPhoto ? 'light' : 'dark' }}
+        />
+      ) : null}
       {mobile && focused && Platform.OS === 'android' ? <StatusBar style={statusStyle} /> : null}
       {mobile ? (
         <HomeBackdrop

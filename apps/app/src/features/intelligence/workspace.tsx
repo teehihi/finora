@@ -15,6 +15,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   BackHandler,
   Keyboard,
   Platform,
@@ -40,13 +42,31 @@ import {
   Square,
 } from 'lucide-react-native';
 import type { IntelligenceBlock, IntelligenceRequest, IntelligenceTurn } from '@finora/contracts';
-import { tokens } from '@finora/design-tokens';
+import { dark, tokens } from '@finora/design-tokens';
 import { date } from '@finora/i18n';
-import { Action, BottomSheet, Button, Dialog, Heading, Text, Switch, useDesign } from '@finora/ui';
+import {
+  Action,
+  BottomSheet,
+  Button,
+  Dialog,
+  Heading,
+  Text,
+  Switch,
+  useDesign,
+  useReducedMotion,
+} from '@finora/ui';
 import { useWorkspaceDockInset } from '../../components/layout';
 import { LakeScene } from './lake-scene';
-import { FinBarButton, FinComposerSurface, FinTabPicker, FinTabsButton } from './fin-tab-picker';
-import { useFinPreviousPeer, useFinPromptDraft } from './prompt-session';
+import {
+  FIN_BAR_GUTTER,
+  FIN_BAR_PADDING,
+  FinBarButton,
+  FinComposerDivider,
+  FinComposerSurface,
+  FinTabPicker,
+  FinTabsButton,
+} from './fin-tab-picker';
+import { useFinPreviousPeer, useFinPromptDraft, useFinSwipeNavigation } from './prompt-session';
 import { AnalysisBlocks } from './blocks';
 import { FinancePrompt, FinAvatar, ModeMark } from './presentation';
 import { chooseDraftPrompt, chooseSimulationId } from './model';
@@ -60,6 +80,13 @@ import { api, auth } from '../../services/client';
 import { requestId } from '../../services/request-id';
 
 const FIN_INPUT_MIN_HEIGHT = 44;
+const FIN_INPUT_LINE_HEIGHT = 21;
+const FIN_INPUT_VERTICAL_PADDING = 9;
+const finInputFont = {
+  fontFamily: tokens.font.body,
+  fontSize: 16,
+  lineHeight: FIN_INPUT_LINE_HEIGHT,
+} as const;
 
 type Provider = IntelligenceTurn['provider'];
 type Draft = {
@@ -112,6 +139,11 @@ function Desk({
   const [prompt, setPrompt] = useFinPromptDraft(simulationId, initialPrompt);
   const [tabsOpen, showTabs] = useState(false);
   const closeTabs = useCallback(() => showTabs(false), []);
+  const hasDraft = prompt.trim().length > 0;
+  const showTabTrigger = phone && !hasDraft;
+  useEffect(() => {
+    if (!showTabTrigger) closeTabs();
+  }, [closeTabs, showTabTrigger]);
   const [frameHeight, setFrameHeight] = useState(height);
   const [toolbarHeight, setToolbarHeight] = useState(62);
   const bottomGap = dock || 14;
@@ -127,9 +159,15 @@ function Desk({
   const composer = useRef<ComponentRef<typeof TextInput>>(null);
   const [inputContentHeight, setInputContentHeight] = useState(FIN_INPUT_MIN_HEIGHT);
   const [inputWidth, setInputWidth] = useState(0);
+  const nativeProbeHeight = useRef(0);
+  const [iosLineCount, setIOSLineCount] = useState(1);
+  const iosContentHeight =
+    Math.max(iosLineCount, prompt.split('\n').length) * FIN_INPUT_LINE_HEIGHT +
+    FIN_INPUT_VERTICAL_PADDING * 2;
+  const measuredInputHeight = Platform.OS === 'ios' ? iosContentHeight : inputContentHeight;
   const inputLimit = Math.min(phone ? 132 : 152, Math.max(74, Math.round(frameHeight * 0.27)));
   const inputHeight = prompt
-    ? Math.min(inputLimit, Math.max(FIN_INPUT_MIN_HEIGHT, inputContentHeight))
+    ? Math.min(inputLimit, Math.max(FIN_INPUT_MIN_HEIGHT, measuredInputHeight))
     : FIN_INPUT_MIN_HEIGHT;
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const followRef = useRef(true);
@@ -137,6 +175,21 @@ function Desk({
   const turnTop = useRef(0);
   const stream = draft?.stage === 'sending';
   const previousPeer = useFinPreviousPeer();
+  const navigateSwipe = useFinSwipeNavigation();
+  const reduceMotion = useReducedMotion();
+  const edgeOffset = useRef(new Animated.Value(0)).current;
+  const edgeCommitted = useRef(false);
+  const [edgeMoving, setEdgeMoving] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        edgeOffset.stopAnimation();
+        edgeOffset.setValue(0);
+        edgeCommitted.current = false;
+        setEdgeMoving(false);
+      };
+    }, [edgeOffset]),
+  );
   const canReturnToPeer = phone && !tabsOpen && !toolSheet && !privacy && !confirmClear && !stream;
   const openPreviousPeer = useCallback(() => {
     Keyboard.dismiss();
@@ -163,16 +216,37 @@ function Desk({
         .maxPointers(1)
         .cancelsTouchesInView(false)
         .runOnJS(true)
+        .onStart(() => {
+          edgeCommitted.current = false;
+          if (!reduceMotion) setEdgeMoving(true);
+        })
+        .onUpdate((event) => {
+          if (!reduceMotion)
+            edgeOffset.setValue(Math.min(64, Math.max(0, event.translationX) * 0.32));
+        })
         .onEnd((event, success) => {
           if (
             success &&
             event.translationX >= 65 &&
             event.translationX > Math.abs(event.translationY) * 1.5
           ) {
-            openPreviousPeer();
+            edgeCommitted.current = true;
+            Keyboard.dismiss();
+            navigateSwipe(previousPeer());
           }
+        })
+        .onFinalize(() => {
+          if (edgeCommitted.current || reduceMotion) return;
+          Animated.timing(edgeOffset, {
+            toValue: 0,
+            duration: 140,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: Platform.OS !== 'web',
+          }).start(({ finished }) => {
+            if (finished) setEdgeMoving(false);
+          });
         }),
-    [canReturnToPeer, focus, openPreviousPeer],
+    [canReturnToPeer, edgeOffset, focus, navigateSwipe, previousPeer, reduceMotion],
   );
   const queryClient = useQueryClient();
   const historyKey = ['intelligence-history', uid] as const;
@@ -396,14 +470,19 @@ function Desk({
     <FinBarButton
       label={t('intelligenceTools')}
       onPress={() => openTools(true)}
-      backgroundColor={c.secondary}
+      backgroundColor={phone ? 'transparent' : c.secondary}
+      borderColor={phone ? c.primary : c.border}
+      visualSize={phone ? 23 : 36}
     >
-      <Plus size={20} color={c.primary} />
+      <Plus size={phone ? 15 : 20} strokeWidth={phone ? 1.65 : 2} color={c.primary} />
     </FinBarButton>
   );
 
+  const sendUnavailable = !stream && (!hasDraft || scopeUnavailable || clearing);
+  const inputPadding = phone ? 5 : 11;
+  const composerGrown = inputHeight > FIN_INPUT_MIN_HEIGHT;
   const screen = (
-    <View
+    <Animated.View
       collapsable={false}
       onLayout={({ nativeEvent }) => setFrameHeight(nativeEvent.layout.height)}
       style={{
@@ -414,6 +493,7 @@ function Desk({
         paddingHorizontal: wide ? 38 : 20,
         paddingTop: phone ? insets.top : 0,
         paddingBottom: bottomGap,
+        ...(edgeMoving ? { transform: [{ translateX: edgeOffset }] } : {}),
       }}
     >
       <LakeScene reading={engaged} dockInset={phone ? toolbarHeight + bottomGap : dock} />
@@ -548,7 +628,7 @@ function Desk({
                       label={t(label)}
                       onPress={() => fill(t(question))}
                       style={{
-                        minHeight: 52,
+                        minHeight: phone ? 49 : 52,
                         paddingVertical: 8,
                         gap: 12,
                         flexDirection: 'row',
@@ -691,89 +771,120 @@ function Desk({
             <View
               testID="fin-composer"
               style={{
-                flexDirection: 'row',
-                alignItems: 'flex-end',
                 borderWidth: 1,
                 borderColor: focus ? c.focus : phone ? 'transparent' : c.border,
                 backgroundColor: phone ? 'transparent' : c.surface,
-                borderRadius: 28,
-                padding: 6,
-                gap: phone ? 4 : 7,
+                borderRadius: phone ? 32 : 28,
+                padding: phone ? FIN_BAR_PADDING : 6,
+                marginHorizontal: phone ? FIN_BAR_GUTTER - 20 : 0,
               }}
             >
-              {phone ? (
-                <>
-                  <FinComposerSurface />
-                  <FinTabsButton open={tabsOpen} onPress={() => showTabs((open) => !open)} />
-                  {toolsButton}
-                </>
-              ) : null}
-              <TextInput
-                ref={composer}
-                accessibilityLabel={t('intelligenceAsk')}
-                value={prompt}
-                onChangeText={setPrompt}
-                onFocus={() => setFocus(true)}
-                onBlur={() => setFocus(false)}
-                editable={!stream}
-                multiline
-                numberOfLines={Platform.OS === 'web' ? 1 : undefined}
-                scrollEnabled={inputContentHeight > inputLimit}
-                onLayout={({ nativeEvent }) => {
-                  if (Platform.OS === 'web') setInputWidth(nativeEvent.layout.width);
-                }}
-                onContentSizeChange={({ nativeEvent }) => {
-                  if (Platform.OS !== 'web') {
-                    setInputContentHeight(Math.ceil(nativeEvent.contentSize.height));
-                  }
-                }}
-                maxLength={1200}
-                placeholder={t(phone ? 'intelligenceComposerHint' : 'intelligenceAsk')}
-                placeholderTextColor={c.muted}
+              {phone ? <FinComposerSurface /> : null}
+              <View
+                collapsable={false}
                 style={{
                   position: 'relative',
                   zIndex: 1,
-                  flex: 1,
-                  minWidth: 0,
-                  height: inputHeight,
-                  textAlignVertical: 'top',
-                  paddingHorizontal: phone ? 5 : 11,
-                  paddingVertical: 9,
-                  color: c.foreground,
-                  fontFamily: tokens.font.body,
-                  fontSize: 16,
-                  lineHeight: 21,
-                  ...(Platform.OS === 'web'
-                    ? {
-                        outlineWidth: 0,
-                        overflowY: inputContentHeight > inputLimit ? 'auto' : 'hidden',
-                      }
-                    : {}),
+                  flexDirection: 'row',
+                  alignItems: composerGrown ? 'flex-end' : 'center',
+                  gap: phone ? 2 : 7,
                 }}
-              />
-              <FinBarButton
-                label={t(stream ? 'stop' : 'send')}
-                disabled={!stream && (!prompt.trim() || scopeUnavailable || clearing)}
-                onPress={() => (stream ? active.current?.abort() : void submit())}
-                backgroundColor={
-                  !stream && (!prompt.trim() || scopeUnavailable || clearing)
-                    ? c.elevated
-                    : c.primary
-                }
               >
-                {stream ? (
-                  <Square size={15} color={c.onPrimary} fill={c.onPrimary} />
-                ) : (
-                  <ArrowUp
-                    size={21}
-                    color={
-                      !stream && (!prompt.trim() || scopeUnavailable || clearing)
-                        ? c.muted
-                        : c.onPrimary
-                    }
+                {showTabTrigger ? (
+                  <>
+                    <FinTabsButton open={tabsOpen} onPress={() => showTabs((open) => !open)} />
+                    <FinComposerDivider grown={composerGrown} />
+                  </>
+                ) : null}
+                {phone ? toolsButton : null}
+                <View style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                  {Platform.OS === 'ios' && prompt ? (
+                    <NativeText
+                      key={inputPadding}
+                      pointerEvents="none"
+                      accessible={false}
+                      accessibilityElementsHidden
+                      importantForAccessibility="no-hide-descendants"
+                      onTextLayout={({ nativeEvent: { lines } }) => {
+                        const next = Math.max(1, lines.length);
+                        if (nativeProbeHeight.current !== next) {
+                          nativeProbeHeight.current = next;
+                          setIOSLineCount(next);
+                        }
+                      }}
+                      style={{
+                        ...finInputFont,
+                        position: 'absolute',
+                        left: inputPadding,
+                        right: inputPadding,
+                        top: 0,
+                        opacity: 0,
+                      }}
+                    >
+                      {prompt + '\u200b'}
+                    </NativeText>
+                  ) : null}
+                  <TextInput
+                    ref={composer}
+                    accessibilityLabel={t('intelligenceAsk')}
+                    value={prompt}
+                    onChangeText={(next) => {
+                      if (!next) {
+                        nativeProbeHeight.current = 0;
+                        setIOSLineCount(1);
+                      }
+                      setPrompt(next);
+                    }}
+                    onFocus={() => setFocus(true)}
+                    onBlur={() => setFocus(false)}
+                    editable={!stream}
+                    multiline
+                    numberOfLines={Platform.OS === 'web' ? 1 : undefined}
+                    scrollEnabled={measuredInputHeight > inputLimit}
+                    onLayout={({ nativeEvent }) => {
+                      if (Platform.OS === 'web') setInputWidth(nativeEvent.layout.width);
+                    }}
+                    onContentSizeChange={({ nativeEvent }) => {
+                      if (Platform.OS === 'android') {
+                        setInputContentHeight(Math.ceil(nativeEvent.contentSize.height));
+                      }
+                    }}
+                    maxLength={1200}
+                    placeholder={t(phone ? 'intelligenceComposerHint' : 'intelligenceAsk')}
+                    placeholderTextColor={c.muted}
+                    style={{
+                      ...finInputFont,
+                      height: inputHeight,
+                      width: '100%',
+                      textAlignVertical: 'top',
+                      paddingHorizontal: inputPadding,
+                      paddingVertical: FIN_INPUT_VERTICAL_PADDING,
+                      color: c.foreground,
+                      ...(Platform.OS === 'web'
+                        ? {
+                            outlineWidth: 0,
+                            overflowY: measuredInputHeight > inputLimit ? 'auto' : 'hidden',
+                          }
+                        : {}),
+                    }}
                   />
-                )}
-              </FinBarButton>
+                </View>
+                <FinBarButton
+                  label={t(stream ? 'stop' : 'send')}
+                  disabled={sendUnavailable}
+                  onPress={() => (stream ? active.current?.abort() : void submit())}
+                  backgroundColor={
+                    sendUnavailable ? (c === dark ? c.secondary : '#D7EDDF') : c.primary
+                  }
+                  visualSize={phone ? 36 : 40}
+                >
+                  {stream ? (
+                    <Square size={15} color={c.onPrimary} fill={c.onPrimary} />
+                  ) : (
+                    <ArrowUp size={21} color={sendUnavailable ? c.primary : c.onPrimary} />
+                  )}
+                </FinBarButton>
+              </View>
             </View>
             {allowConsent && externalConsent ? (
               <Text small muted>
@@ -791,7 +902,7 @@ function Desk({
           </ScrollView>
         ) : null}
       </View>
-      {phone && tabsOpen ? (
+      {showTabTrigger && tabsOpen ? (
         <FinTabPicker
           onClose={closeTabs}
           bottom={toolbarHeight + bottomGap}
@@ -852,11 +963,13 @@ function Desk({
           onPress={() => setConfirmClear(false)}
         />
       </Dialog>
-    </View>
+    </Animated.View>
   );
   return (
     <GestureDetector gesture={edgeBackGesture} touchAction="pan-y">
-      {screen}
+      <View collapsable={false} style={{ flex: 1 }}>
+        {screen}
+      </View>
     </GestureDetector>
   );
 }
