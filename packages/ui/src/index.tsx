@@ -533,8 +533,16 @@ export function Dialog({
   bottom?: boolean;
 }) {
   const { colors: c, t } = useDesign();
+  // React Native Web owns the focus trap and the outer dialog role.
+  const webLabel = Platform.OS === 'web' ? { 'aria-label': title } : {};
   return (
-    <Modal visible={visible} transparent onRequestClose={onClose} animationType="none">
+    <Modal
+      {...webLabel}
+      visible={visible}
+      transparent
+      onRequestClose={onClose}
+      animationType="none"
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{
@@ -550,17 +558,27 @@ export function Dialog({
           style={{
             width: '100%',
             maxWidth: 560,
-            maxHeight: '88%',
+            maxHeight: bottom ? '92%' : '88%',
             backgroundColor: c.surface,
-            borderRadius: 20,
-            padding: 24,
+            borderRadius: bottom ? 28 : 20,
+            borderBottomLeftRadius: bottom ? 0 : 20,
+            borderBottomRightRadius: bottom ? 0 : 20,
+            padding: bottom ? 20 : 24,
+            paddingBottom: bottom ? 30 : 24,
             gap: 12,
           }}
         >
           <View
-            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 12,
+            }}
           >
-            <Heading size={24}>{title}</Heading>
+            <Heading size={24} style={{ flex: 1 }}>
+              {title}
+            </Heading>
             <IconButton label={t('close')} onPress={onClose} icon={<X color={c.foreground} />} />
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>

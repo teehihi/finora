@@ -175,7 +175,13 @@ export function LoanProductCard({
   );
 }
 
-export function ProductComparison({ products }: { products: readonly [Product, Product] }) {
+export function ProductComparison({
+  products,
+  onNavigate,
+}: {
+  products: readonly [Product, Product];
+  onNavigate: () => void;
+}) {
   const { locale, t } = useDesign();
   const left = useTerms(products[0]);
   const right = useTerms(products[1]);
@@ -187,7 +193,7 @@ export function ProductComparison({ products }: { products: readonly [Product, P
   return (
     <View style={{ gap: 12 }}>
       <MarketNotice>{t('catalogDisclosure')}</MarketNotice>
-      <NormalizedComparison products={products} />
+      <NormalizedComparison products={products} onNavigate={onNavigate} />
       <ComparisonGrid
         products={[info(products[0]), info(products[1])]}
         rows={left.map(({ label, value }, index) => ({
@@ -199,7 +205,13 @@ export function ProductComparison({ products }: { products: readonly [Product, P
   );
 }
 
-function NormalizedComparison({ products }: { products: readonly [Product, Product] }) {
+function NormalizedComparison({
+  products,
+  onNavigate,
+}: {
+  products: readonly [Product, Product];
+  onNavigate: () => void;
+}) {
   const { locale, t, money, colors: c } = useDesign();
   const local = (vi: string, en: string) => (locale === 'vi-VN' ? vi : en);
   const bounds = commonScenarioBounds(products);
@@ -223,7 +235,8 @@ function NormalizedComparison({ products }: { products: readonly [Product, Produ
       <Button
         label={local('Mô phỏng', 'Simulate') + ' ' + label}
         variant="outline"
-        onPress={() =>
+        onPress={() => {
+          onNavigate();
           router.push({
             pathname: '/simulate/[id]',
             params: {
@@ -232,8 +245,8 @@ function NormalizedComparison({ products }: { products: readonly [Product, Produ
               term: values.months,
               due: values.firstDue,
             },
-          })
-        }
+          });
+        }}
       />
     ),
   });

@@ -150,3 +150,97 @@ test('stress-tests a stated budget before a loan is specified without rewriting 
     await client.dispose();
   }
 });
+
+test('copies an owned stress result only after confirmation and retains combined stress across follow-ups', async () => {
+  const owner = await request.newContext({ baseURL: api, extraHTTPHeaders: headers });
+  const other = await request.newContext({ baseURL: api, extraHTTPHeaders: headers });
+  try {
+    for (const client of [owner, other]) {
+      const created = await createLegacyAccount(client, {
+        name: 'Finora stress copy QA',
+        email: randomUUID() + '@example.test',
+        password: randomUUID(),
+      });
+      expect(created.ok(), await created.text()).toBe(true);
+    }
+    const profile = { income: 15_000_000, expenses: 8_000_000, debt: 1_000_000 };
+    expect((await owner.put('/api/profile', { data: profile })).ok()).toBe(true);
+    const input = {
+      principal: 50_000_000,
+      annualRate: 12,
+      months: 24,
+      method: 'annuity',
+      fee: null,
+      firstDue: '2027-01-01',
+    };
+    const originalResponse = await owner.post('/api/simulations/custom', {
+      data: { input, requestId: randomUUID(), confirmed: true },
+    });
+    expect(originalResponse.ok(), await originalResponse.text()).toBe(true);
+    const original = await originalResponse.json();
+
+    async function analyze(prompt: string) {
+      const response = await owner.post('/api/intelligence/stream', {
+        data: {
+          prompt,
+          locale: 'vi-VN',
+          requestId: randomUUID(),
+          simulationId: original.id,
+        },
+      });
+      expect(response.ok(), await response.text()).toBe(true);
+      const packets = (await response.text())
+        .split('\n')
+        .filter((line) => line.startsWith('data: '))
+        .map((line) => JSON.parse(line.slice(6)));
+      const blocks = packets.find((packet) => packet.type === 'structured').blocks;
+      return { blocks, turnId: packets.at(-1).turnId };
+    }
+
+    await analyze('Nếu thu nhập giảm 20% thì sao?');
+    const invalid = await analyze('Nếu lãi suất đổi thành 120%/năm thì sao?');
+    expect(invalid.blocks).not.toContainEqual(expect.objectContaining({ kind: 'scenario' }));
+    expect(invalid.blocks).toContainEqual(
+      expect.objectContaining({ kind: 'missing', fields: expect.arrayContaining(['annualRate']) }),
+    );
+    const combined = await analyze('Nếu chi phí sinh hoạt tăng 1 triệu thì sao?');
+    const blockIndex = combined.blocks.findIndex(
+      (block: { kind: string }) => block.kind === 'scenario',
+    );
+    const analysis = combined.blocks[blockIndex];
+    expect(analysis).toMatchObject({
+      source: 'saved_simulation',
+      annualRate: 12,
+      planningCapacity: 4_250_000,
+      stressBasis: {
+        incomeReductionPercent: 20,
+        monthlyIncomeLoss: 3_000_000,
+        monthlyExpenseIncrease: 1_000_000,
+      },
+    });
+    expect(analysis.stressRemainingCash).toBe(2_000_000 - analysis.peakPayment);
+    const copy = { turnId: combined.turnId, blockIndex, requestId: randomUUID() };
+    const savePath = '/api/intelligence/scenarios/save';
+    expect((await owner.post(savePath, { data: copy })).status()).toBe(400);
+    expect((await other.post(savePath, { data: { ...copy, confirmed: true } })).status()).toBe(404);
+    const confirmed = await owner.post(savePath, { data: { ...copy, confirmed: true } });
+    expect(confirmed.ok(), await confirmed.text()).toBe(true);
+    const saved = await confirmed.json();
+    expect(saved.id).not.toBe(original.id);
+    expect((await other.get('/api/simulations/' + saved.id)).status()).toBe(404);
+    const fresh = await (await owner.get('/api/simulations/' + saved.id)).json();
+    expect(fresh.input).toEqual(input);
+    expect(fresh.result.schedule).toEqual(original.result.schedule);
+    expect(fresh.result.stressAnalysis).toMatchObject({
+      ...analysis.stressBasis,
+      remainingCash: analysis.remainingCash,
+      stressRemainingCash: analysis.stressRemainingCash,
+    });
+    const unchanged = await (await owner.get('/api/simulations/' + original.id)).json();
+    expect(unchanged.result).toEqual(original.result);
+    expect((await (await owner.get('/api/account')).json()).profile).toMatchObject(profile);
+  } finally {
+    await owner.dispose();
+    await other.dispose();
+  }
+});

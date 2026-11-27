@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Stack, Redirect, router, usePathname } from 'expo-router';
+import { Stack, Redirect, router, useGlobalSearchParams, usePathname } from 'expo-router';
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurTargetView } from 'expo-blur';
@@ -27,6 +27,7 @@ import {
 import { useDesign, Text, Eyebrow, Action, Avatar, LoadingState, ErrorState } from '@finora/ui';
 import { Logo, WorkspaceDockInsetContext } from '../../src/components/layout';
 import { DockChrome, dockHeight, dockOffset } from '../../src/components/DockChrome';
+import { workspaceAuthReturn } from '../../src/features/auth/return-path';
 import { auth } from '../../src/services/client';
 import { date } from '@finora/i18n';
 
@@ -84,6 +85,7 @@ export default function Workspace() {
   const indicatorX = useRef(new Animated.Value(0)).current;
   const { width } = useWindowDimensions();
   const path = usePathname();
+  const search = useGlobalSearchParams();
   const { data, isPending, error, refetch } = auth.useSession();
   const { t, colors: c, locale } = useDesign();
   const { reduceMotion, keyboardVisible } = useDockPreferences();
@@ -275,7 +277,13 @@ export default function Workspace() {
 
   if (isPending) return <LoadingState />;
   if (error) return <ErrorState retry={() => refetch()} />;
-  if (!data) return <Redirect href={{ pathname: '/auth', params: { returnTo: path } }} />;
+  if (!data) {
+    return (
+      <Redirect
+        href={{ pathname: '/auth', params: { returnTo: workspaceAuthReturn(path, search) } }}
+      />
+    );
+  }
   const name = data.user.name?.trim() || data.user.email || 'Finora';
   const selected = links[activeIndex];
   const mobileHome = !rail && path === '/home';

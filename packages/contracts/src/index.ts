@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { SavedStressAnalysis } from './intelligence';
 
 export const localeSchema = z.enum(['vi-VN', 'en-US']);
 export type Locale = z.infer<typeof localeSchema>;
@@ -60,6 +61,7 @@ export interface Estimate {
   interest: number;
   repayment: number;
   total: number | null;
+  stressAnalysis?: SavedStressAnalysis;
 }
 export interface Product {
   id: string;

@@ -52,6 +52,21 @@ const copy = {
   ],
   repaymentsProgress: ['Đã xác nhận {paid}/{total} kỳ', '{paid}/{total} payments confirmed'],
   repaymentsSchedule: ['Lịch từng kỳ', 'Payment schedule'],
+  repaymentsTrackedLoans: ['Khoản vay đang theo dõi', 'Tracked loans'],
+  repaymentsFilterAll: ['Tất cả', 'All'],
+  repaymentsFilterOpen: ['Chưa ghi nhận', 'Unrecorded'],
+  repaymentsFilterPaid: ['Đã ghi nhận', 'Recorded'],
+  repaymentsFilterEmpty: ['Không có kỳ nào ở nhóm này.', 'No payments in this view.'],
+  repaymentsDueToday: ['Đến hạn hôm nay', 'Due today'],
+  repaymentsPastDue: ['Quá hạn, chưa ghi nhận', 'Past due, not recorded'],
+  repaymentsUpcoming: ['Chưa ghi nhận · Sắp đến hạn', 'Not recorded · Upcoming'],
+  repaymentsRecordedOn: ['Bạn ghi nhận ngày {date}', 'You recorded this on {date}'],
+  repaymentsPeriodsCount: ['{n} kỳ', '{n} installments'],
+  repaymentsNextAmount: ['Số tiền theo lịch', 'Scheduled amount'],
+  repaymentsDone: ['Đã ghi nhận đủ các kỳ', 'All installments recorded'],
+  repaymentsSavedNotice: ['Đã cập nhật sổ cá nhân.', 'Your ledger was updated.'],
+  repaymentsUndoNotice: ['Đã bỏ dấu đã trả cho kỳ này.', 'The paid mark was removed.'],
+  repaymentsScheduleFilters: ['Lọc kỳ trả', 'Filter schedule'],
   repaymentsUntrackedNote: [
     'Các bản mô phỏng không tự trở thành khoản vay. Mở một bản đã lưu để xác nhận theo dõi.',
     'Simulations don’t become actual loans automatically. Open a saved simulation to confirm tracking.',
@@ -681,3 +696,5 @@ export { documentStrings } from './document';
 export { accessStrings, getAccessStrings, showcaseStrings } from './access';
 
 export { homeCopy } from './home';
+
+export { intelligenceDecision } from './intelligence-decision';

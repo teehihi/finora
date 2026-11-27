@@ -2,14 +2,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { Linking, View, useWindowDimensions } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import {
-  ArrowUpRight,
-  Check,
-  Columns2,
-  FileText,
-  Landmark,
-  SlidersHorizontal,
-} from 'lucide-react-native';
+import { ArrowUpRight, Check, FileText, Landmark, SlidersHorizontal } from 'lucide-react-native';
 import {
   Action,
   BottomSheet,
@@ -38,6 +31,14 @@ import {
 } from './market-ui';
 import { hasUnknownRelevantBounds, matchesPublishedLoan } from './market-filters';
 import { normalizeIntegerInput } from './simulation-model';
+import {
+  AvailabilitySummary,
+  ComparisonSource,
+  ComparisonTray,
+  FilterChip,
+  Provenance,
+} from './catalog-marketplace';
+import { publishedComparisonReasons } from './published-comparison';
 
 const categoryKeys = {
   personal: 'personal',
@@ -234,27 +235,49 @@ function PublishedComparison({
   products: readonly [PublicLoanProduct, PublicLoanProduct];
 }) {
   const { local, fields } = useTermsFormat();
-  const { t, locale } = useDesign();
+  const { t, colors: c } = useDesign();
   const left = fields(products[0]);
   const right = fields(products[1]);
   const info = (p: PublicLoanProduct) => ({
     name: local(p.name, p.nameEn),
     institution: p.institution,
     note: t('publicCompleteness') + ' ' + p.completeness.known + '/' + p.completeness.total,
-    footer: (
-      <View style={{ gap: 3 }}>
-        <Text small muted>
-          {p.sources[0].title}
-        </Text>
-        <Text small muted>
-          {t('publicSourceVerified')} {date(p.sources[0].verifiedAt + 'T00:00:00Z', locale)}
-        </Text>
-      </View>
-    ),
+    footer: <ComparisonSource key={p.id} product={p} />,
   });
+  const reasonCopy = {
+    fees: local(
+      'Thiếu phí của ít nhất một sản phẩm.',
+      'At least one product does not disclose fees.',
+    ),
+    rate: local(
+      'Kỳ công bố hoặc cơ sở tính lãi không giống nhau hay chưa được công bố.',
+      'Rate periods or calculation bases differ or are not disclosed.',
+    ),
+    ranges: local(
+      'Khoảng số tiền hoặc kỳ hạn công bố không giao nhau.',
+      'The disclosed amount or term ranges do not overlap.',
+    ),
+    personal: local(
+      'Chưa có lãi suất và phí áp dụng riêng cho bạn.',
+      'Your personal rate and fees have not been confirmed.',
+    ),
+  };
   return (
     <View style={{ gap: 12 }}>
+      <Provenance mode="public" />
       <MarketNotice>{t('publicCompareNotice')}</MarketNotice>
+      <View style={{ gap: 5, paddingHorizontal: 4 }}>
+        {publishedComparisonReasons(products[0], products[1]).map((reason) => (
+          <View key={reason} style={{ flexDirection: 'row', gap: 7, alignItems: 'flex-start' }}>
+            <Text small bold style={{ color: c.primary }}>
+              •
+            </Text>
+            <Text small style={{ flex: 1 }}>
+              {reasonCopy[reason]}
+            </Text>
+          </View>
+        ))}
+      </View>
       <ComparisonGrid
         products={[info(products[0]), info(products[1])]}
         rows={left.map(([label, value], index) => ({
@@ -269,7 +292,7 @@ function PublishedComparison({
 type Bounds = { amount: number | null; months: number | null };
 const emptyBounds: Bounds = { amount: null, months: null };
 
-export function PublicCatalogView({ personalAction }: { personalAction?: React.ReactNode }) {
+export function PublicCatalogView() {
   const { colors: c, t, locale, money } = useDesign();
   const { local, rate, fields } = useTermsFormat();
   const { width } = useWindowDimensions();
@@ -343,17 +366,22 @@ export function PublicCatalogView({ personalAction }: { personalAction?: React.R
               label: t(key === 'all' ? 'all' : categoryKeys[key]),
             }))}
           />
-          {personalAction}
           {filtersActive ? (
-            <View style={{ gap: 3 }}>
-              <Text small bold style={{ color: c.primary }}>
-                {[
-                  bounds.amount === null ? '' : money(bounds.amount),
-                  bounds.months === null ? '' : bounds.months + ' ' + t('months'),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
+            <View style={{ gap: 6 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {bounds.amount !== null ? (
+                  <FilterChip
+                    label={money(bounds.amount)}
+                    onRemove={() => setBounds((value) => ({ ...value, amount: null }))}
+                  />
+                ) : null}
+                {bounds.months !== null ? (
+                  <FilterChip
+                    label={numeric(bounds.months, locale) + ' ' + t('months')}
+                    onRemove={() => setBounds((value) => ({ ...value, months: null }))}
+                  />
+                ) : null}
+              </View>
               <Text small muted>
                 {local(
                   'Giới hạn chưa công bố không xác nhận sản phẩm phù hợp.',
@@ -362,37 +390,31 @@ export function PublicCatalogView({ personalAction }: { personalAction?: React.R
               </Text>
             </View>
           ) : null}
-          {selection.length > 0 && (
-            <MarketPanel style={{ gap: 6, padding: 11 }}>
-              <Text bold small>
-                {t('publicCompareChoose')} · {selection.length}/2
-              </Text>
-              {selection.map((id) => {
-                const product = q.data?.find((p) => p.id === id);
-                return product ? (
-                  <Text key={id} small muted>
-                    {local(product.name, product.nameEn)}
-                  </Text>
-                ) : null;
-              })}
-              <View style={{ flexDirection: 'row', gap: 9, flexWrap: 'wrap' }}>
-                {pair && (
-                  <Button
-                    label={t('compare')}
-                    variant="soft"
-                    icon={<Columns2 size={16} color={c.primary} />}
-                    onPress={() => setCompareOpen(true)}
-                  />
-                )}
-                <Button label={t('compareClear')} variant="text" onPress={() => setSelection([])} />
-              </View>
-            </MarketPanel>
-          )}
+          <ComparisonTray
+            names={selection.flatMap((id) => {
+              const product = q.data?.find((p) => p.id === id);
+              return product
+                ? [
+                    {
+                      id,
+                      title: local(product.name, product.nameEn),
+                      institution: product.institution,
+                    },
+                  ]
+                : [];
+            })}
+            onRemove={(id) => setSelection((ids) => ids.filter((value) => value !== id))}
+            onClear={() => setSelection([])}
+            onCompare={() => setCompareOpen(true)}
+          />
         </View>
         <View style={{ flex: desktop ? 1 : undefined, minWidth: 0, gap: 12 }}>
-          <MarketNotice verified title={local('Nguồn từ tổ chức cho vay', 'From lender sources')}>
-            {t('publicCatalogNotice')}
-          </MarketNotice>
+          <View style={{ gap: 6, paddingHorizontal: 4, paddingBottom: 2 }}>
+            <Provenance mode="public" />
+            <Text small muted>
+              {t('publicCatalogNotice')}
+            </Text>
+          </View>
           <Data q={q}>
             {(records) => {
               const results = records.filter((p) =>
@@ -457,13 +479,24 @@ export function PublicCatalogView({ personalAction }: { personalAction?: React.R
                             facts={[
                               [t('amount'), amountText],
                               [t('term'), terms[1][1]],
+                              [
+                                p.fee === null
+                                  ? local('Phí một lần', 'One-time fees')
+                                  : t('publicFees'),
+                                p.fee === null
+                                  ? local('Chưa công bố số tiền', 'Amount not disclosed')
+                                  : money(p.fee),
+                              ],
                             ]}
                           />
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Landmark size={15} color={c.muted} />
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <AvailabilitySummary
+                              known={p.completeness.known}
+                              total={p.completeness.total}
+                            />
                             <Text small muted>
-                              {t('publicCompleteness')} · {p.completeness.known}/
-                              {p.completeness.total}
+                              {t('publicSourceVerified')}{' '}
+                              {date(p.sources[0].verifiedAt + 'T00:00:00Z', locale)}
                             </Text>
                           </View>
                           {unknownBounds ? (

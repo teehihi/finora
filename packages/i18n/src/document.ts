@@ -4,6 +4,24 @@ export const documentStrings = {
     description:
       'Tách thông tin trong đề nghị vay, đối chiếu với bản gốc rồi tính lại theo điều khoản bạn xác nhận.',
     intake: 'Tài liệu riêng tư',
+    uploadReading: 'Đang đọc tài liệu của bạn…',
+    uploadPrivacy: 'Finora chỉ tìm dữ liệu có trong tệp; bạn có thể kiểm tra hoặc nhập lại sau.',
+    readyToReview: 'Có thông tin để đối chiếu',
+    needsManual: 'Cần nhập từ bản gốc',
+    enteredByYou: 'Thông số bạn nhập',
+    copiedForReview: 'Đọc từ tài liệu, cần bạn kiểm tra',
+    evidenceOnly: 'Trích dẫn để đối chiếu',
+    nativePdfOriginal:
+      'Mở bản gốc bằng ứng dụng tệp của bạn để đối chiếu; Finora không tạo bản sao PDF để xem trên thiết bị.',
+    openSimulator: 'Mở trong Trình mô phỏng',
+    handoffNote:
+      'Chỉ chuyển thông số vay sang bản nháp có thể sửa. Không chuyển nội dung tài liệu, không lưu và không tạo khoản vay.',
+    handoffFailed: 'Chưa thể mở bản nháp. Bạn vẫn có thể sửa thông số hoặc lưu từ đây.',
+    confirmSaveTitle: 'Lưu bản mô phỏng?',
+    confirmSaveBody:
+      'Chỉ lưu thông số bạn xác nhận và kết quả. Không lưu nội dung tệp vào bản mô phỏng và không bắt đầu theo dõi khoản vay.',
+    confirmSaveAction: 'Xác nhận lưu bản mô phỏng',
+    cancelSaveAction: 'Quay lại',
     select: 'Chọn PDF hoặc ảnh',
     sample: 'Dùng đề nghị mẫu',
     intakeNote:
@@ -110,6 +128,25 @@ export const documentStrings = {
     description:
       'Extract the terms from an offer, compare them with the original and recalculate using the values you confirm.',
     intake: 'Private documents',
+    uploadReading: 'Reading your document…',
+    uploadPrivacy:
+      'Finora only looks for data in the file; you can review or enter it manually next.',
+    readyToReview: 'Ready for review',
+    needsManual: 'Enter terms from the original',
+    enteredByYou: 'Entered by you',
+    copiedForReview: 'From the document, not yet verified',
+    evidenceOnly: 'Excerpts for review',
+    nativePdfOriginal:
+      'Check the PDF in your files app; Finora does not create a PDF copy for viewing on this device.',
+    openSimulator: 'Open in Simulator',
+    handoffNote:
+      'Only loan terms go into an editable draft. No document content is copied, and no estimate or loan is saved.',
+    handoffFailed: 'Could not open the draft. You can still edit or save from here.',
+    confirmSaveTitle: 'Save this estimate?',
+    confirmSaveBody:
+      'Only your confirmed terms and the result will be saved. The estimate stores no file contents and does not start tracking a loan.',
+    confirmSaveAction: 'Confirm and save estimate',
+    cancelSaveAction: 'Go back',
     select: 'Choose a PDF or image',
     sample: 'Use sample offer',
     intakeNote:

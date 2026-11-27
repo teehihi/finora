@@ -18,11 +18,11 @@ export function filterProducts(
   category: Category,
   max: (typeof maxRates)[number],
 ) {
-  const needle = normalize(query.trim());
+  const terms = normalize(query.trim()).split(/\s+/).filter(Boolean);
   return products.filter(
     (p) =>
       (category === 'all' || p.category === category) &&
       (max === 'all' || p.rateMax <= Number(max)) &&
-      normalize([p.name, p.nameEn, p.institution].join(' ')).includes(needle),
+      terms.every((term) => normalize([p.name, p.nameEn, p.institution].join(' ')).includes(term)),
   );
 }

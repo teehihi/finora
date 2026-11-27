@@ -94,4 +94,19 @@ describe('private deterministic intelligence', () => {
     expect(out).toContain('[link]');
     expect(out).not.toContain('0901');
   });
+
+  it.each([
+    ['Nếu lãi suất 120% thì sao?', 'annualRate'],
+    ['Nếu lãi 1%/tháng hay 13%/năm?', 'annualRate'],
+    ['Lãi suất từ 10–14%/năm.', 'annualRate'],
+    ['Vay trong 361 tháng', 'months'],
+    ['Vay trong 12,5 tháng', 'months'],
+    ['Gốc đều hay trả góp đều?', 'method'],
+    ['Thu nhập giảm 110%', 'incomeCut'],
+    ['Nếu lương giảm thì sao?', 'incomeCut'],
+    ['Nếu chi phí sinh hoạt tăng -200 nghìn', 'extraExpense'],
+    ['Nếu chi phí sinh hoạt tăng thì sao?', 'extraExpense'],
+  ])('does not silently select an invalid or contradictory change: %s', (prompt, field) => {
+    expect(interpret(prompt).inputIssues).toContain(field);
+  });
 });

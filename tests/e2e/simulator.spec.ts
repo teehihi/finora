@@ -29,7 +29,9 @@ test('simulator compares actual calculated scenarios, preserves unknown fees and
     await expect(page.getByText('Phí chưa xác định.', { exact: false })).toBeVisible();
     await page.getByRole('button', { name: 'Giữ làm mốc so sánh' }).click();
     await expect(page.getByRole('heading', { name: 'Mốc so sánh' })).toBeVisible();
-    await page.getByLabel('Số tiền vay', { exact: true }).fill(String(product.amountMin));
+    const amount = page.getByLabel('Số tiền vay', { exact: true });
+    await amount.fill(String(product.amountMin));
+    await expect(amount).toHaveValue(String(product.amountMin));
     await expect(result).toHaveCount(0);
     await page.getByRole('button', { name: 'Tính lịch trả nợ' }).click();
     await expect(page.getByText('Chênh lệch kỳ đầu', { exact: false })).toBeVisible();

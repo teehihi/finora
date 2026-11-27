@@ -2,6 +2,7 @@ import {
   clearSimulationHandoff,
   prepareSimulationHandoff,
   readSimulationHandoff,
+  readSimulationHandoffContext,
 } from '../src/features/simulation-handoff';
 
 jest.mock('../src/services/request-id', () => ({ requestId: () => 'opaque-handoff-id' }));
@@ -45,4 +46,14 @@ test('discards invalid inputs and expires unread handoffs', () => {
   } finally {
     clock.mockRestore();
   }
+});
+
+test('retains document origin as display context without embedding a receipt identifier', () => {
+  const id = prepareSimulationHandoff('owner', input, 'document');
+  expect(readSimulationHandoffContext('other', id)).toBeUndefined();
+  expect(readSimulationHandoffContext('owner', id)).toEqual({
+    fields: readSimulationHandoff('owner', id),
+    origin: 'document',
+  });
+  clearSimulationHandoff('owner', id);
 });

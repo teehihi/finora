@@ -15,6 +15,7 @@ export function PrivatePreview({ review }: { review: DocumentReview }) {
   const [visible, setVisible] = useState(false);
   const [image, setImage] = useState('');
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const format = mime === 'application/pdf' ? s.pdf : mime === 'image/png' ? s.png : s.jpg;
   const id = review.id;
   useEffect(() => {
@@ -29,7 +30,7 @@ export function PrivatePreview({ review }: { review: DocumentReview }) {
       },
     );
     return () => controller.abort();
-  }, [id, mime, visible]);
+  }, [attempt, id, mime, visible]);
 
   function close() {
     setVisible(false);
@@ -89,7 +90,11 @@ export function PrivatePreview({ review }: { review: DocumentReview }) {
             </View>
           </Pressable>
         </Link>
-      ) : null}
+      ) : (
+        <Text small muted style={{ flexBasis: '100%' }}>
+          {s.nativePdfOriginal}
+        </Text>
+      )}
 
       <Dialog
         title={vi ? 'Ảnh gốc riêng tư' : 'Private original image'}
@@ -97,7 +102,18 @@ export function PrivatePreview({ review }: { review: DocumentReview }) {
         onClose={close}
       >
         {failed ? (
-          <Text role="alert">{s.requestError}</Text>
+          <View style={{ gap: 10 }}>
+            <Text role="alert">{s.requestError}</Text>
+            <Button
+              variant="outline"
+              label={vi ? 'Thử mở lại' : 'Retry opening'}
+              onPress={() => {
+                setFailed(false);
+                setImage('');
+                setAttempt((value) => value + 1);
+              }}
+            />
+          </View>
         ) : image ? (
           <Image
             accessibilityLabel={

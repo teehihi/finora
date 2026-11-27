@@ -127,8 +127,40 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
     .getByRole('heading', { name: 'Finora tính từ thông số đã xác nhận' })
     .scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath('document-confirmed-mobile.png') });
+  const savedCount = async () =>
+    (await (await page.request.get(api + '/simulations')).json()).length;
+  const trackedCount = async () =>
+    (await (await page.request.get(api + '/repayments')).json()).loans.length;
+  expect(await savedCount()).toBe(0);
+  await page.getByRole('button', { name: 'Mở trong Trình mô phỏng' }).click();
+  await expect(page).toHaveURL(/\/simulate\/custom\?handoff=[\w-]+$/);
+  await expect(page.getByText('Điều khoản đã rà soát', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Số tiền vay', { exact: true })).toHaveValue('26.000.000');
+  await page.getByRole('button', { name: 'Ngày trả và phí' }).click();
+  await expect(page.getByLabel('Ngày trả kỳ đầu (YYYY-MM-DD)', { exact: true })).toHaveValue(
+    '2027-01-15',
+  );
+  await expect(page.getByLabel('Tổng phí một lần (VND)', { exact: true })).toHaveValue('');
+  await page.getByLabel('Số tiền vay', { exact: true }).fill('27000000');
+  expect(await savedCount()).toBe(0);
+  expect(await trackedCount()).toBe(0);
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click();
+  await expect(page).toHaveURL(/\/documents\//);
+  await expect(
+    page.getByRole('heading', { name: 'Finora tính từ thông số đã xác nhận' }),
+  ).toBeVisible();
+
   await page.getByRole('button', { name: 'Lưu bản mô phỏng đã rà soát' }).click();
+  const saveDialog = page.getByRole('dialog', { name: 'Lưu bản mô phỏng?' });
+  await expect(saveDialog.getByText(/không bắt đầu theo dõi khoản vay/i)).toBeVisible();
+  expect(await savedCount()).toBe(0);
+  await saveDialog.getByRole('button', { name: 'Quay lại', exact: true }).click();
+  await expect(saveDialog).not.toBeVisible();
+  expect(await savedCount()).toBe(0);
+  await page.getByRole('button', { name: 'Lưu bản mô phỏng đã rà soát' }).click();
+  await saveDialog.getByRole('button', { name: 'Xác nhận lưu bản mô phỏng', exact: true }).click();
   await expect(page).toHaveURL(/\/saved\//);
+  expect(await trackedCount()).toBe(0);
   await expect(page.getByText('Tài liệu riêng tư đã rà soát')).toBeVisible();
   const savedUrl = page.url();
   const saved = await page.request.get(
@@ -150,4 +182,46 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
   await expect(page.getByText('Tài liệu không còn khả dụng với phiên hiện tại.')).toBeVisible();
   await page.goto(savedUrl);
   await expect(page.getByText('Tài liệu riêng tư đã rà soát')).toBeVisible();
+});
+
+test('an unreadable private image can be previewed and recovered with manual terms', async ({
+  page,
+}) => {
+  const api = 'http://localhost:3000/api';
+  expect(
+    (
+      await createLegacyAccount(page.request, {
+        email: `document-manual-${randomUUID()}@example.test`,
+        name: 'Synthetic manual review',
+        password: randomUUID(),
+      })
+    ).ok(),
+  ).toBeTruthy();
+  const image = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAAAAADhZOFXAAAADklEQVR4nGP4DwUMlDEA98A/wbI0QbsAAAAASUVORK5CYII=',
+    'base64',
+  );
+  await page.goto('/documents');
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Chọn PDF hoặc ảnh' }).click();
+  await (
+    await chooser
+  ).setFiles({ name: 'synthetic-blank.png', mimeType: 'image/png', buffer: image });
+  await expect(page.getByText('Cần nhập từ bản gốc', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Xem ảnh gốc', exact: true }).click();
+  const original = page.getByRole('dialog', { name: 'Ảnh gốc riêng tư' });
+  await expect(original.getByRole('img', { name: 'Ảnh đề nghị vay bạn đã tải lên' })).toBeVisible();
+  await original.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await expect(page.getByLabel('Tiền gốc (VND)')).toHaveValue('');
+  await page.getByLabel('Tiền gốc (VND)').fill('18000000');
+  await page.getByLabel('Kỳ hạn (tháng)').fill('12');
+  await page.getByLabel('Lãi suất năm (%)').fill('12,3');
+  await page.getByLabel('Ngày trả kỳ đầu').fill('15/01/2027');
+  await page.getByRole('radio', { name: 'Trả góp đều' }).click();
+  await page.getByRole('button', { name: 'Xác nhận và tính lại' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Finora tính từ thông số đã xác nhận' }),
+  ).toBeVisible();
+  expect((await (await page.request.get(api + '/simulations')).json()).length).toBe(0);
+  expect((await (await page.request.get(api + '/repayments')).json()).loans).toHaveLength(0);
 });
