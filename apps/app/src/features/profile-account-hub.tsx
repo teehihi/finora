@@ -11,8 +11,11 @@ import {
 import { tokens } from '@finora/design-tokens';
 import { Action, Heading, Text, useDesign } from '@finora/ui';
 import { useAccountAvatar } from './account-avatar/client';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useProfileChrome } from './profile-chrome';
+
+import profileCover from '../../assets/brand/profile-cover.png';
+
+const coverHeight = 136;
 
 export const accountSections = ['personal', 'finance', 'preferences', 'privacy'] as const;
 export type AccountSection = (typeof accountSections)[number];
@@ -91,17 +94,34 @@ export function AccountHero({
     <View testID="account-hub-hero">
       <View
         pointerEvents="none"
-        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 62 }}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: 0,
+          height: coverHeight,
+          overflow: 'hidden',
+          backgroundColor: p.hero,
+        }}
       >
-        <Svg width="100%" height="100%">
-          <Defs>
-            <LinearGradient id="finora-account-warm" x1="0%" x2="84%" y1="0%" y2="100%">
-              <Stop offset="0" stopColor={p.warmTop} />
-              <Stop offset="1" stopColor={p.warmBottom} />
-            </LinearGradient>
-          </Defs>
-          <Rect width="100%" height="100%" fill="url(#finora-account-warm)" />
-        </Svg>
+        <Image
+          testID="account-hub-cover"
+          source={profileCover}
+          accessible={false}
+          resizeMode="cover"
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            height: '100%',
+            width: '100%',
+            // The mark is on the right: crop spare space from the left on narrow phones.
+            minWidth: coverHeight * 3,
+            opacity: night ? 0.14 : 1,
+          }}
+        />
       </View>
       <View
         style={{
@@ -112,7 +132,7 @@ export function AccountHero({
           justifyContent: 'center',
         }}
       >
-        <Heading size={23} style={{ color: night ? p.ink : '#312015' }}>
+        <Heading size={23} style={{ color: p.ink }}>
           {t('profileTitle')}
         </Heading>
       </View>
@@ -123,7 +143,7 @@ export function AccountHero({
           backgroundColor: p.surface,
           padding: 14,
           gap: 10,
-          boxShadow: night ? '0px 6px 20px #00000030' : '0px 7px 24px #23170B16',
+          boxShadow: night ? '0px 6px 20px #00000030' : '0px 7px 24px #142D2316',
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
@@ -163,11 +183,11 @@ export function AccountHero({
                 gap: 6,
                 paddingHorizontal: 6,
                 paddingVertical: 5,
-                backgroundColor: p.warmChip,
+                backgroundColor: c.secondary,
               }}
             >
-              <Icon size={15} color={p.warmInk} />
-              <Text small bold style={{ lineHeight: 16, color: p.warmInk, flexShrink: 1 }}>
+              <Icon size={15} color={c.primary} />
+              <Text small bold style={{ lineHeight: 16, color: c.primary, flexShrink: 1 }}>
                 {label}
               </Text>
             </Action>

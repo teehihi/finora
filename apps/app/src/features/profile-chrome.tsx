@@ -13,23 +13,17 @@ export const profileLight = {
   ink: '#151C26',
   muted: '#626D7B',
   icon: '#333943',
-  warmTop: '#FFF0B7',
-  warmBottom: '#FFA450',
-  warmChip: '#FFF2C6',
-  warmInk: '#8C510B',
+  hero: '#EFEEE8',
   profileChip: '#E0F1EE',
 };
-const profileDark = {
+export const profileDark = {
   background: '#14171D',
   surface: '#1C2027',
   line: '#313640',
   ink: '#F3F4F6',
   muted: '#B8C1CC',
   icon: '#E0E5EC',
-  warmTop: '#433223',
-  warmBottom: '#714423',
-  warmChip: '#453622',
-  warmInk: '#F6D59F',
+  hero: '#172722',
   profileChip: '#23433C',
 };
 export function useProfileChrome() {
