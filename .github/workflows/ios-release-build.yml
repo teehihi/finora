@@ -37,6 +37,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build workspace dependencies for the iOS bundle
+        run: pnpm exec turbo run build --filter='@finora/app^...'
       - name: Prebuild and install pods
         run: |
           xcodebuild -version
@@ -56,7 +58,7 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/finora-ios-build" -resultBundlePath "$diagnostics/Finora.xcresult" \
             CODE_SIGNING_ALLOWED=NO build > "$diagnostics/xcodebuild.log" 2>&1 || {
               status=$?
-              awk '/[Ee]rror:|fatal error|Undefined symbols|Command .* failed/ && ++errors <= 60 {print "  " $0}' "$diagnostics/xcodebuild.log"
+              awk '/(^|[[:space:]])[Ee]rror:|Undefined symbols for architecture|Command .* failed/ && ++errors <= 60 {print "  " $0}' "$diagnostics/xcodebuild.log"
               tail -n 30 "$diagnostics/xcodebuild.log" | sed 's/^/  /'
               exit "$status"
             }
