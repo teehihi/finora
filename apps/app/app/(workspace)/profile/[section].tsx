@@ -25,6 +25,7 @@ import {
   ProfileAvatar,
   type AccountSection,
 } from '../../../src/features/profile-account-hub';
+import { AvatarEditor } from '../../../src/features/account-avatar/AvatarEditor';
 import { ProfileInsights } from '../../../src/features/profile-insights';
 import { clearIntelligenceHistory } from '../../../src/features/intelligence/transport';
 import { api, auth } from '../../../src/services/client';
@@ -203,7 +204,11 @@ function ProfileSection({ section }: { section: AccountSection }) {
               gap: 7,
             }}
           >
-            <ProfileAvatar name={name} size={92} />
+            {uid ? (
+              <AvatarEditor owner={uid} name={name} />
+            ) : (
+              <ProfileAvatar name={name} size={92} />
+            )}
             <Heading size={25} style={{ textAlign: 'center' }}>
               {name}
             </Heading>

@@ -17,6 +17,8 @@ import { CatalogIntelligenceController } from './modules/catalog-intelligence.js
 import { DocumentIntelligenceController } from './modules/document-intelligence.js';
 import { RepaymentIntelligenceController } from './modules/repayment-intelligence.js';
 import { DocumentsController, LocalStorageProvider, STORAGE } from './infrastructure/storage.js';
+import { avatarMimes, maxAvatarBytes } from '@finora/contracts';
+import { AccountAvatarController } from './modules/account-avatar.js';
 import { SafeErrors, requestLog, logger } from './common/http.js';
 
 @Controller('health')
@@ -35,6 +37,7 @@ class HealthModule {}
 @Module({
   controllers: [
     PlanningController,
+    AccountAvatarController,
     AssistantController,
     DocumentsController,
     IntelligenceController,
@@ -116,6 +119,19 @@ async function main() {
       inflate: false,
     }),
   );
+  const parseAvatar = express.raw({
+    type: [...avatarMimes],
+    limit: maxAvatarBytes,
+    inflate: false,
+  });
+  server.use('/api/account/avatar', (req, res, next) => {
+    if (req.method !== 'PUT') return next();
+    if (!req.is([...avatarMimes])) return res.sendStatus(415);
+    void auth.api
+      .getSession({ headers: fromNodeHeaders(req.headers) })
+      .then((found) => (found ? parseAvatar(req, res, next) : res.sendStatus(401)))
+      .catch(next);
+  });
   server.use(
     (
       err: Error & { status?: number },

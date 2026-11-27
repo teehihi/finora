@@ -1,8 +1,9 @@
-import { Text as NativeText, View } from 'react-native';
+import { Image, Text as NativeText, View } from 'react-native';
 import { Banknote, ChevronRight, Fingerprint, LockKeyhole, Moon } from 'lucide-react-native';
 import { tokens } from '@finora/design-tokens';
 import { Action, Heading, Text, useDesign } from '@finora/ui';
 import { workspaceArtwork } from '../components/workspace-artwork';
+import { useAccountAvatar } from './account-avatar/client';
 import { SceneWash } from '../components/workspace-scene';
 
 export const accountSections = ['personal', 'finance', 'preferences', 'privacy'] as const;
@@ -11,8 +12,17 @@ export function accountSection(value: unknown): AccountSection | undefined {
   return accountSections.find((section) => section === value);
 }
 
-export function ProfileAvatar({ name, size = 48 }: { name: string; size?: number }) {
+export function ProfileAvatar({
+  name,
+  owner,
+  size = 48,
+}: {
+  name: string;
+  owner?: string;
+  size?: number;
+}) {
   const { colors: c, locale } = useDesign();
+  const image = useAccountAvatar(owner).data?.dataUrl;
   return (
     <View
       accessible={false}
@@ -26,19 +36,37 @@ export function ProfileAvatar({ name, size = 48 }: { name: string; size?: number
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: c.secondary,
+        overflow: 'hidden',
       }}
     >
-      <NativeText
-        allowFontScaling={false}
-        style={{ fontFamily: tokens.font.heading, fontSize: size * 0.4, color: c.primary }}
-      >
-        {(Array.from(name.trim())[0] || 'F').toLocaleUpperCase(locale)}
-      </NativeText>
+      {image ? (
+        <Image
+          testID="account-avatar-image"
+          accessible={false}
+          source={{ uri: image }}
+          style={{ width: size, height: size }}
+        />
+      ) : (
+        <NativeText
+          allowFontScaling={false}
+          style={{ fontFamily: tokens.font.heading, fontSize: size * 0.4, color: c.primary }}
+        >
+          {(Array.from(name.trim())[0] || 'F').toLocaleUpperCase(locale)}
+        </NativeText>
+      )}
     </View>
   );
 }
 
-export function AccountHero({ name, open }: { name: string; open: () => void }) {
+export function AccountHero({
+  name,
+  owner,
+  open,
+}: {
+  name: string;
+  owner?: string;
+  open: () => void;
+}) {
   const { colors: c, locale, t } = useDesign();
   const vi = locale === 'vi-VN';
   return (
@@ -73,7 +101,7 @@ export function AccountHero({ name, open }: { name: string; open: () => void }) 
           borderWidth: 1,
         }}
       >
-        <ProfileAvatar name={name} />
+        <ProfileAvatar name={name} owner={owner} />
         <Text bold style={{ flex: 1, minWidth: 0 }}>
           {name}
         </Text>

@@ -43,7 +43,7 @@ export default function ProfileScreen() {
     <Page
       title={t('profileTitle')}
       maxWidth={690}
-      header={<AccountHero name={name} open={() => open('personal')} />}
+      header={<AccountHero name={name} owner={data?.user.id} open={() => open('personal')} />}
     >
       <AccountGroups open={open} />
       <View
