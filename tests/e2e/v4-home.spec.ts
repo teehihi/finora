@@ -123,10 +123,10 @@ test('Home stress sheet compares real profile cash flow without saving a change'
   expect((await refreshed.json()).profile).toMatchObject(profile);
 });
 
-test('Home search finds local tools without accents and resets after cancel', async ({
+test('Home search finds local tools without accents and resets on Back', async ({
   context,
   page,
-}) => {
+}, info) => {
   const account = await createLegacyAccount(context.request, {
     email: randomUUID() + '@example.test',
     name: 'An',
@@ -137,14 +137,24 @@ test('Home search finds local tools without accents and resets after cancel', as
   await page.goto('/home');
   const launcher = page.getByRole('button', { name: 'Tìm tiện ích', exact: true });
   await launcher.click();
-  const dialog = page.getByRole('dialog');
-  const field = dialog.getByRole('textbox');
+  await expect(page).toHaveURL(/\/search\/?$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('tablist')).toHaveCount(0);
+  await expect(page.getByTestId('home-fixed-backdrop')).toBeHidden();
+  const field = page.getByRole('textbox', { name: 'Tìm tiện ích' });
+  await expect(field).toBeFocused();
   await field.fill('xyz');
-  await expect(dialog.getByText(/Không có tiện ích phù hợp/)).toBeVisible();
-  await dialog.getByRole('button', { name: 'Đóng' }).click();
+  await expect(page.getByText(/Không có tiện ích phù hợp/)).toBeVisible();
+  await page.getByRole('button', { name: 'Xóa từ khóa' }).click();
+  await expect(field).toBeFocused();
+  await expect(page.getByText('Tiện ích gợi ý')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('search-375.png') });
+  await field.fill('hop dong');
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click();
+  await expect(page).toHaveURL(/\/home\/?$/);
   await launcher.click();
   await expect(field).toHaveValue('');
   await field.fill('hop dong');
-  await dialog.getByRole('button', { name: 'Đọc hợp đồng' }).click();
+  await page.getByRole('button', { name: 'Đọc hợp đồng' }).click();
   await expect(page).toHaveURL(/\/documents\/?$/);
 });

@@ -87,6 +87,13 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   await page.goto('/home');
   const skeleton = page.getByTestId('task-hero-skeleton');
   const tools = page.getByRole('heading', { name: 'Công cụ', exact: true });
+  const backdrop = page.getByTestId('home-fixed-backdrop');
+  const scroll = page.getByTestId('home-refresh-scroll');
+  await expect(backdrop).toBeVisible();
+  await expect(scroll).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  expect(
+    await scroll.evaluate((node) => node.querySelector('[data-testid="home-fixed-backdrop"]')),
+  ).toBeNull();
   await expect(skeleton).toBeVisible();
   await expect(page.getByRole('button', { name: 'Xem kỳ trả' })).toHaveCount(0);
   expect(await skeleton.evaluate((node) => getComputedStyle(node.firstElementChild!).opacity)).toBe(
@@ -112,12 +119,23 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   const amount = await page.getByRole('heading', { name: /₫/ }).first().textContent();
   expect(amount).toBeTruthy();
   expect(Math.abs((await tools.boundingBox())!.y - toolsBefore)).toBeLessThan(8);
+  const repaymentCard = page.getByTestId('home-ledger-focus');
+  const measureAnchorGap = async () => {
+    const [reflections, card] = await Promise.all([
+      page.getByTestId('home-backdrop-reflections').boundingBox(),
+      repaymentCard.boundingBox(),
+    ]);
+    return Math.abs(reflections!.y + reflections!.height - (card!.y + card!.height / 2));
+  };
+  await expect.poll(measureAnchorGap).toBeLessThan(3);
+  const fixedArt = await backdrop.boundingBox();
   await page.screenshot({ path: info.outputPath('02-home-390.png') });
 
   const refresh = page.getByRole('button', { name: 'Làm mới dữ liệu' });
   pause();
   await refresh.click();
   await expect(page.getByTestId('task-refresh-indicator').first()).toBeVisible();
+  expect(await backdrop.boundingBox()).toEqual(fixedArt);
   await expect(checkout).toBeVisible();
   await expect(
     page.getByRole('heading', { name: amount ?? '', exact: true }).first(),

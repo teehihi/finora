@@ -24,7 +24,6 @@ import {
 } from 'lucide-react-native';
 import { useDesign, Text, Eyebrow, Action, Avatar, ErrorState } from '@finora/ui';
 import { LaunchScene } from '../../src/components/LaunchScene';
-import { homeHeaderTopColor } from '../../src/features/home-header-theme';
 import { Logo, WorkspaceDockInsetContext } from '../../src/components/layout';
 import {
   DockChrome,
@@ -91,7 +90,9 @@ export default function Workspace() {
   const { reduceMotion, keyboardVisible } = useDockPreferences();
   const rail = width >= tokens.breakpoints.rail;
   const full = width >= tokens.breakpoints.desktop;
-  const showDock = !rail && !keyboardVisible;
+  const inSearch = path === '/search';
+  const showHomeBackdrop = !rail && path === '/home';
+  const showDock = !rail && !keyboardVisible && !inSearch;
   const activeIndex = Math.max(
     0,
     links.findIndex(
@@ -368,14 +369,15 @@ export default function Workspace() {
       value={showCYL ? cylHeight + 5 : showDock ? dockHeight + dockOffset + 5 : 0}
     >
       <SafeAreaView
-        edges={showCYL ? ['top', 'right', 'left'] : ['top', 'right', 'bottom', 'left']}
+        edges={{
+          top: showHomeBackdrop ? 'off' : 'additive',
+          right: 'additive',
+          bottom: showCYL ? 'off' : 'additive',
+          left: 'additive',
+        }}
         style={{
           flex: 1,
-          backgroundColor: rail
-            ? c.surface
-            : path === '/home'
-              ? homeHeaderTopColor(c === dark)
-              : c.background,
+          backgroundColor: rail ? c.surface : c.background,
         }}
       >
         <KeyboardAvoidingView
@@ -390,7 +392,7 @@ export default function Workspace() {
               flexDirection: rail ? 'row' : 'column',
             }}
           >
-            {rail ? (
+            {rail && !inSearch ? (
               <View
                 style={{
                   width: full ? 222 : 88,
@@ -437,7 +439,7 @@ export default function Workspace() {
               </View>
             ) : null}
             <View style={{ flex: 1, minWidth: 0 }}>
-              {rail ? (
+              {rail && !inSearch ? (
                 <View
                   style={{
                     paddingHorizontal: full

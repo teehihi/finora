@@ -9,6 +9,7 @@ describe('authentication return paths', () => {
       ['/loans', { pane: 'simulations' }, '/loans?pane=simulations'],
       ['/loans', { pane: 'schedule' }, '/loans?pane=schedule'],
       ['/saved/owned-example', {}, '/saved/owned-example'],
+      ['/search', { term: 'private' }, '/search'],
     ] as const;
 
     for (const [path, params, expected] of cases) {
