@@ -42,7 +42,7 @@ import {
   Square,
 } from 'lucide-react-native';
 import type { IntelligenceBlock, IntelligenceRequest, IntelligenceTurn } from '@finora/contracts';
-import { tokens } from '@finora/design-tokens';
+import { dark, tokens } from '@finora/design-tokens';
 import { date } from '@finora/i18n';
 import {
   Action,
@@ -57,7 +57,15 @@ import {
 } from '@finora/ui';
 import { useWorkspaceDockInset } from '../../components/layout';
 import { LakeScene } from './lake-scene';
-import { FinBarButton, FinComposerSurface, FinTabPicker, FinTabsButton } from './fin-tab-picker';
+import {
+  FIN_BAR_GUTTER,
+  FIN_BAR_PADDING,
+  FinBarButton,
+  FinComposerDivider,
+  FinComposerSurface,
+  FinTabPicker,
+  FinTabsButton,
+} from './fin-tab-picker';
 import { useFinPreviousPeer, useFinPromptDraft, useFinSwipeNavigation } from './prompt-session';
 import { AnalysisBlocks } from './blocks';
 import { FinancePrompt, FinAvatar, ModeMark } from './presentation';
@@ -457,15 +465,17 @@ function Desk({
     <FinBarButton
       label={t('intelligenceTools')}
       onPress={() => openTools(true)}
-      backgroundColor={c.secondary}
-      borderColor={c.border}
+      backgroundColor={phone ? 'transparent' : c.secondary}
+      borderColor={phone ? c.primary : c.border}
+      visualSize={phone ? 23 : 36}
     >
-      <Plus size={20} color={c.primary} />
+      <Plus size={phone ? 15 : 20} strokeWidth={phone ? 1.65 : 2} color={c.primary} />
     </FinBarButton>
   );
 
   const sendUnavailable = !stream && (!prompt.trim() || scopeUnavailable || clearing);
   const inputPadding = phone ? 5 : 11;
+  const composerGrown = inputHeight > FIN_INPUT_MIN_HEIGHT;
   const screen = (
     <Animated.View
       collapsable={false}
@@ -613,7 +623,7 @@ function Desk({
                       label={t(label)}
                       onPress={() => fill(t(question))}
                       style={{
-                        minHeight: 52,
+                        minHeight: phone ? 49 : 52,
                         paddingVertical: 8,
                         gap: 12,
                         flexDirection: 'row',
@@ -759,8 +769,9 @@ function Desk({
                 borderWidth: 1,
                 borderColor: focus ? c.focus : phone ? 'transparent' : c.border,
                 backgroundColor: phone ? 'transparent' : c.surface,
-                borderRadius: 28,
-                padding: 6,
+                borderRadius: phone ? 32 : 28,
+                padding: phone ? FIN_BAR_PADDING : 6,
+                marginHorizontal: phone ? FIN_BAR_GUTTER - 20 : 0,
               }}
             >
               {phone ? <FinComposerSurface /> : null}
@@ -770,13 +781,14 @@ function Desk({
                   position: 'relative',
                   zIndex: 1,
                   flexDirection: 'row',
-                  alignItems: inputHeight > FIN_INPUT_MIN_HEIGHT ? 'flex-end' : 'center',
-                  gap: phone ? 4 : 7,
+                  alignItems: composerGrown ? 'flex-end' : 'center',
+                  gap: phone ? 2 : 7,
                 }}
               >
                 {phone ? (
                   <>
                     <FinTabsButton open={tabsOpen} onPress={() => showTabs((open) => !open)} />
+                    <FinComposerDivider grown={composerGrown} />
                     {toolsButton}
                   </>
                 ) : null}
@@ -856,8 +868,10 @@ function Desk({
                   label={t(stream ? 'stop' : 'send')}
                   disabled={sendUnavailable}
                   onPress={() => (stream ? active.current?.abort() : void submit())}
-                  backgroundColor={sendUnavailable ? c.secondary : c.primary}
-                  borderColor={sendUnavailable ? c.primary : undefined}
+                  backgroundColor={
+                    sendUnavailable ? (c === dark ? c.secondary : '#D7EDDF') : c.primary
+                  }
+                  visualSize={phone ? 36 : 40}
                 >
                   {stream ? (
                     <Square size={15} color={c.onPrimary} fill={c.onPrimary} />

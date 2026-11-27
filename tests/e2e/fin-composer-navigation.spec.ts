@@ -37,15 +37,32 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
     expect(Math.max(...centers) - Math.min(...centers)).toBeLessThan(1);
     const frame = (await bar.boundingBox())!;
     for (const box of buttons) {
-      expect(frame.y + frame.height - box!.y - box!.height).toBeCloseTo(7, 0);
+      expect(frame.y + frame.height - box!.y - box!.height).toBeCloseTo(5, 0);
     }
   };
   await checkAligned();
   const singleLine = (await bar.boundingBox())!;
   await expect(send).toBeDisabled();
   await expect(send.locator('svg')).toBeVisible();
+  expect(singleLine.height).toBeLessThanOrEqual(55);
+  expect((await tools.boundingBox())!.width).toBe(44);
+  expect((await send.boundingBox())!.width).toBe(44);
+  await expect(tools.getByTestId('fin-button-art')).toHaveCSS('width', '23px');
+  await expect(send.getByTestId('fin-button-art')).toHaveCSS('width', '36px');
   await expect(input).toHaveAttribute('placeholder', 'Hỏi Fin…');
   await page.screenshot({ path: info.outputPath('fin-single-toolbar.png') });
+  await tabs.click();
+  await expect(picker).toBeVisible();
+  const menuIconBoxes = await Promise.all(
+    ['Tổng quan', 'Khám phá', 'Khoản vay', 'Hồ sơ'].map((name) =>
+      picker.getByRole('button', { name, exact: true }).locator('svg').boundingBox(),
+    ),
+  );
+  const iconColumns = menuIconBoxes.map((box) => box!.x);
+  expect(Math.max(...iconColumns) - Math.min(...iconColumns)).toBeLessThan(1);
+  await page.screenshot({ path: info.outputPath('fin-tabs-popover-empty.png') });
+  await tabs.click();
+  await expect(picker).toHaveCount(0);
 
   await input.fill('Dòng đầu.\nDòng thứ hai.\nDòng cuối.');
   await expect(send).toBeEnabled();
@@ -69,6 +86,13 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
   const popupBox = await picker.boundingBox();
   const barBox = await bar.boundingBox();
   expect(popupBox!.y + popupBox!.height).toBeLessThanOrEqual(barBox!.y);
+  const anchor = (await tabs.boundingBox())!;
+  const tail = picker.getByTestId('fin-tab-tail');
+  await expect(tail).toBeVisible();
+  const tip = (await tail.boundingBox())!;
+  expect(tip.x + tip.width / 2).toBeCloseTo(anchor.x + anchor.width / 2, 0);
+  expect(Math.abs(tip.y + tip.height - barBox!.y)).toBeLessThan(7);
+  await expect(picker).toHaveCSS('width', '184px');
   await page.screenshot({ path: info.outputPath('fin-tabs-popover.png') });
   await tabs.click();
   await expect(picker).toHaveCount(0);
