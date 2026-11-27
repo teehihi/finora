@@ -465,19 +465,22 @@ function Simulator({
               <View
                 accessibilityLiveRegion="polite"
                 style={{
-                  backgroundColor: currentLive ? c.signatureStart : c.secondary,
+                  backgroundColor: c.secondary,
                   borderRadius: 17,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  overflow: 'hidden',
                   padding: 12,
                   gap: 7,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                   {currentLive ? (
-                    <CircleCheck size={16} color={c.signatureLime} />
+                    <CircleCheck size={16} color={c.success} />
                   ) : (
                     <CircleAlert size={17} color={c.primary} />
                   )}
-                  <Text small bold style={currentLive ? { color: c.onForestMuted } : undefined}>
+                  <Text small bold style={{ color: c.primary }}>
                     {local('Ước tính kỳ đầu', 'Estimated first payment')}
                   </Text>
                 </View>
@@ -496,7 +499,7 @@ function Simulator({
                       <Text
                         bold
                         style={{
-                          color: c.onForest,
+                          color: c.foreground,
                           fontSize: 26,
                           lineHeight: 32,
                           fontVariant: ['tabular-nums'],
@@ -505,19 +508,19 @@ function Simulator({
                         {money(currentLive.firstPayment)}
                       </Text>
                       <View>
-                        <Text small style={{ color: c.onForestMuted }}>
+                        <Text small style={{ color: c.muted }}>
                           {local('Tổng gốc + lãi', 'Principal + interest')}
                         </Text>
                         <Text
                           small
                           bold
-                          style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}
+                          style={{ color: c.foreground, fontVariant: ['tabular-nums'] }}
                         >
                           {money(currentLive.repayment)}
                         </Text>
                       </View>
                     </View>
-                    <Text small style={{ color: c.onForestMuted }}>
+                    <Text small style={{ color: c.muted }}>
                       {local('Chưa cộng phí một lần.', 'Excludes one-time fees.')}
                     </Text>
                   </>

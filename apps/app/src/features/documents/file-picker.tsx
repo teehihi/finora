@@ -39,10 +39,10 @@ export function PrivateFilePicker({ label, busy, onPick, onError }: Props) {
   return (
     <Button
       label={label}
-      variant="onForest"
+      variant="primary"
       loading={picking || busy}
       disabled={picking || busy}
-      leading={<Upload size={17} color={c.forest} />}
+      leading={<Upload size={17} color={c.onPrimary} />}
       onPress={() => void choose()}
     />
   );

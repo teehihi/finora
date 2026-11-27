@@ -86,26 +86,6 @@ export function PaymentFocus({ value, desktop }: { value: RepaymentLedger; deskt
         gap: 9,
       }}
     >
-      {!past
-        ? [98, 125, 152].map((r) => (
-            <View
-              key={r}
-              accessible={false}
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                right: 28 - r,
-                top: 24 - r,
-                borderRadius: r,
-                width: r * 2,
-                height: r * 2,
-                borderWidth: 1,
-                borderColor: c.primary,
-                opacity: 0.14,
-              }}
-            />
-          ))
-        : null}
       <Text small bold style={{ color: past ? c.actionAmber : low }}>
         {t(past ? 'loanCenterPast' : 'loanCenterNext')}
       </Text>
@@ -136,7 +116,7 @@ export function PaymentFocus({ value, desktop }: { value: RepaymentLedger; deskt
           paddingHorizontal: 13,
           marginTop: 6,
           gap: 10,
-          borderRadius: 12,
+          borderRadius: 17,
           backgroundColor: past ? c.surface : c.primary,
         }}
       >

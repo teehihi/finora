@@ -16,7 +16,9 @@ import { useDesign, Text, Heading, Button } from '@finora/ui';
 import { date, documentStrings } from '@finora/i18n';
 import { auth } from '../../../src/services/client';
 import { backTo, Data, LinkRow, Page } from '../../../src/components/layout';
-import { SignatureIcon, SignatureSweep } from '../../../src/components/signature';
+import { SignatureIcon } from '../../../src/components/signature';
+import { workspaceArtwork } from '../../../src/components/workspace-artwork';
+import { SceneWash } from '../../../src/components/workspace-scene';
 import {
   DocumentApiError,
   docApi,
@@ -122,17 +124,17 @@ function PrivateIntake({ userId }: { userId: string }) {
             overflow: 'hidden',
             padding: wide ? 24 : 18,
             gap: 12,
-            backgroundColor: c.forest,
+            backgroundColor: c.secondary,
+            borderWidth: 1,
+            borderColor: c.border,
           }}
         >
-          <SignatureSweep name="finora-document-intake" />
+          <SceneWash image={workspaceArtwork.documents} subdued />
           <View style={{ flexDirection: 'row', gap: 11, alignItems: 'center' }}>
-            <SignatureIcon icon={ScanLine} tone="lime" size={46} />
+            <SignatureIcon icon={ScanLine} size={46} style={{ backgroundColor: c.surface }} />
             <View style={{ flex: 1, gap: 2 }}>
-              <Heading size={19} style={{ color: c.onForest }}>
-                {s.intake}
-              </Heading>
-              <Text small style={{ color: c.onForestMuted }}>
+              <Heading size={19}>{s.intake}</Heading>
+              <Text small style={{ color: c.foreground }}>
                 {vi ? 'PDF, JPEG, PNG · tối đa 5 MB' : 'PDF, JPEG, PNG · up to 5 MB'}
               </Text>
             </View>
@@ -144,8 +146,8 @@ function PrivateIntake({ userId }: { userId: string }) {
             onError={setPickError}
           />
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 7 }}>
-            <ShieldCheck size={16} color={c.onForestMuted} />
-            <Text small style={{ color: c.onForestMuted, flex: 1 }}>
+            <ShieldCheck size={16} color={c.foreground} />
+            <Text small style={{ color: c.foreground, flex: 1 }}>
               {vi
                 ? 'Tệp chỉ được xử lý trên máy chủ Finora, không gửi đến AI bên ngoài.'
                 : 'The Finora server processes the file. Nothing is sent to external AI.'}

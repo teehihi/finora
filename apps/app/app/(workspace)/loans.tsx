@@ -2,15 +2,18 @@ import { CashflowEntry } from '../../src/features/cashflow-map';
 import { View, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Calculator, ChevronRight } from 'lucide-react-native';
+import { Calculator, ChevronRight, Wallet } from 'lucide-react-native';
 import { Action, Button, EmptyState, Heading, Text, useDesign } from '@finora/ui';
 import { date, numeric } from '@finora/i18n';
 import { api, auth } from '../../src/services/client';
 import { Page } from '../../src/components/layout';
+import { workspaceArtwork } from '../../src/components/workspace-artwork';
+import { WorkspaceModeRail } from '../../src/components/workspace-scene';
+import { canShowReadData } from '../../src/components/read-state';
 import { TaskData } from '../../src/components/task-surface';
 import { useRepaymentLedger } from '../../src/features/repayments';
 import { MarketPanel, ProductIcon } from '../../src/features/market-ui';
-import { FilterTab, LoanList, PaymentFocus } from '../../src/features/loan-center';
+import { LoanList, PaymentFocus } from '../../src/features/loan-center';
 
 export default function Loans() {
   const { t, colors: c, locale, money } = useDesign();
@@ -28,24 +31,30 @@ export default function Loans() {
   const setPane = (next: 'schedule' | 'simulations') => router.setParams({ pane: next });
 
   return (
-    <Page title={t('loans')}>
-      {pane === 'schedule' && ledger.data ? (
+    <Page
+      title={t('loans')}
+      scene={{
+        image: workspaceArtwork.loans,
+        label: locale === 'vi-VN' ? 'FINORA · Chủ động trả nợ' : 'FINORA · Stay on track',
+        icon: Wallet,
+        subtitle:
+          locale === 'vi-VN' ? 'Lịch trả và phương án đã lưu' : 'Repayments and saved scenarios',
+      }}
+    >
+      <WorkspaceModeRail
+        label={t('loans')}
+        role="tab"
+        value={pane}
+        options={[
+          { value: 'schedule', label: t('loanCenterScheduleTab') },
+          { value: 'simulations', label: t('loanCenterPlansTab') },
+        ]}
+        onChange={setPane}
+      />
+      {pane === 'schedule' && canShowReadData(ledger) && ledger.data ? (
         <PaymentFocus value={ledger.data} desktop={desktop} />
       ) : null}
       {pane === 'schedule' ? <CashflowEntry /> : null}
-      <View
-        accessibilityRole="tablist"
-        style={{ flexDirection: 'row', gap: 17, borderBottomWidth: 1, borderColor: c.border }}
-      >
-        {(
-          [
-            ['schedule', t('loanCenterScheduleTab')],
-            ['simulations', t('loanCenterPlansTab')],
-          ] as const
-        ).map(([key, label]) => (
-          <FilterTab key={key} label={label} selected={pane === key} onPress={() => setPane(key)} />
-        ))}
-      </View>
       {pane === 'schedule' ? (
         <TaskData query={ledger} kind="rows">
           {(value) => <LoanList value={value} onPlans={() => setPane('simulations')} />}

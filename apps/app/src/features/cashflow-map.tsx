@@ -7,17 +7,10 @@ import Svg, { Circle, ClipPath, Defs, Line, Path, Rect } from 'react-native-svg'
 import { tokens } from '@finora/design-tokens';
 import { projectCashflow, type CashflowEvent, type CashflowInput } from '@finora/financial-engine';
 import { cashflowCopy, date } from '@finora/i18n';
-import {
-  Action,
-  Button,
-  CurrencyInput,
-  Eyebrow,
-  Field,
-  Heading,
-  Text,
-  useDesign,
-} from '@finora/ui';
+import { Button, CurrencyInput, Eyebrow, Field, Heading, Text, useDesign } from '@finora/ui';
 import { backTo, LinkRow, Page } from '../components/layout';
+import { workspaceArtwork } from '../components/workspace-artwork';
+import { SceneWash, WorkspaceModeRail } from '../components/workspace-scene';
 import { TaskNotice, TaskSkeleton } from '../components/task-surface';
 import {
   cashflowInputs,
@@ -219,31 +212,34 @@ function Forecast({
           backgroundColor: c.surface,
         }}
       >
-        <Eyebrow tone="muted">
-          {sample ? copy.sampleLabel + ' · ' : ''}
-          {shownBuffer ? copy.buffer : copy.base}
-        </Eyebrow>
-        <View accessibilityLiveRegion="polite" style={{ gap: 3 }}>
-          {first ? (
-            <>
-              <Text small bold style={{ color: c.actionAmber }}>
-                {copy.short}
-              </Text>
-              <Heading size={amountSize} style={{ fontVariant: ['tabular-nums'] }}>
-                {amount}
-              </Heading>
-              <Text small muted>
-                {copy.first}: {date(first.date, locale)}
-              </Text>
-            </>
-          ) : (
-            <>
-              <Heading size={28}>{copy.safe}</Heading>
-              <Text small muted>
-                {copy.least}: {money(result.lowest.balance)}
-              </Text>
-            </>
-          )}
+        <View style={{ gap: 4, borderRadius: 14, overflow: 'hidden', padding: 9, margin: -4 }}>
+          <SceneWash image={workspaceArtwork.cashflow} subdued />
+          <Eyebrow tone="muted">
+            {sample ? copy.sampleLabel + ' · ' : ''}
+            {shownBuffer ? copy.buffer : copy.base}
+          </Eyebrow>
+          <View accessibilityLiveRegion="polite" style={{ gap: 3 }}>
+            {first ? (
+              <>
+                <Text small bold style={{ color: c.actionAmber }}>
+                  {copy.short}
+                </Text>
+                <Heading size={amountSize} style={{ fontVariant: ['tabular-nums'] }}>
+                  {amount}
+                </Heading>
+                <Text small muted>
+                  {copy.first}: {date(first.date, locale)}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Heading size={28}>{copy.safe}</Heading>
+                <Text small muted>
+                  {copy.least}: {money(result.lowest.balance)}
+                </Text>
+              </>
+            )}
+          </View>
         </View>
         <BalanceChart projection={result} />
         {shownBuffer ? (
@@ -461,45 +457,14 @@ function CashflowWorkspace({
       detail={{ onBack: back }}
       showDescriptionOnPhone={false}
     >
-      <View
-        accessibilityRole="radiogroup"
-        style={{
-          flexDirection: 'row',
-          alignSelf: wide ? 'flex-start' : 'stretch',
-          gap: 4,
-          padding: 4,
-          borderWidth: 1,
-          borderColor: c.border,
-          borderRadius: tokens.radius.control,
-          backgroundColor: c.elevated,
-        }}
-      >
-        {(['personal', 'sample'] as const).map((item) => (
-          <Action
-            key={item}
-            role="radio"
-            label={copy[item]}
-            selected={mode === item}
-            onPress={() => openMode(item)}
-            style={{
-              flex: wide ? undefined : 1,
-              minWidth: 0,
-              paddingHorizontal: wide ? 17 : 5,
-              paddingVertical: 5,
-              alignItems: 'center',
-              backgroundColor: mode === item ? c.surface : 'transparent',
-            }}
-          >
-            <Text
-              small
-              bold={mode === item}
-              style={{ textAlign: 'center', color: mode === item ? c.primary : c.muted }}
-            >
-              {copy[item]}
-            </Text>
-          </Action>
-        ))}
-      </View>
+      <WorkspaceModeRail
+        value={mode}
+        options={[
+          { value: 'personal', label: copy.personal },
+          { value: 'sample', label: copy.sample },
+        ]}
+        onChange={openMode}
+      />
       {!sample && (ledger.isError || ledger.isFetching || ledger.fetchStatus === 'paused') ? (
         <View>
           <TaskNotice query={ledger} stale={!!data} missing={copy.dataError} />

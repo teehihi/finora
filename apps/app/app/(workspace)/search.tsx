@@ -5,6 +5,8 @@ import { ArrowLeft, ChevronRight, Search, X } from 'lucide-react-native';
 import { tokens } from '@finora/design-tokens';
 import { homeCopy } from '@finora/i18n';
 import { Action, Heading, Text, useDesign } from '@finora/ui';
+import { SignatureIcon } from '../../src/components/signature';
+import { WorkspaceBackButton } from '../../src/components/workspace-scene';
 import { searchHomeServices } from '../../src/features/home-search-model';
 
 export default function SearchScreen() {
@@ -19,20 +21,27 @@ export default function SearchScreen() {
     router.push(href);
   };
   return (
-    <View testID="service-search-surface" style={{ flex: 1, backgroundColor: c.surface }}>
+    <View testID="service-search-surface" style={{ flex: 1, backgroundColor: c.background }}>
       <View style={{ flex: 1, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 4 }}>
-          <Action
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 13,
+            paddingVertical: 9,
+            gap: 8,
+          }}
+        >
+          <WorkspaceBackButton
             label={copy.searchBack}
             onPress={() => {
               Keyboard.dismiss();
               if (router.canGoBack()) router.back();
               else router.replace('/home');
             }}
-            style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
           >
-            <ArrowLeft size={22} color={c.foreground} />
-          </Action>
+            <ArrowLeft size={19} color={c.primary} />
+          </WorkspaceBackButton>
           <View
             style={{
               flex: 1,
@@ -48,7 +57,7 @@ export default function SearchScreen() {
               gap: 8,
             }}
           >
-            <Search size={18} color={c.muted} />
+            <Search size={18} color={c.primary} />
             <TextInput
               ref={input}
               testID="finora-service-search-input"
@@ -94,31 +103,41 @@ export default function SearchScreen() {
           contentContainerStyle={{ padding: 20, paddingTop: 12, paddingBottom: 48, gap: 8 }}
         >
           <Heading size={22}>{term.trim() ? copy.searchResults : copy.searchSuggested}</Heading>
-          {results.map(({ label, href }) => (
-            <Action
-              key={href}
-              label={label}
-              onPress={() => go(href)}
-              style={{
-                minHeight: 50,
-                paddingVertical: 8,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                borderBottomWidth: 1,
-                borderColor: c.border,
-              }}
-            >
-              <Text>{label}</Text>
-              <ChevronRight size={17} color={c.muted} />
-            </Action>
-          ))}
-          {!results.length && (
-            <Text role="alert" muted>
-              {copy.searchEmpty}
-            </Text>
-          )}
+          <View
+            style={{
+              backgroundColor: c.surface,
+              borderColor: c.border,
+              borderWidth: 1,
+              borderRadius: 20,
+              paddingHorizontal: 12,
+              paddingVertical: 4,
+            }}
+          >
+            {results.map(({ label, href }, index) => (
+              <View key={href} style={{ borderTopWidth: index ? 1 : 0, borderColor: c.border }}>
+                <Action
+                  label={label}
+                  onPress={() => go(href)}
+                  style={{
+                    minHeight: 53,
+                    paddingVertical: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <SignatureIcon icon={Search} size={29} />
+                  <Text style={{ flex: 1, minWidth: 0 }}>{label}</Text>
+                  <ChevronRight size={17} color={c.muted} />
+                </Action>
+              </View>
+            ))}
+            {!results.length && (
+              <Text role="alert" muted style={{ paddingVertical: 11 }}>
+                {copy.searchEmpty}
+              </Text>
+            )}
+          </View>
         </ScrollView>
       </View>
     </View>

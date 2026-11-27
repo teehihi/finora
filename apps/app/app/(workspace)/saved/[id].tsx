@@ -30,7 +30,7 @@ export default function Saved() {
           description={t('savedDate') + ' ' + date(s.createdAt, locale)}
           detail={{ onBack: () => backTo('/loans?pane=simulations') }}
         >
-          <MarketPanel style={{ borderRadius: 22, gap: 15 }}>
+          <MarketPanel style={{ borderRadius: 22, gap: 15, backgroundColor: c.secondary }}>
             <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
               <ProductIcon category={s.product.category} />
               <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -56,7 +56,7 @@ export default function Saved() {
                 paddingTop: 12,
               }}
             >
-              <View style={{ flex: 1.4, minWidth: 0 }}>
+              <View style={{ flexGrow: 1.4, flexBasis: 106, minWidth: 0 }}>
                 <Text muted small>
                   {t('amount')}
                 </Text>
@@ -67,7 +67,7 @@ export default function Saved() {
                   {money(s.input.principal)}
                 </Text>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={{ flexGrow: 1, flexBasis: 61, minWidth: 0 }}>
                 <Text muted small>
                   {t('term')}
                 </Text>
@@ -75,7 +75,7 @@ export default function Saved() {
                   {s.input.months} {t('months')}
                 </Text>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={{ flexGrow: 1, flexBasis: 61, minWidth: 0 }}>
                 <Text muted small>
                   {t('yearRate')}
                 </Text>
