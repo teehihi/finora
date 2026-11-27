@@ -60,28 +60,9 @@ export function HomeFocus({ ledger }: { ledger: RepaymentLedger }) {
         overflow: 'hidden',
       }}
     >
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: 7,
-          marginBottom: 7,
-        }}
-      >
-        <View
-          accessible={false}
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: 4,
-            backgroundColor: late ? c.warning : c.success,
-          }}
-        />
-        <Text small bold style={{ color: c.muted }}>
-          {label}
-        </Text>
-      </View>
+      <Text small bold style={{ color: late ? c.warning : c.muted, marginBottom: 7 }}>
+        {label}
+      </Text>
       <Heading
         size={pay ? (title.length > 17 || fontScale > 1.3 ? 30 : large ? 44 : 38) : large ? 31 : 27}
         style={{ fontVariant: ['tabular-nums'], color: c.foreground }}

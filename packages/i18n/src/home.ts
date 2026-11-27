@@ -2,6 +2,10 @@ import type { Locale } from './index';
 
 const vi = {
   search: 'Tìm tiện ích',
+  searchSuggested: 'Tiện ích gợi ý',
+  searchResults: 'Kết quả tìm kiếm',
+  searchClear: 'Xóa từ khóa',
+  searchBack: 'Quay lại',
   searchHint: 'Tìm lịch trả, hợp đồng…',
   searchEmpty: 'Không có tiện ích phù hợp. Thử “lịch trả” hoặc “hợp đồng”.',
   cashflowSearch: 'Sổ dòng tiền',
@@ -36,6 +40,10 @@ const vi = {
 
 const en: Record<keyof typeof vi, string> = {
   search: 'Find a tool',
+  searchSuggested: 'Suggested tools',
+  searchResults: 'Search results',
+  searchClear: 'Clear search',
+  searchBack: 'Go back',
   searchHint: 'Search schedules, contracts…',
   searchEmpty: 'No matching tools. Try “schedule” or “contract”.',
   cashflowSearch: 'Cash flow journal',
