@@ -37,7 +37,9 @@ phân phối, cấu hình endpoint HTTPS trong môi trường build bằng
   hay khúc xạ bên trong phần chọn do iOS sở hữu.
 - ScrollView của Home/Page đang focus phát trạng thái thu/mở. Dock thu cùng
   pill khi vuốt ngón lên đủ xa; đảo chiều có chủ đích hoặc về đầu trang thì
-  mở. Giữ khoảng đáy để nội dung không nhảy. Không thu trong chat, khi
+  mở. Khi thu, chỉ còn năm icon; nhãn hiện lại khi mở, tên trợ năng vẫn giữ.
+  Tab đang chọn dùng màu primary của giao diện, không nhuộm nền kính.
+  Giữ khoảng đáy để nội dung không nhảy. Không thu trong chat, khi
   VoiceOver bật hoặc dùng cỡ chữ trợ năng; Giảm chuyển động không chạy spring.
 
 ## Release và giới hạn

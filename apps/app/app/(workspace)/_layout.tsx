@@ -504,6 +504,7 @@ export default function Workspace() {
               scrollTarget={usesCYLScroll ? cylScrollTarget(path) : undefined}
               compact={usesCYLScroll && cylCompactPath === path}
               dark={c === dark}
+              primaryColor={c.primary}
               selectedIndex={activeIndex}
               titles={links.map(([key]) => t(key))}
               onHeight={setCylHeight}

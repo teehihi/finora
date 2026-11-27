@@ -3,6 +3,7 @@ export type CYLDockProps = {
   selectedIndex: number;
   compact: boolean;
   dark: boolean;
+  primaryColor: string;
   height: number;
   routeKey: string;
   scrollTarget: string | undefined;
