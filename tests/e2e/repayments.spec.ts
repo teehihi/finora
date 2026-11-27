@@ -162,9 +162,8 @@ test('saving a simulation does not create an obligation; tracking and payment bo
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/home');
-  const nextPayment = page.getByRole('button', { name: /Kỳ thanh toán sắp tới/ }).filter({
-    hasText: input.title,
-  });
+  const nextPayment = page.getByRole('button', { name: 'Xem kỳ trả', exact: true });
+  await expect(page.getByText(input.title, { exact: true })).toBeVisible();
   await expect(nextPayment).toBeVisible();
   await nextPayment.click();
   await expect(page).toHaveURL(/\/repayments$/);

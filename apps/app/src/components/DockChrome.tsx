@@ -7,6 +7,7 @@ import PlatformGlassSurface from './PlatformGlassSurface';
 
 export const dockHeight = 80;
 export const dockOffset = 8;
+export const dockGlassEffect = 'clear';
 
 export function DockChrome({
   nativeGlass,
@@ -24,7 +25,7 @@ export function DockChrome({
       {nativeGlass ? (
         <LiquidGlassContainerView spacing={16} style={StyleSheet.absoluteFill}>
           <LiquidGlassView
-            effect="regular"
+            effect={dockGlassEffect}
             colorScheme={scheme}
             style={{
               position: 'absolute',
@@ -36,7 +37,7 @@ export function DockChrome({
             }}
           />
           <LiquidGlassView
-            effect="regular"
+            effect={dockGlassEffect}
             colorScheme={scheme}
             style={{
               position: 'absolute',

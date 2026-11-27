@@ -26,10 +26,15 @@ import {
 } from 'lucide-react-native';
 import { useDesign, Text, Eyebrow, Action, Avatar, LoadingState, ErrorState } from '@finora/ui';
 import { Logo, WorkspaceDockInsetContext } from '../../src/components/layout';
-import { DockChrome, dockHeight, dockOffset } from '../../src/components/DockChrome';
-import { workspaceAuthReturn } from '../../src/features/auth/return-path';
+import {
+  DockChrome,
+  dockGlassEffect,
+  dockHeight,
+  dockOffset,
+} from '../../src/components/DockChrome';
 import { auth } from '../../src/services/client';
 import { date } from '@finora/i18n';
+import { workspaceAuthReturn } from '../../src/features/auth/return-path';
 
 const links = [
   ['home', '/home', House],
@@ -100,7 +105,8 @@ export default function Workspace() {
         (key === 'explore' && path.startsWith('/simulate/')) ||
         (key === 'ai' &&
           (path === '/intelligence' || path === '/documents' || path.startsWith('/documents/'))) ||
-        (key === 'loans' && (path === '/repayments' || path.startsWith('/saved/'))),
+        (key === 'loans' &&
+          (path === '/repayments' || path === '/cashflow' || path.startsWith('/saved/'))),
     ),
   );
   useEffect(() => {
@@ -286,8 +292,8 @@ export default function Workspace() {
   }
   const name = data.user.name?.trim() || data.user.email || 'Finora';
   const selected = links[activeIndex];
-  const mobileHome = !rail && path === '/home';
-  const firstName = data.user.name?.trim().split(/\s+/).at(-1);
+  const taskSuppliesToolbar =
+    !rail && (path === '/home' || path === '/cashflow' || path === '/repayments');
   const nav = links.map(([key, href, Icon], index) => {
     const on = index === activeIndex;
     const featured = !rail && key === 'ai';
@@ -428,62 +434,57 @@ export default function Workspace() {
               </View>
             ) : null}
             <View style={{ flex: 1, minWidth: 0 }}>
-              <View
-                style={{
-                  paddingHorizontal: full
-                    ? tokens.layout.desktopGutter
-                    : rail
-                      ? tokens.layout.tabletGutter
-                      : tokens.layout.gutter,
-                  minHeight: rail ? 66 : 58,
-                  backgroundColor: c.surface,
-                  borderBottomWidth: 1,
-                  borderColor: c.border,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                }}
-              >
-                {rail ? (
-                  <View
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1 }}
-                  >
-                    <Text small muted>
-                      Finora
-                    </Text>
-                    <ChevronRight size={13} color={c.muted} />
-                    <Text small bold>
-                      {t(path === '/intelligence' ? 'intelligenceLabel' : selected[0])}
-                    </Text>
+              {!taskSuppliesToolbar ? (
+                <View
+                  style={{
+                    paddingHorizontal: full
+                      ? tokens.layout.desktopGutter
+                      : rail
+                        ? tokens.layout.tabletGutter
+                        : tokens.layout.gutter,
+                    minHeight: rail ? 66 : 58,
+                    backgroundColor: c.surface,
+                    borderBottomWidth: 1,
+                    borderColor: c.border,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                  }}
+                >
+                  {rail ? (
+                    <View
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1 }}
+                    >
+                      <Text small muted>
+                        Finora
+                      </Text>
+                      <ChevronRight size={13} color={c.muted} />
+                      <Text small bold>
+                        {t(path === '/intelligence' ? 'intelligenceLabel' : selected[0])}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Action onPress={() => router.replace('/home')} label="Finora">
+                      <Logo small />
+                    </Action>
+                  )}
+                  <View style={{ flexDirection: 'row', gap: 13, alignItems: 'center' }}>
+                    {full ? (
+                      <Text small muted>
+                        {date(new Date(), locale)}
+                      </Text>
+                    ) : null}
+                    <Action
+                      label={t('profile')}
+                      onPress={() => router.navigate('/profile')}
+                      style={{ minWidth: 44, alignItems: 'center' }}
+                    >
+                      <Avatar name={name} />
+                    </Action>
                   </View>
-                ) : (
-                  <Action onPress={() => router.replace('/home')} label="Finora">
-                    <Logo small />
-                  </Action>
-                )}
-                <View style={{ flexDirection: 'row', gap: 13, alignItems: 'center' }}>
-                  {mobileHome ? (
-                    <Text role="header" bold>
-                      {firstName
-                        ? (locale === 'vi-VN' ? 'Chào, ' : 'Hello, ') + firstName
-                        : t('greet')}
-                    </Text>
-                  ) : null}
-                  {full ? (
-                    <Text small muted>
-                      {date(new Date(), locale)}
-                    </Text>
-                  ) : null}
-                  <Action
-                    label={t('profile')}
-                    onPress={() => router.navigate('/profile')}
-                    style={{ minWidth: 44, alignItems: 'center' }}
-                  >
-                    <Avatar name={name} />
-                  </Action>
                 </View>
-              </View>
+              ) : null}
               <Stack
                 screenOptions={{
                   headerShown: false,
@@ -533,7 +534,7 @@ export default function Workspace() {
                   >
                     {nativeGlass ? (
                       <LiquidGlassView
-                        effect="regular"
+                        effect={dockGlassEffect}
                         interactive
                         colorScheme={c === dark ? 'dark' : 'light'}
                         tintColor={

@@ -86,7 +86,7 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await expect(page.getByText(/Mình đã tính lịch theo dữ liệu và giả định bên dưới/)).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('tab', { name: 'Tổng quan' }).click();
-  await expect(page.getByText(/5\.500\.000/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^5\.500\.000/ })).toBeVisible();
   await expect(page.getByText('Chi tiêu linh hoạt', { exact: true })).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

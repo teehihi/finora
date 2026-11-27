@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import Svg, { Path } from 'react-native-svg';
 import { ArrowRight, CalendarDays, ChevronRight, CircleCheck, Wallet } from 'lucide-react-native';
 import { Action, Button, EmptyState, Heading, Text, useDesign } from '@finora/ui';
 import { date, numeric } from '@finora/i18n';
@@ -72,9 +71,9 @@ export function PaymentFocus({ value, desktop }: { value: RepaymentLedger; deskt
       ? due[0].title
       : t('loanCenterMultiple').replace('{count}', numeric(due.length, locale));
   const primary = t(past ? 'repaymentsOpen' : 'loanCenterPlan');
-  const background = past ? c.actionAmberSurface : c.forest;
-  const opposite = past ? c.foreground : c.onForest;
-  const low = past ? c.muted : c.onForestMuted;
+  const background = past ? c.actionAmberSurface : c.secondary;
+  const opposite = c.foreground;
+  const low = c.muted;
   return (
     <View
       style={{
@@ -87,35 +86,26 @@ export function PaymentFocus({ value, desktop }: { value: RepaymentLedger; deskt
         gap: 9,
       }}
     >
-      {!past ? (
-        <View
-          pointerEvents="none"
-          accessible={false}
-          style={{
-            position: 'absolute',
-            top: -12,
-            right: -10,
-            width: desktop ? 360 : 225,
-            height: '112%',
-          }}
-        >
-          <Svg
-            viewBox="0 0 288 220"
-            width="100%"
-            height="100%"
-            preserveAspectRatio="xMaxYMin slice"
-          >
-            <Path
-              d="M7 230C27 68 163 105 278 26 250 127 83 115 7 230Z M26 227C59 103 170 124 282 48 239 142 100 142 26 227Z M45 227C88 134 190 146 288 70 249 154 137 161 45 227Z M67 227C121 168 203 167 289 95 244 176 168 183 67 227Z"
-              stroke={c.onForestMuted}
-              opacity={0.26}
-              strokeWidth={1.15}
-              fill="none"
+      {!past
+        ? [98, 125, 152].map((r) => (
+            <View
+              key={r}
+              accessible={false}
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                right: 28 - r,
+                top: 24 - r,
+                borderRadius: r,
+                width: r * 2,
+                height: r * 2,
+                borderWidth: 1,
+                borderColor: c.primary,
+                opacity: 0.14,
+              }}
             />
-            <Path d="m211 52 3 8 8 3-8 3-3 8-3-8-8-3 8-3Z" fill={c.onForestMuted} opacity={0.7} />
-          </Svg>
-        </View>
-      ) : null}
+          ))
+        : null}
       <Text small bold style={{ color: past ? c.actionAmber : low }}>
         {t(past ? 'loanCenterPast' : 'loanCenterNext')}
       </Text>
@@ -147,13 +137,13 @@ export function PaymentFocus({ value, desktop }: { value: RepaymentLedger; deskt
           marginTop: 6,
           gap: 10,
           borderRadius: 12,
-          backgroundColor: past ? c.surface : '#D9EBC5',
+          backgroundColor: past ? c.surface : c.primary,
         }}
       >
-        <Text small bold style={{ flexShrink: 1, color: past ? c.primary : '#133D2E' }}>
+        <Text small bold style={{ flexShrink: 1, color: past ? c.primary : c.onPrimary }}>
           {primary}
         </Text>
-        <ArrowRight color={past ? c.primary : '#133D2E'} size={18} />
+        <ArrowRight color={past ? c.primary : c.onPrimary} size={18} />
       </Action>
       {!past && plan === nextDay ? (
         <RepaymentPlanner due={total} dueDate={nextDay} onClose={() => setPlan(undefined)} />

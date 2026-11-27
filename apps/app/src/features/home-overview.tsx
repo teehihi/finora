@@ -1,40 +1,42 @@
-import { useState } from 'react';
 import { Image, View, useWindowDimensions, type TextStyle, type ViewStyle } from 'react-native';
+import { useState } from 'react';
 import { tokens } from '@finora/design-tokens';
 import {
   Activity,
   ArrowRight,
   ArrowUpRight,
+  ChartNoAxesCombined,
   Calculator,
-  CalendarDays,
   ChevronRight,
   Columns2,
   FileScan,
-  Search,
   Sparkles,
   WalletCards,
   type LucideIcon,
 } from 'lucide-react-native';
 import { router, type Href } from 'expo-router';
 import { Action, Button, Choices, Dialog, Heading, Text, useDesign } from '@finora/ui';
-import { date, homeCopy } from '@finora/i18n';
-import type { AccountData, DueRepayment, Profile } from '@finora/contracts';
+import { homeCopy } from '@finora/i18n';
+import type { AccountData, Profile } from '@finora/contracts';
 import type { Readiness } from '@finora/api-client';
-import { Data } from '../components/layout';
-import { SignatureIcon, SignatureSweep } from '../components/signature';
+import { TaskData } from '../components/task-surface';
+import { SignatureIcon } from '../components/signature';
 import { homeCashFlow, homeStressPreview, type HomeStress } from './home-model';
 import fin from '../../assets/brand/fin-assistant.png';
 
 const amountInk: TextStyle = { fontVariant: ['tabular-nums'] };
-const lime = '#C6F39A';
-const caution = '#FFDAAA';
-const allocationInks = ['#77B7A3', '#A1C7F1', lime];
 
-type DataState<T> = { data: T | undefined; isError: boolean; refetch: () => unknown };
+type DataState<T> = {
+  data: T | undefined;
+  isError: boolean;
+  isFetching: boolean;
+  refetch: () => unknown;
+};
 
 function MoneyFlow({ profile }: { profile: Profile }) {
   const { colors: c, locale, money } = useDesign();
   const copy = homeCopy(locale);
+  const allocationInks = [c.chartPrincipal, c.chartFee, c.signatureEdge];
   const { remainder, shares } = homeCashFlow(profile);
   const compact = (value: number) =>
     locale === 'vi-VN' && value >= 1_000_000 && value % 1_000_000 === 0
@@ -49,17 +51,17 @@ function MoneyFlow({ profile }: { profile: Profile }) {
         marginTop: 8,
         paddingTop: 12,
         borderTopWidth: 1,
-        borderColor: 'rgba(221,252,235,.25)',
+        borderColor: c.border,
         gap: 9,
       }}
     >
       <View
         style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 4 }}
       >
-        <Text small style={{ color: c.onForestMuted, fontSize: 12 }}>
+        <Text small style={{ color: c.muted, fontSize: 12 }}>
           {copy.income}
         </Text>
-        <Text small bold style={{ ...amountInk, color: c.onForest, fontSize: 12 }}>
+        <Text small bold style={{ ...amountInk, color: c.foreground, fontSize: 12 }}>
           {compact(profile.income)}
         </Text>
       </View>
@@ -87,7 +89,7 @@ function MoneyFlow({ profile }: { profile: Profile }) {
               bold
               style={{
                 ...amountInk,
-                color: index === 2 ? (remainder < 0 ? caution : lime) : c.onForest,
+                color: index === 2 ? (remainder < 0 ? c.actionAmber : c.primary) : c.foreground,
                 fontSize: 14,
                 lineHeight: 17,
               }}
@@ -110,7 +112,7 @@ function MoneyFlow({ profile }: { profile: Profile }) {
               <Text
                 small
                 style={{
-                  color: index === 2 && remainder < 0 ? caution : c.onForestMuted,
+                  color: index === 2 && remainder < 0 ? c.actionAmber : c.muted,
                   fontSize: 12,
                   lineHeight: 17,
                 }}
@@ -135,30 +137,31 @@ export function HomeCapacity({
   const { t, colors: c, money, locale } = useDesign();
   const copy = homeCopy(locale);
   const { width, fontScale } = useWindowDimensions();
-  const compact = width < 370 || fontScale > 1.25;
   const [stressOpen, setStressOpen] = useState(false);
+  const compact = width < 370 || fontScale > 1.25;
   return (
     <View
       style={{
-        backgroundColor: c.signatureStart,
+        backgroundColor: c.surface,
+        borderWidth: 1,
+        borderColor: c.border,
         position: 'relative',
         overflow: 'hidden',
-        borderRadius: tokens.signature.radius + 3,
+        borderRadius: tokens.signature.radius,
       }}
     >
-      <SignatureSweep name="finora-home-signature" />
-      <Data q={account}>
+      <TaskData query={account} kind="rows">
         {(data) => (
           <View
             style={{
               paddingHorizontal: desktop ? 28 : tokens.signature.inset,
-              paddingVertical: desktop ? 25 : 16,
-              gap: 7,
+              paddingVertical: desktop ? 25 : 17,
+              gap: 6,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-              <SignatureIcon icon={WalletCards} tone="lime" size={33} />
-              <Text bold style={{ color: c.onForest, fontSize: 15, flexShrink: 1 }}>
+              <SignatureIcon icon={WalletCards} tone="emerald" size={30} />
+              <Text small bold style={{ color: c.muted }}>
                 {copy.capacity}
               </Text>
             </View>
@@ -172,13 +175,13 @@ export function HomeCapacity({
                         : 34
                       : desktop
                         ? tokens.signature.heroDesktop
-                        : 47
+                        : tokens.signature.heroMobile
                   }
-                  style={{ ...amountInk, color: c.onForest }}
+                  style={{ ...amountInk, color: c.foreground }}
                 >
                   {money(data.readiness.monthlyBudget)}
                 </Heading>
-                <Text small style={{ color: c.onForestMuted, fontSize: 12, lineHeight: 17 }}>
+                <Text small style={{ color: c.muted, fontSize: 12, lineHeight: 17 }}>
                   {copy.estimate}
                 </Text>
                 <MoneyFlow profile={data.profile} />
@@ -199,12 +202,12 @@ export function HomeCapacity({
                       paddingHorizontal: 11,
                       gap: 7,
                       alignItems: 'center',
-                      backgroundColor: c.signatureLime,
+                      backgroundColor: c.secondary,
                       borderRadius: 14,
                     }}
                   >
-                    <Activity size={16} color={c.signatureInk} />
-                    <Text small bold style={{ color: c.signatureInk }}>
+                    <Activity size={16} color={c.primary} />
+                    <Text small bold style={{ color: c.primary }}>
                       {locale === 'vi-VN' ? 'Thử biến động dòng tiền' : 'Stress-test cash flow'}
                     </Text>
                   </Action>
@@ -213,7 +216,7 @@ export function HomeCapacity({
                     onPress={() => router.navigate('/profile')}
                     style={{ paddingHorizontal: 8 }}
                   >
-                    <Text small bold style={{ color: c.onForest }}>
+                    <Text small bold style={{ color: c.primary }}>
                       {t('editProfile')}
                     </Text>
                   </Action>
@@ -224,16 +227,16 @@ export function HomeCapacity({
               </>
             ) : (
               <>
-                <Heading size={24} style={{ color: c.onForest, maxWidth: '85%' }}>
+                <Heading size={24} style={{ color: c.foreground, maxWidth: '85%' }}>
                   {copy.missingTitle}
                 </Heading>
-                <Text small style={{ color: c.onForestMuted, maxWidth: 320 }}>
+                <Text small style={{ color: c.muted, maxWidth: 320 }}>
                   {copy.missingBody}
                 </Text>
                 <View style={{ alignSelf: 'flex-start', marginTop: 7 }}>
                   <Button
                     label={t(data.profile ? 'editProfile' : 'addProfile')}
-                    variant="onForest"
+                    variant="outline"
                     onPress={() => router.navigate('/profile')}
                   />
                 </View>
@@ -241,7 +244,7 @@ export function HomeCapacity({
             )}
           </View>
         )}
-      </Data>
+      </TaskData>
     </View>
   );
 }
@@ -303,99 +306,61 @@ function HomeStressSheet({ profile, close }: { profile: Profile; close: () => vo
 }
 
 export function HomeTools() {
-  const { colors: c, locale } = useDesign();
+  const { locale } = useDesign();
   const { fontScale } = useWindowDimensions();
-  const expanded = fontScale >= 1.35;
+  const large = fontScale >= 1.35;
   const copy = homeCopy(locale);
   const vi = locale === 'vi-VN';
-  const main = [
+  const entries = [
+    [copy.simulate, vi ? 'Mô phỏng' : 'Simulate', '/simulate/personal-flex', Calculator, 'emerald'],
     [
-      copy.find,
-      vi ? 'Tra điều kiện công bố' : 'Browse published terms',
-      '/explore',
-      Search,
-      'emerald',
-    ],
-    [
-      copy.simulate,
-      vi ? 'Tính tiền theo từng kỳ' : 'Estimate each payment',
-      '/simulate/personal-flex',
-      Calculator,
+      vi ? 'Dòng tiền' : 'Cash flow',
+      vi ? 'Dòng tiền' : 'Cash flow',
+      '/cashflow',
+      ChartNoAxesCombined,
       'blue',
     ],
-  ] as const;
-  const quick = [
-    [copy.compare, '/explore?mode=sample&intent=compare', Columns2, 'violet'],
-    [copy.documents, '/documents', FileScan, 'amber'],
-    [copy.repayments, '/repayments', CalendarDays, 'lime'],
+    [
+      copy.compare,
+      vi ? 'So sánh' : 'Compare',
+      '/explore?mode=sample&intent=compare',
+      Columns2,
+      'violet',
+    ],
+    [copy.documents, vi ? 'Đọc báo giá' : 'Read terms', '/documents', FileScan, 'amber'],
   ] as const;
   return (
-    <View style={{ gap: 10 }}>
-      <Heading size={20}>{copy.tools}</Heading>
-      <View style={{ flexDirection: expanded ? 'column' : 'row', gap: 8 }}>
-        {main.map(([label, detail, href, Icon, tone]) => (
+    <HomeSection
+      title={vi ? 'Làm nhanh' : 'Quick actions'}
+      link={copy.find}
+      onPress={() => router.navigate('/explore')}
+    >
+      <View style={{ flexDirection: 'row', flexWrap: large ? 'wrap' : 'nowrap', gap: 4 }}>
+        {entries.map(([label, visible, href, Icon, tone]) => (
           <Action
             key={href}
             label={label}
-            onPress={() => router.navigate(href as Href)}
+            onPress={() => router.push(href as Href)}
             style={{
-              flex: expanded ? undefined : 1,
+              flex: large ? undefined : 1,
+              width: large ? '48%' : undefined,
               minWidth: 0,
-              minHeight: 88,
-              justifyContent: 'flex-start',
-              backgroundColor: c.surface,
-              borderRadius: 18,
-              borderWidth: 1,
-              borderColor: c.border,
-              paddingHorizontal: 10,
-              paddingVertical: 9,
-              gap: 5,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <SignatureIcon icon={Icon} size={31} tone={tone} />
-              <ArrowUpRight size={14} color={c.muted} />
-            </View>
-            <Text small bold>
-              {label}
-            </Text>
-            <Text small muted style={{ fontSize: 12, lineHeight: 17 }}>
-              {detail}
-            </Text>
-          </Action>
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', gap: 4 }}>
-        {quick.map(([label, href, Icon, tone]) => (
-          <Action
-            key={href}
-            label={label}
-            onPress={() => router.navigate(href as Href)}
-            style={{
-              flex: 1,
-              minWidth: 0,
-              minHeight: 71,
-              paddingVertical: 5,
-              gap: 5,
+              minHeight: 68,
               alignItems: 'center',
               justifyContent: 'flex-start',
-              borderRadius: 13,
+              paddingVertical: 2,
+              gap: 5,
+              borderRadius: 12,
             }}
           >
-            <SignatureIcon icon={Icon} size={38} tone={tone} />
-            <Text small bold style={{ fontSize: 12, lineHeight: 17, textAlign: 'center' }}>
-              {label}
+            <SignatureIcon icon={Icon} tone={tone} size={42} />
+            <Text small bold style={{ fontSize: 12, lineHeight: 16, textAlign: 'center' }}>
+              {visible}
             </Text>
           </Action>
         ))}
       </View>
-    </View>
+    </HomeSection>
   );
 }
 
@@ -568,37 +533,6 @@ export function HomeActivityRow({
         <ChevronRight size={16} color={c.muted} />
       )}
     </Action>
-  );
-}
-
-export function HomePayment({ payment }: { payment: DueRepayment }) {
-  const { colors: c, locale, t } = useDesign();
-  const copy = homeCopy(locale);
-  const dueDate = new Date(payment.date.slice(0, 10) + 'T12:00:00Z');
-  const month =
-    locale === 'vi-VN'
-      ? copy.monthAbbr + (dueDate.getUTCMonth() + 1)
-      : new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(dueDate);
-  return (
-    <HomeActivityRow
-      title={payment.title}
-      featured
-      accessibleTitle={t('upcoming') + ', ' + payment.title + ', ' + date(payment.date, locale)}
-      detail={copy.tracked}
-      amount={payment.payment}
-      icon={CalendarDays}
-      badge={
-        <View accessible={false} style={{ alignItems: 'center' }}>
-          <Text bold style={{ ...amountInk, color: c.primary, fontSize: 18, lineHeight: 21 }}>
-            {dueDate.getUTCDate()}
-          </Text>
-          <Text bold small style={{ color: c.primary, fontSize: 9, lineHeight: 11 }}>
-            {month}
-          </Text>
-        </View>
-      }
-      onPress={openRepayments}
-    />
   );
 }
 

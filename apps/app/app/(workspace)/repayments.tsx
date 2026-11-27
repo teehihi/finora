@@ -10,10 +10,12 @@ import {
   CircleCheck,
 } from 'lucide-react-native';
 import { Action, Button, Dialog, EmptyState, Heading, Progress, Text, useDesign } from '@finora/ui';
+import { tokens } from '@finora/design-tokens';
 import { date, numeric } from '@finora/i18n';
 import type { DueRepayment, TrackedPayment, TrackedRepayment } from '@finora/contracts';
-import { Back, Data, Page } from '../../src/components/layout';
-import { SignatureIcon, SignatureSweep } from '../../src/components/signature';
+import { Back, Page } from '../../src/components/layout';
+import { RefreshAction, TaskData } from '../../src/components/task-surface';
+import { PaymentHighlight } from '../../src/features/payment-highlight';
 import { ledgerKey, useRepaymentLedger } from '../../src/features/repayments';
 import { firstUpcomingPayment } from '../../src/features/home-model';
 import { api } from '../../src/services/client';
@@ -25,6 +27,9 @@ export default function Repayments() {
   const { width } = useWindowDimensions();
   const { ledger, userId } = useRepaymentLedger();
   const qc = useQueryClient();
+  const compact = width < tokens.breakpoints.rail;
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/loans'));
+  const refresh = <RefreshAction busy={ledger.isFetching} onPress={() => void ledger.refetch()} />;
   const [selection, setSelection] = useState<RowSelection | null>(null);
   const [resultNotice, setResultNotice] = useState('');
   const save = useMutation({
@@ -44,11 +49,19 @@ export default function Repayments() {
 
   return (
     <Page
-      title={t('repaymentsTitle')}
+      title={compact ? (locale === 'vi-VN' ? 'Kỳ trả góp' : 'Repayment') : t('repaymentsTitle')}
+      mobileTask={{ onBack: back, action: refresh }}
       description={t('repaymentsIntro')}
-      top={<Back to={() => router.navigate('/loans')} />}
+      top={
+        <View
+          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <Back to={back} />
+          {refresh}
+        </View>
+      }
     >
-      <Data q={ledger}>
+      <TaskData query={ledger}>
         {(value) => {
           const selectDue = ({ loanId, period }: DueRepayment) => {
             const loan = value.loans.find((item) => item.id === loanId);
@@ -67,46 +80,75 @@ export default function Repayments() {
           return value.loans.length ? (
             <>
               {focus ? (
-                <View
-                  style={{
-                    backgroundColor: c.forest,
-                    borderRadius: 26,
-                    padding: 21,
-                    gap: 8,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <SignatureSweep name="finora-repayments-next" />
-                  <SignatureIcon tone={urgent ? 'amber' : 'lime'} icon={CalendarClock} size={36} />
-                  <Text small bold style={{ color: urgent ? c.signatureLime : c.onForestMuted }}>
-                    {t(urgent ? 'repaymentsLate' : 'repaymentsNextFocus')}
-                  </Text>
-                  <Heading
-                    size={width >= 1024 ? 46 : width < 370 ? 32 : 36}
-                    style={{ color: c.onForest, fontVariant: ['tabular-nums'] }}
+                <>
+                  <PaymentHighlight
+                    payment={focus}
+                    today={value.today}
+                    label={t(urgent ? 'repaymentsLate' : 'repaymentsNextFocus')}
                   >
-                    {money(focus.payment)}
-                  </Heading>
-                  <Text bold style={{ color: c.onForest }}>
-                    {focus.title}
-                  </Text>
-                  <Text small style={{ color: c.onForestMuted }}>
-                    {t('repaymentsPeriod').replace('{n}', numeric(focus.period, locale))} ·{' '}
-                    {focus.date === value.today
-                      ? t('repaymentsDueToday')
-                      : date(focus.date, locale)}
-                  </Text>
-                  <View style={{ alignSelf: 'flex-start' }}>
+                    <Text small muted>
+                      {t('repaymentsPeriod').replace('{n}', numeric(focus.period, locale))}
+                    </Text>
+                  </PaymentHighlight>
+                  <View
+                    style={{
+                      backgroundColor: c.surface,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: c.border,
+                      padding: 15,
+                      gap: 8,
+                    }}
+                  >
+                    <Heading size={19}>
+                      {locale === 'vi-VN' ? 'Chi tiết kỳ trả' : 'Payment breakdown'}
+                    </Heading>
+                    {(() => {
+                      const row = value.loans
+                        .find(({ id }) => id === focus.loanId)
+                        ?.schedule.find(({ period }) => period === focus.period);
+                      return row
+                        ? (
+                            [
+                              ['principal', row.principal],
+                              ['interest', row.interest],
+                            ] as const
+                          ).map(([key, amount]) => (
+                            <View
+                              key={key}
+                              style={{
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                gap: 8,
+                                borderTopWidth: 1,
+                                borderColor: c.border,
+                                paddingTop: 7,
+                              }}
+                            >
+                              <Text small muted>
+                                {t(key)}
+                              </Text>
+                              <Text small bold>
+                                {money(amount)}
+                              </Text>
+                            </View>
+                          ))
+                        : null;
+                    })()}
                     <Button
-                      variant="onForest"
+                      variant="outline"
                       label={t('repaymentsReviewFocus')}
                       onPress={() => selectDue(focus)}
                     />
+                    <Text small muted>
+                      {t('repaymentsManualNotice')}
+                    </Text>
                   </View>
-                  <Text small style={{ color: c.onForestMuted }}>
-                    {t('repaymentsManualNotice')}
-                  </Text>
-                </View>
+                  <Button
+                    label={locale === 'vi-VN' ? 'Xem cách chuẩn bị' : 'Plan for this payment'}
+                    onPress={() => router.push('/cashflow')}
+                  />
+                </>
               ) : (
                 <View
                   style={{ backgroundColor: c.secondary, borderRadius: 22, gap: 7, padding: 18 }}
@@ -118,6 +160,11 @@ export default function Repayments() {
                   </Text>
                 </View>
               )}
+              {compact ? (
+                <Text small muted>
+                  {t('repaymentsIntro')}
+                </Text>
+              ) : null}
               <View
                 style={{
                   backgroundColor: c.surface,
@@ -209,7 +256,7 @@ export default function Repayments() {
             </View>
           );
         }}
-      </Data>
+      </TaskData>
       <Dialog
         bottom={width < 620}
         visible={!!selection}

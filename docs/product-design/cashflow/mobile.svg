@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+<rect width="390" height="844" rx="22" fill="#f6f6ef"/>
+<g font-family="DejaVu Sans,sans-serif">
+<text x="22" y="54" font-size="14" fill="#54665d">‹ Quay lại</text>
+<text x="22" y="93" font-size="11" letter-spacing="2" font-weight="bold" fill="#2b6751">KẾ HOẠCH TÀI CHÍNH</text>
+<text x="22" y="127" font-size="25" font-weight="bold" fill="#14281f">Bản đồ dòng tiền</text>
+<text x="22" y="158" font-size="25" font-weight="bold" fill="#14281f">90 ngày</text>
+<text x="22" y="191" font-size="13" fill="#54665d">Xem khi nào tiền vào, tiền ra và dễ hụt.</text>
+<rect x="20" y="219" width="350" height="327" rx="24" fill="#143b2d"/>
+<text x="40" y="254" font-size="12" letter-spacing="1" fill="#c3e5d4">DỮ LIỆU MẪU · KẾ HOẠCH GỐC</text>
+<text x="40" y="296" font-size="26" font-weight="bold" fill="#fff9ee">Hụt 1.200.000 ₫</text>
+<text x="40" y="323" font-size="13" fill="#dfebe4">Từ 25/11 · thấp nhất vào 25/11</text>
+<path d="M40 407H350" stroke="#9eb5a6" stroke-dasharray="4 4"/>
+<path d="M40 361H155V438H224V349H350" fill="none" stroke="#cae9d5" stroke-width="3"/>
+<circle cx="159" cy="438" r="5" fill="#ffb990"/>
+<text x="40" y="465" font-size="11" fill="#dfebe4">ĐẦU KỲ</text><text x="305" y="465" font-size="11" fill="#dfebe4">CUỐI KỲ</text>
+<rect x="40" y="482" width="310" height="44" rx="12" fill="#def7e6"/>
+<text x="55" y="509" font-size="13" font-weight="bold" fill="#143b2d">Thử có thêm 1.200.000 ₫ đầu kỳ</text>
+<text x="22" y="586" font-size="17" font-weight="bold" fill="#14281f">Vì sao hụt?</text>
+<text x="22" y="615" font-size="13" fill="#54665d">Kỳ trả góp ngày 25 đến trước lương ngày 28.</text>
+<text x="22" y="656" font-size="17" font-weight="bold" fill="#14281f">Các mốc dòng tiền</text>
+<rect x="20" y="677" width="350" height="104" rx="16" fill="#ffffff" stroke="#dce3dc"/>
+<text x="36" y="714" font-size="13" fill="#14281f">25/11 · Kỳ trả góp</text><text x="266" y="714" font-size="12" fill="#933e25">−2.000.000 ₫</text>
+<text x="36" y="753" font-size="13" fill="#14281f">28/11 · Lương</text><text x="266" y="753" font-size="12" fill="#256a47">+6.000.000 ₫</text>
+</g></svg>
