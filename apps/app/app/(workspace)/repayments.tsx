@@ -13,7 +13,7 @@ import { Action, Button, Dialog, EmptyState, Heading, Progress, Text, useDesign 
 import { tokens } from '@finora/design-tokens';
 import { date, numeric } from '@finora/i18n';
 import type { DueRepayment, TrackedPayment, TrackedRepayment } from '@finora/contracts';
-import { Back, Page } from '../../src/components/layout';
+import { backTo, Page } from '../../src/components/layout';
 import { RefreshAction, TaskData } from '../../src/components/task-surface';
 import { PaymentHighlight } from '../../src/features/payment-highlight';
 import { ledgerKey, useRepaymentLedger } from '../../src/features/repayments';
@@ -28,7 +28,7 @@ export default function Repayments() {
   const { ledger, userId } = useRepaymentLedger();
   const qc = useQueryClient();
   const compact = width < tokens.breakpoints.rail;
-  const back = () => (router.canGoBack() ? router.back() : router.replace('/loans'));
+  const back = () => backTo('/loans');
   const refresh = <RefreshAction busy={ledger.isFetching} onPress={() => void ledger.refetch()} />;
   const [selection, setSelection] = useState<RowSelection | null>(null);
   const [resultNotice, setResultNotice] = useState('');
@@ -50,16 +50,9 @@ export default function Repayments() {
   return (
     <Page
       title={compact ? (locale === 'vi-VN' ? 'Kỳ trả góp' : 'Repayment') : t('repaymentsTitle')}
-      mobileTask={{ onBack: back, action: refresh }}
+      detail={{ onBack: back, action: refresh }}
       description={t('repaymentsIntro')}
-      top={
-        <View
-          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-        >
-          <Back to={back} />
-          {refresh}
-        </View>
-      }
+      showDescriptionOnPhone={false}
     >
       <TaskData query={ledger}>
         {(value) => {

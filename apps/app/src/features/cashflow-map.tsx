@@ -16,7 +16,7 @@ import {
   Text,
   useDesign,
 } from '@finora/ui';
-import { Back, LinkRow, Page } from '../components/layout';
+import { backTo, LinkRow, Page } from '../components/layout';
 import { TaskNotice, TaskSkeleton } from '../components/task-surface';
 import {
   cashflowInputs,
@@ -332,7 +332,7 @@ function CashflowWorkspace({
   const { width, fontScale } = useWindowDimensions();
   const wide = width >= tokens.breakpoints.desktop && fontScale < 1.25;
   const compact = width < tokens.breakpoints.rail;
-  const back = () => (router.canGoBack() ? router.back() : router.replace('/home'));
+  const back = () => backTo('/home');
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const [mode, setMode] = useState<'personal' | 'sample'>('personal');
   const [draft, setDraft] = useState(emptyCashflowDraft);
@@ -457,8 +457,8 @@ function CashflowWorkspace({
       eyebrow={copy.eyebrow}
       description={copy.intro}
       scrollRef={scroll}
-      mobileTask={{ onBack: back }}
-      top={<Back to={back} />}
+      detail={{ onBack: back }}
+      showDescriptionOnPhone={false}
     >
       <View
         accessibilityRole="radiogroup"

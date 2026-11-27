@@ -61,6 +61,15 @@ test('Home links each quick action to the real tool and opens saved simulations 
   expect(owner.ok()).toBeTruthy();
   await page.setViewportSize({ width: 390, height: 844 });
 
+  await page.goto('/home');
+  const focus = page.getByTestId('home-ledger-focus');
+  await expect(focus.getByRole('heading', { name: 'Chưa có lịch trả nợ' })).toBeVisible();
+  await expect(focus.getByRole('button')).toHaveCount(1);
+  await expect(focus.getByRole('button', { name: 'Mở sổ trả nợ' })).toBeVisible();
+  await expect(focus).not.toContainText('₫');
+  await expect(page.getByRole('button', { name: 'Finora', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Làm mới dữ liệu' })).toBeEnabled();
+
   const destinations = [
     ['Tìm khoản vay', /\/explore$/],
     ['Mô phỏng mẫu', /\/simulate\/personal-flex$/],

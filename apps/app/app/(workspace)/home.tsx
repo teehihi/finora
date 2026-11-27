@@ -1,25 +1,29 @@
-import { ScrollView, View, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
+import { Platform, RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Action, Heading, Text, useDesign } from '@finora/ui';
-import { Calculator, Wallet } from 'lucide-react-native';
+import { tokens } from '@finora/design-tokens';
+import { cashflowCopy, homeCopy } from '@finora/i18n';
+import {
+  Calculator,
+  ChartNoAxesCombined,
+  ChevronRight,
+  RefreshCw,
+  Wallet,
+} from 'lucide-react-native';
 import { api, auth } from '../../src/services/client';
 import { useAccount } from '../../src/providers/AppProviders';
 import { useRepaymentLedger } from '../../src/features/repayments';
-import { Logo, useWorkspaceDockInset } from '../../src/components/layout';
-import { RefreshAction, TaskData } from '../../src/components/task-surface';
-import { cashflowCopy, homeCopy } from '@finora/i18n';
-import { firstUpcomingPayment } from '../../src/features/home-model';
-import { CashflowEntry } from '../../src/features/cashflow-map';
-import { PaymentHighlight } from '../../src/features/payment-highlight';
-import { MarketPanel } from '../../src/features/market-ui';
+import { useWorkspaceDockInset } from '../../src/components/layout';
+import { TaskData } from '../../src/components/task-surface';
+import { HomeFocus } from '../../src/features/home-focus';
 import {
   HomeActivityRow,
   HomeCapacity,
   HomeFin,
   HomeSection,
   HomeTools,
-  openRepayments,
   openSampleSimulator,
   openSavedSimulations,
 } from '../../src/features/home-overview';
@@ -28,6 +32,7 @@ export default function Home() {
   const { t, colors: c, locale } = useDesign();
   const { width } = useWindowDimensions();
   const copy = homeCopy(locale);
+  const cashflow = cashflowCopy(locale);
   const vi = locale === 'vi-VN';
   const dockInset = useWorkspaceDockInset();
   const user = auth.useSession().data?.user;
@@ -38,88 +43,50 @@ export default function Home() {
     queryFn: api.saved,
     enabled: !!user?.id,
   });
-  const desktop = width >= 1024;
-  const mobile = width < 768;
+  const desktop = width >= tokens.breakpoints.desktop;
+  const mobile = width < tokens.breakpoints.rail;
   const firstName = user?.name?.trim().split(/\s+/).at(-1);
-  const refresh = (
-    <RefreshAction
-      busy={ledger.isFetching || saved.isFetching || account.isFetching}
-      onPress={() => void Promise.all([ledger.refetch(), saved.refetch(), account.refetch()])}
-    />
-  );
-
-  const payments = (
-    <TaskData query={ledger} missing={cashflowCopy(locale).dataError}>
-      {(value) => {
-        const payment = value.overdue[0] ?? firstUpcomingPayment(value);
-        if (payment)
-          return (
-            <PaymentHighlight
-              payment={payment}
-              today={value.today}
-              label={payment.date < value.today ? copy.overdue : t('repaymentsNextFocus')}
-              open={{
-                label: vi ? 'Xem kỳ trả' : 'View payment',
-                onPress: () => router.push('/repayments'),
-              }}
-            />
-          );
-        return (
-          <MarketPanel
-            style={{
-              gap: 5,
-              backgroundColor: c.secondary,
-              minHeight: 169,
-              justifyContent: 'center',
-            }}
-          >
-            <Heading size={22}>
-              {value.loans.length ? t('repaymentsNoAction') : t('emptyActive')}
-            </Heading>
-            <Text small muted>
-              {t('repaymentsUntrackedNote')}
-            </Text>
-            <HomeActivityRow
-              title={vi ? 'Mở sổ trả nợ' : 'Open repayment ledger'}
-              detail={
-                vi ? 'Theo dõi khoản vay đã nhận' : 'Track borrowing you have already received'
-              }
-              icon={Wallet}
-              onPress={openRepayments}
-            />
-          </MarketPanel>
-        );
-      }}
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await Promise.all([ledger.refetch(), saved.refetch(), account.refetch()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  const tools = <HomeTools />;
+  const focus = (
+    <TaskData query={ledger} missing={cashflow.dataError}>
+      {(value) => <HomeFocus ledger={value} />}
     </TaskData>
   );
-
-  const actions = (
-    <>
-      <HomeTools />
-      <HomeSection
-        title={vi ? 'Việc cần để ý' : 'Worth a look'}
-        link={copy.repayments}
-        onPress={openRepayments}
+  const journal = (
+    <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 16, gap: 6 }}>
+      <Heading size={21}>{vi ? 'Sổ cá nhân' : 'My ledger'}</Heading>
+      <Action
+        label={cashflow.title}
+        onPress={() => router.push('/cashflow')}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 }}
       >
-        <CashflowEntry attention />
-      </HomeSection>
-    </>
-  );
-
-  const recent = (
-    <HomeSection
-      title={vi ? 'Gần đây' : 'Recent'}
-      link={t('seeAll')}
-      onPress={openSavedSimulations}
-    >
-      <TaskData query={saved} kind="rows">
-        {(rows) => (
-          <MarketPanel style={{ paddingVertical: 2, gap: 0 }}>
-            {rows.length ? (
+        <ChartNoAxesCombined size={22} strokeWidth={1.7} color={c.primary} />
+        <View style={{ minWidth: 0, flex: 1, gap: 2 }}>
+          <Text bold>{cashflow.title}</Text>
+          <Text small muted>
+            {cashflow.link}
+          </Text>
+        </View>
+        <ChevronRight size={16} color={c.muted} />
+      </Action>
+      <HomeSection title={copy.recent} link={t('seeAll')} onPress={openSavedSimulations} secondary>
+        <TaskData query={saved} kind="rows">
+          {(rows) =>
+            rows.length ? (
               rows.slice(0, 3).map((row, index) => (
                 <View key={row.id} style={{ borderTopWidth: index ? 1 : 0, borderColor: c.border }}>
                   <HomeActivityRow
-                    title={locale === 'vi-VN' ? row.product.name : row.product.nameEn}
+                    title={vi ? row.product.name : row.product.nameEn}
                     detail={row.input.months + ' ' + t('months')}
                     amount={row.input.principal}
                     icon={Wallet}
@@ -134,94 +101,71 @@ export default function Home() {
                 icon={Calculator}
                 onPress={openSampleSimulator}
               />
-            )}
-          </MarketPanel>
-        )}
-      </TaskData>
-    </HomeSection>
+            )
+          }
+        </TaskData>
+      </HomeSection>
+    </View>
   );
-
+  const refreshLabel = vi ? 'Làm mới dữ liệu' : 'Refresh data';
   return (
-    <>
-      {mobile ? (
-        <View
-          style={{
-            minHeight: 54,
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            backgroundColor: c.surface,
-            borderBottomWidth: 1,
-            borderColor: c.border,
-          }}
-        >
-          <Action label="Finora" onPress={() => router.replace('/home')}>
-            <Logo small />
-          </Action>
-          {refresh}
-        </View>
-      ) : null}
-      <ScrollView
-        style={{ flex: 1 }}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          alignItems: 'center',
-          paddingHorizontal: width < 370 ? 16 : desktop ? 40 : 20,
-          paddingTop: 13,
-          paddingBottom: dockInset + 22,
-        }}
-      >
-        <View style={{ width: '100%', maxWidth: 1120, gap: 15 }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 9,
-            }}
-          >
-            <View style={{ minWidth: 0, flex: 1 }}>
-              <Text small bold muted>
-                {vi ? 'Kế hoạch của bạn' : 'Your plan'}
-              </Text>
-              {mobile ? (
-                <Heading size={23}>
-                  {firstName ? (vi ? 'Chào, ' : 'Hello, ') + firstName : t('greet')}
-                </Heading>
-              ) : (
-                <Heading size={26}>
-                  {user?.name?.trim()
-                    ? t('greet') + ', ' + user.name.trim() + '.'
-                    : t('greet') + '!'}
-                </Heading>
-              )}
-            </View>
-            {!mobile ? refresh : null}
+    <ScrollView
+      style={{ flex: 1, backgroundColor: c.surface }}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
+        Platform.OS === 'web' ? undefined : (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refresh()}
+            tintColor={c.primary}
+            colors={[c.primary]}
+          />
+        )
+      }
+      contentContainerStyle={{
+        alignItems: 'center',
+        paddingHorizontal: width < 370 ? 16 : desktop ? 36 : 20,
+        paddingTop: mobile ? 21 : 28,
+        paddingBottom: dockInset + 24,
+      }}
+    >
+      <View style={{ width: '100%', maxWidth: 1120, gap: desktop ? 23 : 17 }}>
+        <Heading size={mobile ? 29 : 31}>
+          {mobile
+            ? firstName
+              ? (vi ? 'Chào, ' : 'Hello, ') + firstName
+              : t('greet')
+            : user?.name?.trim()
+              ? t('greet') + ', ' + user.name.trim() + '.'
+              : t('greet') + '!'}
+        </Heading>
+        <View style={{ flexDirection: desktop ? 'row' : 'column', gap: desktop ? 44 : 24 }}>
+          <View style={{ flex: desktop ? 1.2 : undefined, minWidth: 0, gap: desktop ? 23 : 17 }}>
+            {focus}
+            {tools}
+            {journal}
           </View>
-          {desktop ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 23 }}>
-              <View style={{ flex: 1.2, minWidth: 0, gap: 16 }}>
-                {payments}
-                {actions}
-                {recent}
-              </View>
-              <View style={{ flex: 1, minWidth: 0, gap: 15 }}>
-                <HomeCapacity account={account} desktop />
-                <HomeFin />
-              </View>
-            </View>
-          ) : (
-            <>
-              {payments}
-              {actions}
-              {recent}
-              <HomeCapacity account={account} desktop={false} />
-              <HomeFin />
-            </>
-          )}
+          <View style={{ flex: desktop ? 1 : undefined, minWidth: 0, gap: 20 }}>
+            <HomeCapacity account={account} desktop={desktop} />
+            <HomeFin />
+          </View>
         </View>
-      </ScrollView>
-    </>
+        <View
+          style={{ alignItems: 'center', borderTopWidth: 1, borderColor: c.border, paddingTop: 4 }}
+        >
+          <Action
+            label={refreshLabel}
+            onPress={() => void refresh()}
+            disabled={ledger.isFetching || saved.isFetching || account.isFetching}
+            style={{ alignItems: 'center', flexDirection: 'row', gap: 7, paddingHorizontal: 10 }}
+          >
+            <RefreshCw size={15} color={c.muted} />
+            <Text small muted>
+              {refreshLabel}
+            </Text>
+          </Action>
+        </View>
+      </View>
+    </ScrollView>
   );
 }

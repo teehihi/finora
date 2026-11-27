@@ -17,7 +17,7 @@ import {
 } from 'lucide-react-native';
 import { tokens } from '@finora/design-tokens';
 import { Action, Text, Heading, Button, Choices, Dialog, Field, useDesign } from '@finora/ui';
-import { Data, Page, Back, Columns } from '../../../src/components/layout';
+import { Data, Page, backTo, Columns } from '../../../src/components/layout';
 import { SignatureIcon } from '../../../src/components/signature';
 import { PlanningSnapshot } from '../../../src/features/simulator-signature';
 import { SimulatorVndField } from '../../../src/features/simulator-vnd-field';
@@ -413,15 +413,7 @@ function Simulator({
               'Use terms you have confirmed. Results are estimates, not a quote.',
             )
       }
-      top={
-        <Back
-          to={() =>
-            carried && router.canGoBack()
-              ? router.back()
-              : router.navigate(p ? '/explore?mode=sample' : '/explore')
-          }
-        />
-      }
+      detail={{ onBack: () => backTo(p ? '/explore?mode=sample' : '/explore') }}
     >
       {carried ? (
         <MarketNotice
@@ -747,6 +739,7 @@ function Simulator({
   );
 }
 export default function SimulateScreen() {
+  const { t } = useDesign();
   const { id, amount, term, due, handoff } = useLocalSearchParams<{
     id: string;
     amount?: string;
@@ -761,7 +754,10 @@ export default function SimulateScreen() {
   });
   if (id === 'custom') return <Simulator key={handoff ?? 'custom'} p={null} handoff={handoff} />;
   return (
-    <Data q={q}>
+    <Data
+      q={q}
+      pendingDetail={{ title: t('openPlan'), onBack: () => backTo('/explore?mode=sample') }}
+    >
       {(p) => (
         <Simulator
           key={p.id + ':' + amount + ':' + term + ':' + due}

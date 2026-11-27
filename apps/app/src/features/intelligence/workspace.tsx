@@ -84,6 +84,7 @@ function Desk({
   const { width, fontScale } = useWindowDimensions();
   const compactStarters = width >= 370 && fontScale < 1.25;
   const wide = width >= 1150;
+  const phone = width < tokens.breakpoints.rail;
   const dock = useWorkspaceDockInset();
   const [externalConsent, setConsent] = useState(false);
   const [privacy, openPrivacy] = useState(false);
@@ -317,6 +318,22 @@ function Desk({
     </View>
   );
 
+  const providerMark = (
+    <ModeMark
+      label={modeLabel}
+      external={provider ? provider !== 'mock' : allowConsent && externalConsent}
+    />
+  );
+  const toolsButton = (
+    <Action
+      label={t('intelligenceTools')}
+      onPress={() => openTools(true)}
+      style={{ width: 44, minHeight: 44, alignItems: 'center', borderRadius: 16 }}
+    >
+      <BookOpen size={20} color={c.primary} />
+    </Action>
+  );
+
   return (
     <View
       style={{
@@ -329,44 +346,28 @@ function Desk({
         paddingBottom: dock || 14,
       }}
     >
-      <View
-        style={{
-          paddingVertical: 7,
-          borderBottomWidth: 1,
-          borderColor: c.border,
-          flexDirection: 'row',
-          gap: 8,
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-          <FinAvatar />
-          <Text bold style={{ color: c.foreground, fontSize: 17 }}>
-            {t('ai')}
-          </Text>
+      {!phone ? (
+        <View
+          style={{
+            paddingVertical: 7,
+            borderBottomWidth: 1,
+            borderColor: c.border,
+            flexDirection: 'row',
+            gap: 8,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+            <FinAvatar />
+            <Text bold style={{ color: c.foreground, fontSize: 17 }}>
+              {t('ai')}
+            </Text>
+          </View>
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>{providerMark}</View>
+          {!wide ? toolsButton : null}
         </View>
-        <View style={{ flex: 1, alignItems: 'flex-end' }}>
-          <ModeMark
-            label={modeLabel}
-            external={provider ? provider !== 'mock' : allowConsent && externalConsent}
-          />
-        </View>
-        {!wide ? (
-          <Action
-            label={t('intelligenceTools')}
-            onPress={() => openTools(true)}
-            style={{
-              minWidth: 44,
-              alignItems: 'center',
-              backgroundColor: c.surface,
-              borderRadius: 12,
-            }}
-          >
-            <BookOpen size={18} color={c.primary} />
-          </Action>
-        ) : null}
-      </View>
+      ) : null}
 
       <View style={{ flex: 1, minHeight: 0, flexDirection: 'row', gap: wide ? 27 : 0 }}>
         <View style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
@@ -642,6 +643,7 @@ function Desk({
                   : {}),
               }}
             >
+              {phone ? toolsButton : null}
               <TextInput
                 ref={composer}
                 accessibilityLabel={t('intelligenceAsk')}
@@ -653,7 +655,7 @@ function Desk({
                 multiline
                 numberOfLines={1}
                 maxLength={1200}
-                placeholder={t('intelligenceAsk')}
+                placeholder={t(phone ? 'intelligenceAskShort' : 'intelligenceAsk')}
                 placeholderTextColor={c.muted}
                 style={{
                   flex: 1,
@@ -697,6 +699,7 @@ function Desk({
                 )}
               </Action>
             </View>
+            {phone ? providerMark : null}
             {allowConsent && externalConsent ? (
               <Text small muted>
                 {t('intelligenceConsentOn')}

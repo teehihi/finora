@@ -10,7 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { ArrowLeft, ArrowRight, Globe2 } from 'lucide-react-native';
 import {
   Heading,
@@ -124,36 +124,42 @@ export function PublicPage({
 export const WorkspaceDockInsetContext = createContext(0);
 export const useWorkspaceDockInset = () => useContext(WorkspaceDockInsetContext);
 
+// A deep link can open a detail without a stack entry. Never strand that screen.
+export function backTo(fallback: Href) {
+  if (router.canGoBack()) router.back();
+  else router.replace(fallback);
+}
+
 export function Page({
   children,
   title,
   description,
-  top,
   eyebrow,
   maxWidth = tokens.breakpoints.content,
   style,
   scrollRef,
-  mobileTask,
+  detail,
+  showDescriptionOnPhone = true,
 }: {
   children: React.ReactNode;
   title: string;
   description?: string;
-  top?: React.ReactNode;
   eyebrow?: string;
   maxWidth?: number;
   style?: ViewStyle;
   scrollRef?: React.Ref<React.ComponentRef<typeof ScrollView>>;
-  mobileTask?: { onBack: () => void; action?: React.ReactNode };
+  showDescriptionOnPhone?: boolean;
+  detail?: { onBack: () => void; action?: React.ReactNode };
 }) {
   const { width } = useWindowDimensions();
   const dockInset = useWorkspaceDockInset();
   const tablet = width >= tokens.breakpoints.rail;
   const desktop = width >= tokens.breakpoints.desktop;
-  const compact = !tablet && !!mobileTask;
+  const compact = !tablet && !!detail;
   const { colors: c, t } = useDesign();
   return (
     <>
-      {compact && mobileTask ? (
+      {compact && detail ? (
         <View
           style={{
             backgroundColor: c.surface,
@@ -169,7 +175,7 @@ export function Page({
         >
           <Action
             label={t('back')}
-            onPress={mobileTask.onBack}
+            onPress={detail.onBack}
             style={{ width: 44, height: 44, alignItems: 'center' }}
           >
             <ArrowLeft size={20} color={c.foreground} />
@@ -179,7 +185,7 @@ export function Page({
               {title}
             </Heading>
           </View>
-          <View style={{ width: 44, height: 44 }}>{mobileTask.action}</View>
+          <View style={{ width: 44, height: 44 }}>{detail.action}</View>
         </View>
       ) : null}
       <ScrollView
@@ -198,17 +204,32 @@ export function Page({
         }}
       >
         <View style={[{ width: '100%', maxWidth, gap: tablet ? 25 : compact ? 12 : 19 }, style]}>
-          {!compact ? top : null}
+          {tablet && detail ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Back to={detail.onBack} />
+              {detail.action}
+            </View>
+          ) : null}
           {!compact ? (
             <View style={{ gap: 6 }}>
               {eyebrow ? <Eyebrow tone="forest">{eyebrow}</Eyebrow> : null}
               <Heading size={desktop ? 38 : 29}>{title}</Heading>
-              {description ? (
+              {description && (tablet || showDescriptionOnPhone) ? (
                 <Text muted style={{ maxWidth: tokens.layout.reading }}>
                   {description}
                 </Text>
               ) : null}
             </View>
+          ) : description && showDescriptionOnPhone ? (
+            <Text small muted>
+              {description}
+            </Text>
           ) : null}
           {children}
         </View>
@@ -271,13 +292,21 @@ export function LinkRow({
 export function Data<T>({
   q,
   children,
+  pendingDetail,
 }: {
+  pendingDetail?: { title: string; onBack: () => void };
   q: { data: T | undefined; isError: boolean; refetch: () => unknown };
   children: (v: T) => React.ReactNode;
 }) {
-  if (q.isError) return <ErrorState retry={() => q.refetch()} />;
-  if (q.data === undefined) return <LoadingState />;
-  return <>{children(q.data)}</>;
+  if (!q.isError && q.data !== undefined) return <>{children(q.data)}</>;
+  const state = q.isError ? <ErrorState retry={() => q.refetch()} /> : <LoadingState />;
+  return pendingDetail ? (
+    <Page title={pendingDetail.title} detail={{ onBack: pendingDetail.onBack }}>
+      {state}
+    </Page>
+  ) : (
+    state
+  );
 }
 export function Columns({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   const { width } = useWindowDimensions();

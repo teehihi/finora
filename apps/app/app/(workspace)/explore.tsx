@@ -36,6 +36,7 @@ export default function Explore() {
   return (
     <Page
       title={t('catalog')}
+      showDescriptionOnPhone={false}
       description={t(mode === 'public' ? 'publicCatalogIntro' : 'catalogIntro')}
     >
       <SegmentedControl

@@ -292,8 +292,6 @@ export default function Workspace() {
   }
   const name = data.user.name?.trim() || data.user.email || 'Finora';
   const selected = links[activeIndex];
-  const taskSuppliesToolbar =
-    !rail && (path === '/home' || path === '/cashflow' || path === '/repayments');
   const nav = links.map(([key, href, Icon], index) => {
     const on = index === activeIndex;
     const featured = !rail && key === 'ai';
@@ -372,7 +370,7 @@ export default function Workspace() {
     <WorkspaceDockInsetContext.Provider value={showDock ? dockHeight + dockOffset + 5 : 0}>
       <SafeAreaView
         edges={['top', 'right', 'bottom', 'left']}
-        style={{ flex: 1, backgroundColor: c.surface }}
+        style={{ flex: 1, backgroundColor: rail ? c.surface : c.background }}
       >
         <StatusBar style={c === dark ? 'light' : 'dark'} />
         <KeyboardAvoidingView
@@ -434,15 +432,13 @@ export default function Workspace() {
               </View>
             ) : null}
             <View style={{ flex: 1, minWidth: 0 }}>
-              {!taskSuppliesToolbar ? (
+              {rail ? (
                 <View
                   style={{
                     paddingHorizontal: full
                       ? tokens.layout.desktopGutter
-                      : rail
-                        ? tokens.layout.tabletGutter
-                        : tokens.layout.gutter,
-                    minHeight: rail ? 66 : 58,
+                      : tokens.layout.tabletGutter,
+                    minHeight: 66,
                     backgroundColor: c.surface,
                     borderBottomWidth: 1,
                     borderColor: c.border,
@@ -452,23 +448,17 @@ export default function Workspace() {
                     gap: 10,
                   }}
                 >
-                  {rail ? (
-                    <View
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1 }}
-                    >
-                      <Text small muted>
-                        Finora
-                      </Text>
-                      <ChevronRight size={13} color={c.muted} />
-                      <Text small bold>
-                        {t(path === '/intelligence' ? 'intelligenceLabel' : selected[0])}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Action onPress={() => router.replace('/home')} label="Finora">
-                      <Logo small />
-                    </Action>
-                  )}
+                  <View
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1 }}
+                  >
+                    <Text small muted>
+                      Finora
+                    </Text>
+                    <ChevronRight size={13} color={c.muted} />
+                    <Text small bold>
+                      {t(path === '/intelligence' ? 'intelligenceLabel' : selected[0])}
+                    </Text>
+                  </View>
                   <View style={{ flexDirection: 'row', gap: 13, alignItems: 'center' }}>
                     {full ? (
                       <Text small muted>

@@ -13,7 +13,7 @@ import { ActivityIndicator, View, useWindowDimensions } from 'react-native';
 import { useDesign, Text, Heading, Button } from '@finora/ui';
 import { date, documentStrings } from '@finora/i18n';
 import { auth } from '../../../src/services/client';
-import { Back, Data, LinkRow, Page } from '../../../src/components/layout';
+import { backTo, Data, LinkRow, Page } from '../../../src/components/layout';
 import { SignatureIcon, SignatureSweep } from '../../../src/components/signature';
 import {
   DocumentApiError,
@@ -102,7 +102,7 @@ function PrivateIntake({ userId }: { userId: string }) {
     <Page
       title={s.title}
       description={s.description}
-      top={<Back to={() => router.navigate('/assistant')} />}
+      detail={{ onBack: () => backTo('/assistant') }}
     >
       <View
         style={{
