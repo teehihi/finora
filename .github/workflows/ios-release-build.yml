@@ -46,7 +46,25 @@ jobs:
           pod install
           grep -q 'FinoraCYLDockModule.self' 'Pods/Target Support Files/Pods-Finora/ExpoModulesProvider.swift'
       - name: Compile unsigned iOS Release
+        id: compile
+        shell: bash
         run: |
-          xcodebuild -workspace apps/app/ios/Finora.xcworkspace -scheme Finora \
+          diagnostics="$RUNNER_TEMP/finora-ios-diagnostics"
+          mkdir -p "$diagnostics"
+          xcodebuild -hideShellScriptEnvironment -workspace apps/app/ios/Finora.xcworkspace -scheme Finora \
             -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath "$RUNNER_TEMP/finora-ios-build" CODE_SIGNING_ALLOWED=NO build
+            -derivedDataPath "$RUNNER_TEMP/finora-ios-build" -resultBundlePath "$diagnostics/Finora.xcresult" \
+            CODE_SIGNING_ALLOWED=NO build > "$diagnostics/xcodebuild.log" 2>&1 || {
+              status=$?
+              awk '/[Ee]rror:|fatal error|Undefined symbols|Command .* failed/ && ++errors <= 60 {print "  " $0}' "$diagnostics/xcodebuild.log"
+              tail -n 30 "$diagnostics/xcodebuild.log" | sed 's/^/  /'
+              exit "$status"
+            }
+      - name: Upload failed Xcode build diagnostics
+        if: failure() && steps.compile.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-release-diagnostics-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/finora-ios-diagnostics/
+          retention-days: 7
+          if-no-files-found: error

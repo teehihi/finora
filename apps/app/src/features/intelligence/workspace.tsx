@@ -533,6 +533,7 @@ function Desk({
                   turnId={row.id}
                   prompt={row.prompt}
                   answer={row.answer}
+                  provider={row.provider}
                   blocks={row.blocks}
                   followUp={
                     index === historyRows.length - 1 &&
@@ -556,6 +557,7 @@ function Desk({
                   turnId={current.stage === 'done' ? current.turnId : undefined}
                   prompt={current.request.prompt}
                   answer={current.answer}
+                  provider={current.provider}
                   blocks={current.blocks}
                   followUp={current.stage === 'done' && !prompt.trim() ? fill : undefined}
                 />
@@ -784,6 +786,7 @@ function Desk({
 function Turn({
   prompt,
   answer,
+  provider,
   blocks,
   turnId,
   followUp,
@@ -819,6 +822,16 @@ function Turn({
             <Text small bold style={{ color: c.primary }}>
               {t('ai')}
             </Text>
+            {provider ? (
+              <ModeMark
+                label={
+                  provider === 'mock'
+                    ? t('intelligenceLocal')
+                    : t('intelligenceRemote') + ' · OpenAI'
+                }
+                external={provider !== 'mock'}
+              />
+            ) : null}
           </View>
           {answer ? (
             <View
