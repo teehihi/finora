@@ -14,9 +14,12 @@ const term = z.number().int().min(1).max(360);
 const contextSchema = z
   .object({
     income: profileSchema.shape.income.optional(),
+    incomeStability: z.enum(['stable', 'variable']).optional(),
     expenses: profileSchema.shape.expenses.optional(),
     debt: profileSchema.shape.debt.optional(),
     savings: amount.optional(),
+    reserveMonths: z.number().int().min(0).max(60).optional(),
+    preferredPayment: amount.optional(),
     principal: loanSchema.shape.principal.optional(),
     annualRate: loanSchema.shape.annualRate.optional(),
     monthlyQuoted: z.boolean().optional(),
@@ -148,9 +151,12 @@ export function continueIntent(
   const intent: Intent = {
     ...current,
     income: current.income ?? prior?.income,
+    incomeStability: current.incomeStability ?? prior?.incomeStability,
     expenses: current.expenses ?? prior?.expenses,
     debt: current.debt ?? prior?.debt,
     savings: current.savings ?? prior?.savings,
+    reserveMonths: current.reserveMonths ?? prior?.reserveMonths,
+    preferredPayment: current.preferredPayment ?? prior?.preferredPayment,
     incomeCut: current.incomeCut ?? priorStress?.incomeCut,
     extraExpense: updatesExpenseStress ? current.extraExpense : priorStress?.extraExpense,
     expenseRisePercent: updatesExpenseStress

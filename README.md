@@ -112,6 +112,8 @@ CYL và `@callstack/liquid-glass` là native module nên dùng development build
 
 Bản local dùng bốn sản phẩm tổng hợp và trợ lý chạy ở chế độ cục bộ mặc định. Chế độ AI bên ngoài phải được cấu hình trên máy chủ và cần sự đồng ý cho từng câu hỏi. [Kiến trúc Fin và ranh giới dữ liệu](docs/architecture/INTELLIGENCE.md).
 
+Từ một phương án vay đã lưu, chọn **Xem dòng tiền tương lai** để so sánh dòng tiền, tiết kiệm và dư nợ trong các kịch bản giả định. Phí và điều khoản trả trước chưa biết luôn được đánh dấu. [Mô hình Digital Twin](docs/architecture/FINANCIAL_DIGITAL_TWIN.md) · [Báo cáo Phase 3](docs/PHASE3_FINANCIAL_DIGITAL_TWIN_REPORT.md).
+
 - **Kỹ thuật:** [Kiến trúc](docs/architecture/ARCHITECTURE.md) · [Cơ sở dữ liệu](docs/architecture/DATABASE.md) · [Công thức](docs/architecture/CALCULATIONS.md) · [Kết quả kiểm tra](docs/VERIFICATION.md)
 - **Sản phẩm và thiết kế:** [Phạm vi MVP](docs/product/MVP_SCOPE.md) · [Thương hiệu](docs/design-system/BRAND_GUIDELINES.md) · [Bộ ảnh giao diện](docs/product-design/FINORA-UI-COHESION.md) · [Consumer Fintech 4.0](docs/design-system/FINORA_V4.md)
 - **Đóng góp:** [Quy trình PR](CONTRIBUTING.md) · [GitHub Actions](https://github.com/teehihi/finora/actions/workflows/ci.yml) · [Hướng dẫn maintainer](docs/maintainers/GITHUB.md) · [Báo lỗi bảo mật](SECURITY.md) · [Giấy phép và tài sản](docs/maintainers/LICENSING.md)

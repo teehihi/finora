@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { loanMatchResultSchema } from './loan-matching.js';
+import { twinScenarioSchema, twinStateSchema } from './digital-twin.js';
 
 const outputMoney = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const signedMoney = z.number().int().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER);
@@ -30,6 +32,7 @@ export const intelligenceRequestSchema = z
     locale: z.enum(['vi-VN', 'en-US']),
     requestId: z.uuid(),
     simulationId: z.uuid().optional(),
+    documentId: z.uuid().optional(),
     externalConsent: z.boolean().optional(),
   })
   .strict();
@@ -94,6 +97,50 @@ export const intelligenceBlockSchema = z.discriminatedUnion('kind', [
     })
     .strict(),
   intelligenceScenarioSchema,
+  z.object({ kind: z.literal('matches'), result: loanMatchResultSchema }).strict(),
+  z.strictObject({
+    kind: z.literal('digital_twin'),
+    state: twinStateSchema,
+    scenario: twinScenarioSchema,
+    simulationId: z.uuid().nullable(),
+    baseline: z.strictObject({
+      months: z.number().int().min(0).max(360),
+      resilience: z.enum(['insufficient_data', 'resilient', 'pressured', 'unsustainable']),
+      firstCashShortfall: z.number().int().min(1).max(360).nullable(),
+      stressedPeriods: z.number().int().min(0).max(360),
+      minimumCashFlow: signedMoney.nullable(),
+      finalSavings: signedMoney.nullable(),
+    }),
+    stressed: z.strictObject({
+      months: z.number().int().min(0).max(360),
+      resilience: z.enum(['insufficient_data', 'resilient', 'pressured', 'unsustainable']),
+      firstCashShortfall: z.number().int().min(1).max(360).nullable(),
+      stressedPeriods: z.number().int().min(0).max(360),
+      minimumCashFlow: signedMoney.nullable(),
+      finalSavings: signedMoney.nullable(),
+      reserveDepletionMonth: z.number().int().min(1).max(360).nullable(),
+      unknownCosts: z.array(z.string()).max(5),
+      hypotheticalEarlyRepayment: z.boolean(),
+      missing: z.array(z.string()).max(7),
+    }),
+  }),
+  z
+    .object({
+      kind: z.literal('profile_update'),
+      income: z.number().int().positive().max(1_000_000_000_000),
+      expenses: z.number().int().nonnegative().max(1_000_000_000_000),
+      debt: z.number().int().nonnegative().max(1_000_000_000_000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('document_review'),
+      documentId: z.uuid(),
+      mode: z.enum(['pdf-text', 'local-ocr', 'manual']),
+      foundCount: z.number().int().min(0).max(14),
+      unresolvedCount: z.number().int().min(0).max(14),
+    })
+    .strict(),
   z.object({ kind: z.literal('missing'), fields: z.array(id).max(9), message: text }).strict(),
   z.object({ kind: z.literal('notice'), message: text }).strict(),
 ]);
@@ -104,7 +151,7 @@ export const intelligenceTurnSchema = z
     id: z.uuid(),
     prompt: z.string().max(1200),
     answer: z.string().max(7000),
-    provider: z.enum(['mock', 'openai']),
+    provider: z.enum(['mock', 'openai', 'anthropic']),
     createdAt: z.iso.datetime({ offset: true }),
     blocks: intelligenceBlocksSchema,
     simulationId: z.uuid().nullable(),
@@ -112,7 +159,13 @@ export const intelligenceTurnSchema = z
   .strict();
 export const intelligenceHistorySchema = z.array(intelligenceTurnSchema).max(50);
 export const intelligenceEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('meta'), provider: z.enum(['mock', 'openai']) }).strict(),
+  z.object({ type: z.literal('meta'), provider: z.enum(['mock', 'openai', 'anthropic']) }).strict(),
+  z
+    .object({
+      type: z.literal('progress'),
+      stage: z.enum(['provider', 'profile', 'catalog', 'calculation']),
+    })
+    .strict(),
   z.object({ type: z.literal('delta'), text: z.string().max(7000) }).strict(),
   z.object({ type: z.literal('structured'), blocks: intelligenceBlocksSchema }).strict(),
   z.object({ type: z.literal('done'), turnId: z.uuid().optional() }).strict(),

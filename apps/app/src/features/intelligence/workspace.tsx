@@ -41,7 +41,12 @@ import {
   ShieldCheck,
   Square,
 } from 'lucide-react-native';
-import type { IntelligenceBlock, IntelligenceRequest, IntelligenceTurn } from '@finora/contracts';
+import type {
+  IntelligenceBlock,
+  IntelligenceEvent,
+  IntelligenceRequest,
+  IntelligenceTurn,
+} from '@finora/contracts';
 import { dark, tokens } from '@finora/design-tokens';
 import { date } from '@finora/i18n';
 import {
@@ -91,9 +96,17 @@ const finInputFont = {
 } as const;
 
 type Provider = IntelligenceTurn['provider'];
+type ProgressStage = Extract<IntelligenceEvent, { type: 'progress' }>['stage'];
+const progressLabel = {
+  provider: 'intelligenceProgressProvider',
+  profile: 'intelligenceProgressProfile',
+  catalog: 'intelligenceProgressCatalog',
+  calculation: 'intelligenceProgressCalculation',
+} as const;
 type Draft = {
   request: IntelligenceRequest;
   provider?: Provider;
+  progress?: ProgressStage;
   answer: string;
   blocks: IntelligenceBlock[];
   turnId?: string;
@@ -102,17 +115,19 @@ type Draft = {
 
 export default function Intelligence() {
   const session = auth.useSession();
-  const { simulationId, draftPrompt } = useLocalSearchParams<{
+  const { simulationId, documentId, draftPrompt } = useLocalSearchParams<{
     simulationId?: string;
+    documentId?: string;
     draftPrompt?: string;
   }>();
   const uid = session.data?.user.id;
   const scope = chooseSimulationId(simulationId);
   return uid ? (
     <Desk
-      key={uid + ':' + (scope ?? '')}
+      key={uid + ':' + (scope ?? '') + ':' + (documentId ?? '')}
       uid={uid}
       simulationId={scope}
+      documentId={documentId}
       initialPrompt={chooseDraftPrompt(draftPrompt)}
     />
   ) : null;
@@ -121,10 +136,12 @@ export default function Intelligence() {
 function Desk({
   uid,
   simulationId,
+  documentId,
   initialPrompt,
 }: {
   uid: string;
   simulationId?: string;
+  documentId?: string;
   initialPrompt: string;
 }) {
   const { t, colors: c, locale, money } = useDesign();
@@ -138,7 +155,7 @@ function Desk({
   const [externalConsent, setConsent] = useState(false);
   const [privacy, openPrivacy] = useState(false);
   const [toolSheet, openTools] = useState(false);
-  const [prompt, setPrompt] = useFinPromptDraft(simulationId, initialPrompt);
+  const [prompt, setPrompt] = useFinPromptDraft(simulationId ?? documentId, initialPrompt);
   const [tabsOpen, showTabs] = useState(false);
   const closeTabs = useCallback(() => showTabs(false), []);
   const hasDraft = prompt.trim().length > 0;
@@ -257,7 +274,7 @@ function Desk({
     queryFn: ({ signal }) => loadIntelligenceStatus(signal),
     retry: false,
   });
-  const allowConsent = status.data === 'openai';
+  const allowConsent = status.data === 'openai' || status.data === 'anthropic';
   const history = useQuery({
     queryKey: historyKey,
     queryFn: ({ signal }) => loadIntelligenceHistory(signal),
@@ -327,6 +344,7 @@ function Desk({
           prompt: prompt.trim(),
           locale,
           simulationId: scoped?.id,
+          documentId,
           externalConsent: allowConsent && externalConsent,
         };
     // Do not re-send a previously opted-in request after turning off permission.
@@ -353,6 +371,9 @@ function Desk({
         switch (event.type) {
           case 'meta':
             reply = { ...reply, provider: event.provider };
+            break;
+          case 'progress':
+            reply = { ...reply, progress: event.stage };
             break;
           case 'delta':
             reply = { ...reply, answer: reply.answer + event.text };
@@ -660,7 +681,7 @@ function Desk({
 
       <View style={{ flex: 1, minHeight: 0, flexDirection: 'row', gap: wide ? 27 : 0 }}>
         <View style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
-          {scoped || (simulationId && saved.isError) ? (
+          {scoped || documentId || (simulationId && saved.isError) ? (
             <View
               style={{
                 flexDirection: 'row',
@@ -673,15 +694,17 @@ function Desk({
             >
               <Paperclip size={16} color={c.primary} />
               <Text small style={{ flex: 1 }} muted>
-                {scoped
-                  ? (locale === 'vi-VN' ? scoped.product.name : scoped.product.nameEn) +
-                    ' · ' +
-                    money(scoped.input.principal)
-                  : t('intelligenceScopeMissing')}
+                {documentId
+                  ? t('intelligenceDocumentAttached')
+                  : scoped
+                    ? (locale === 'vi-VN' ? scoped.product.name : scoped.product.nameEn) +
+                      ' · ' +
+                      money(scoped.input.principal)
+                    : t('intelligenceScopeMissing')}
               </Text>
               <Action
                 label={t('intelligenceScopeRemove')}
-                onPress={() => router.setParams({ simulationId: '' })}
+                onPress={() => router.setParams({ simulationId: '', documentId: '' })}
                 disabled={stream}
               >
                 <Text small bold style={{ color: c.primary }}>
@@ -819,7 +842,7 @@ function Desk({
                   blocks={current.blocks}
                   followUp={current.stage === 'done' && !prompt.trim() ? fill : undefined}
                 />
-                {current.stage === 'sending' && !current.answer ? (
+                {current.stage === 'sending' && !current.blocks.length ? (
                   <View
                     style={{
                       alignSelf: 'flex-start',
@@ -833,7 +856,9 @@ function Desk({
                   >
                     <ActivityIndicator size="small" color={c.primary} />
                     <Text small muted>
-                      {t('intelligenceWorking')}
+                      {current.progress
+                        ? t(progressLabel[current.progress])
+                        : t('intelligenceWorking')}
                     </Text>
                   </View>
                 ) : null}
@@ -1083,7 +1108,8 @@ function Turn({
                 label={
                   provider === 'mock'
                     ? t('intelligenceLocal')
-                    : t('intelligenceRemote') + ' · OpenAI'
+                    : t('intelligenceRemote') +
+                      (provider === 'anthropic' ? ' · Claude' : ' · OpenAI')
                 }
                 external={provider !== 'mock'}
               />

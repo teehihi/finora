@@ -57,7 +57,7 @@ function Review({
   document: DocumentReview;
   userId: string;
 }) {
-  const { locale, colors: c, money } = useDesign();
+  const { locale, colors: c, money, t } = useDesign();
   const s = documentStrings[locale];
   const { width } = useWindowDimensions();
   const split = width >= 1100;
@@ -320,6 +320,16 @@ function Review({
         variant="outline"
         label={showSources ? s.hideSources : s.showSources}
         onPress={() => setShowSources(!showSources)}
+      />
+      <Button
+        variant="outline"
+        label={t('intelligenceDocumentAsk')}
+        onPress={() =>
+          router.push({
+            pathname: '/assistant',
+            params: { documentId: documentReview.id, draftPrompt: t('intelligenceDocumentPrompt') },
+          })
+        }
       />
       {showSources ? (
         <Text small muted>

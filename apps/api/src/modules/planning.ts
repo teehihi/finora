@@ -19,6 +19,10 @@ import {
   userScenarioSource,
   preferencesSchema,
   profileSchema,
+  loanSchema,
+  twinComparisonRequestSchema,
+  type TwinComparisonRequest,
+  type TwinState,
   type Product,
   type Profile,
   type Preferences,
@@ -26,6 +30,7 @@ import {
   type Estimate,
 } from '@finora/contracts';
 import { financialTools } from './tools.js';
+import { compareDigitalTwin } from '@finora/financial-engine';
 import { Prisma, type LoanProduct, type LoanSimulation } from '@finora/database';
 import { db } from '../infrastructure/db.js';
 import { Validate } from '../common/http.js';
@@ -51,6 +56,44 @@ function savedDto(s: LoanSimulation) {
   };
 }
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value));
+function safeTwin(input: TwinComparisonRequest) {
+  try {
+    // A caller cannot self-certify financial observations. No bank or ledger
+    // evidence is attached to this endpoint, so all supplied values are estimates.
+    const state: TwinState = {
+      ...input.state,
+      monthlyIncome: input.state.monthlyIncome && {
+        ...input.state.monthlyIncome,
+        source: 'user_estimate',
+      },
+      essentialExpenses: input.state.essentialExpenses && {
+        ...input.state.essentialExpenses,
+        source: 'user_estimate',
+      },
+      discretionaryExpenses: input.state.discretionaryExpenses && {
+        ...input.state.discretionaryExpenses,
+        source: 'user_estimate',
+      },
+      existingDebtPayments: input.state.existingDebtPayments && {
+        ...input.state.existingDebtPayments,
+        source: 'user_estimate',
+      },
+      currentSavings: input.state.currentSavings && {
+        ...input.state.currentSavings,
+        source: 'user_estimate',
+      },
+      emergencyFund: input.state.emergencyFund && {
+        ...input.state.emergencyFund,
+        source: 'user_estimate',
+      },
+      events: input.state.events.map((event) => ({ ...event, source: 'user_estimate' })),
+    };
+    return compareDigitalTwin({ ...input, state });
+  } catch (error) {
+    if (error instanceof RangeError) throw new BadRequestException(error.message);
+    throw error;
+  }
+}
 @Injectable()
 export class PlanningService {
   async product(id: string) {
@@ -200,5 +243,22 @@ export class PlanningController {
     const row = await db.loanSimulation.findFirst({ where: { id, userId: req.userId } });
     if (!row) throw new NotFoundException();
     return savedDto(row);
+  }
+  @Post('digital-twin/compare') compareTwin(
+    @Body(new Validate(twinComparisonRequestSchema)) body: TwinComparisonRequest,
+  ) {
+    return safeTwin(body);
+  }
+  @Post('simulations/:id/digital-twin') async compareSavedTwin(
+    @Req() req: OwnedRequest,
+    @Param('id') id: string,
+    @Body(new Validate(twinComparisonRequestSchema.omit({ loan: true })))
+    body: Omit<TwinComparisonRequest, 'loan'>,
+  ) {
+    const row = await db.loanSimulation.findFirst({ where: { id, userId: req.userId } });
+    if (!row) throw new NotFoundException();
+    const loan = loanSchema.safeParse(row.input);
+    if (!loan.success) throw new BadRequestException('Saved loan terms are unavailable');
+    return safeTwin({ ...body, loan: loan.data });
   }
 }

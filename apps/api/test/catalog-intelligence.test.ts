@@ -37,6 +37,14 @@ describe('reviewed public loan catalog', () => {
 
   it('rejects invalid ranges, duplicate identities or official product pages, and malformed sources', () => {
     const [original] = reviewedLoanDatasetSchema.parse(entries);
+    expect(reviewedLoanDatasetSchema.safeParse([{ ...original, method: 'flat' }]).success).toBe(
+      false,
+    );
+    expect(
+      reviewedLoanDatasetSchema.safeParse([
+        { ...original, fee: 1_000_000_000_000, insuranceFee: 1 },
+      ]).success,
+    ).toBe(false);
     expect(
       reviewedLoanDatasetSchema.safeParse([{ ...original, amountMin: original.amountMax! + 1 }])
         .success,

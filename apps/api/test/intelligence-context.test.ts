@@ -27,6 +27,57 @@ const store = (prompt: string, context?: ReturnType<typeof captureContext>) => (
 });
 
 describe('conversation-local borrowing assumptions', () => {
+  it('keeps loan terms separate from reserve months in a three-turn consultation', () => {
+    const firstPrompt = 'Tôi muốn vay 50 triệu mua xe, so sánh kỳ hạn 12 tháng và 24 tháng.';
+    const secondPrompt =
+      'Thu nhập 15 triệu mỗi tháng, chi phí sinh hoạt 8 triệu, đang trả nợ 1 triệu. Thu nhập ổn định, tiết kiệm dự phòng 20 triệu, muốn giữ dự phòng 3 tháng và trả tối đa 3 triệu mỗi tháng.';
+    const thirdPrompt = 'Lãi suất danh nghĩa 12% mỗi năm, trả góp đều. Tôi chưa biết phí.';
+    const first = parse(firstPrompt);
+    const second = parse(secondPrompt, [store(firstPrompt, captureContext(first.intent))]);
+    expect(second.intent).toMatchObject({
+      principal: 50_000_000,
+      months: 12,
+      secondMonths: 24,
+      reserveMonths: 3,
+      preferredPayment: 3_000_000,
+    });
+    const third = parse(thirdPrompt, [
+      store(secondPrompt, captureContext(second.intent)),
+      store(firstPrompt, captureContext(first.intent)),
+    ]);
+    expect(third.intent).toMatchObject({
+      principal: 50_000_000,
+      months: 12,
+      secondMonths: 24,
+      annualRate: 12,
+      method: 'annuity',
+      fee: null,
+    });
+    expect(scenarioInput(third.intent, undefined, date).success).toBe(true);
+  });
+  it('retains repayment preference, income stability and reserve goal across a clarification', () => {
+    const first = interpret(
+      'I want to borrow 50 million. My income is stable. I prefer a monthly payment of 3 million and need 6 months of emergency reserve.',
+    );
+    expect(first).toMatchObject({
+      principal: 50_000_000,
+      incomeStability: 'stable',
+      preferredPayment: 3_000_000,
+      reserveMonths: 6,
+    });
+    const next = parse('What if the term is 24 months?', [store('first', captureContext(first))]);
+    expect(next.intent).toMatchObject({
+      principal: 50_000_000,
+      incomeStability: 'stable',
+      preferredPayment: 3_000_000,
+      reserveMonths: 6,
+    });
+  });
+
+  it('distinguishes a zero reserve goal from an unknown goal', () => {
+    expect(interpret('No emergency reserve required').reserveMonths).toBe(0);
+    expect(interpret('I need a loan').reserveMonths).toBeUndefined();
+  });
   it('keeps a partially specified comparison, collects missing terms, and stresses both durations', () => {
     const first = parse(ask).intent;
     expect(first).toMatchObject({

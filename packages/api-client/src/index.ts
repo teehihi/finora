@@ -5,6 +5,8 @@ import type {
   Product,
   PublicLoanProduct,
   PublicLoanSearch,
+  LoanMatchRequest,
+  LoanMatchResult,
   LoanInput,
   Estimate,
   Saved,
@@ -17,6 +19,8 @@ import type {
   RepaymentPaymentUpdate,
   TrackedRepayment,
   TrackRepaymentInput,
+  TwinComparisonRequest,
+  TwinComparison,
 } from '@finora/contracts';
 export interface Readiness {
   monthlyBudget: number;
@@ -64,6 +68,8 @@ export function createApi(
     },
     publicProduct: (id: string) =>
       request<PublicLoanProduct>('intelligence/catalog/' + encodeURIComponent(id)),
+    loanMatches: (input: LoanMatchRequest) =>
+      request<LoanMatchResult>('intelligence/catalog/matches', 'POST', input),
     product: (id: string) => request<Product>('catalog/' + encodeURIComponent(id)),
     preview: (productId: string, input: LoanInput) =>
       request<Estimate>('simulations/preview', 'POST', { productId, input }),
@@ -73,6 +79,14 @@ export function createApi(
       request<Saved>('simulations/custom', 'POST', input),
     saved: () => request<Saved[]>('simulations'),
     detail: (id: string) => request<Saved>('simulations/' + encodeURIComponent(id)),
+    compareTwin: (input: TwinComparisonRequest) =>
+      request<TwinComparison>('digital-twin/compare', 'POST', input),
+    compareSavedTwin: (id: string, input: Omit<TwinComparisonRequest, 'loan'>) =>
+      request<TwinComparison>(
+        'simulations/' + encodeURIComponent(id) + '/digital-twin',
+        'POST',
+        input,
+      ),
     repayments: () => request<RepaymentLedger>('repayments'),
     trackRepayment: (input: TrackRepaymentInput) =>
       request<TrackedRepayment>('repayments', 'POST', input),

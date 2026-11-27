@@ -39,7 +39,7 @@ function parseNumber(raw: string, unit?: string): number | undefined {
     ? n
     : undefined;
 }
-function moneyAfter(prompt: string, label: string) {
+export function moneyAfter(prompt: string, label: string) {
   const r = new RegExp(
     '(?:^|[^a-z0-9])(?:' + label + ')\\s*(?:la|about|of|:|=)?\\s*' + amountPattern,
   ).exec(prompt);
@@ -52,9 +52,15 @@ export type InputIssue = 'annualRate' | 'months' | 'method' | 'incomeCut' | 'ext
 export const approvedPurposes = purposeKeys;
 export type Intent = {
   income?: number;
+  incomeStability?: 'stable' | 'variable';
   expenses?: number;
   debt?: number;
   savings?: number;
+  essentialExpenses?: number;
+  discretionaryExpenses?: number;
+  currentSavings?: number;
+  reserveMonths?: number;
+  preferredPayment?: number;
   principal?: number;
   principalDelta?: number;
   aprOnly?: boolean;
@@ -77,6 +83,25 @@ export type Intent = {
   blocked: boolean;
   early: boolean;
 };
+export function needsExternalTools(intent: Intent, prompt: string): boolean {
+  if (
+    [
+      intent.principal,
+      intent.income,
+      intent.expenses,
+      intent.debt,
+      intent.annualRate,
+      intent.months,
+      intent.purpose,
+      intent.incomeCut,
+      intent.extraExpense,
+    ].some((value) => value !== undefined)
+  )
+    return true;
+  return /\b(?:compare|calculate|simulate|search|find|catalog|products?|offers?|repayments?|schedule|budget|profile|saved|stress|so sanh|tinh|tim|san pham|goi vay|lich tra|ho so)\b/u.test(
+    normalizeVn(prompt),
+  );
+}
 const rates = (value?: string) => (value ? Number(value.replace(',', '.')) : undefined);
 const validTerm = (v?: string) => (v && Number(v) >= 1 && Number(v) <= 360 ? Number(v) : undefined);
 export function interpret(prompt: string): Intent {
@@ -84,7 +109,7 @@ export function interpret(prompt: string): Intent {
   const inputIssues: InputIssue[] = [];
   const quotedRates = [
     ...s.matchAll(
-      /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:la|of|doi thanh|doi sang|sang|change to|set to|:|=)?\s*(-?\d+(?:[.,]\d+)?)\s*%\s*(?:\/\s*)?(thang|month|nam|year)?/g,
+      /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:danh nghia|nominal)?\s*(?:la|of|doi thanh|doi sang|sang|change to|set to|:|=)?\s*(-?\d+(?:[.,]\d+)?)\s*%\s*(?:\/\s*|moi\s*)?(thang|month|nam|year)?/g,
     ),
   ];
   const m = quotedRates[0];
@@ -110,7 +135,14 @@ export function interpret(prompt: string): Intent {
     /(?<![\d.,-])(-?\d{1,6})(?:\s*(?:thang|months?)\b)?\s*(?:va|voi|vs\.?|or|hay|hoac|\/|so voi)\s*(-?\d{1,6})\s*(?:thang|months?)\b/.exec(
       s,
     );
-  const single = /(?<![\d.,-])(-?\d{1,6})\s*(?:thang|months?)\b/.exec(s);
+  const single = [...s.matchAll(/(?<![\d.,-])(-?\d{1,6})\s*(?:thang|months?)\b/g)].find((match) => {
+    const before = s.slice(Math.max(0, (match.index ?? 0) - 24), match.index);
+    const after = s.slice(
+      (match.index ?? 0) + match[0].length,
+      (match.index ?? 0) + match[0].length + 24,
+    );
+    return !/(?:du phong|reserve)\s*$/.test(before) && !/^\s*(?:du phong|reserve)\b/.test(after);
+  });
   const yr = /\b(\d{1,2}|mot|hai|ba|bon|nam|one|two|three|four|five)\s*(?:nam|years?)\b/.exec(s);
   const writtenYears: Record<string, number> = {
     mot: 1,
@@ -176,7 +208,8 @@ export function interpret(prompt: string): Intent {
   const mentionedMethods = methods.filter(([pattern]) => pattern.test(s));
   if (mentionedMethods.length > 1) inputIssues.push('method');
   const method = mentionedMethods.length === 1 ? mentionedMethods[0][1] : undefined;
-  const early = /tra truoc han|tat toan som|early repayment|repay early/.test(s);
+  const early =
+    /tra truoc han|tat toan som|early repayment|repay early|\brepay\b.{0,80}\bearly\b/.test(s);
   const payoffAfter = early
     ? validTerm(
         /(?:sau ky|sau thang|vao ky|thang thu|after month|after payment)\s*(\d{1,3})/.exec(
@@ -199,6 +232,26 @@ export function interpret(prompt: string): Intent {
     'vay nhieu hon|tang so tien vay(?: them)?|borrow more(?: by)?',
   );
   const principalDelta = lowerPrincipal !== undefined ? -lowerPrincipal : higherPrincipal;
+  const stability =
+    /\b(?:thu nhap|luong|income)\s+(?:is\s+)?(?:on dinh|stable|fixed)\b|\b(?:stable|fixed)\s+income\b/.test(
+      s,
+    )
+      ? 'stable'
+      : /\b(?:thu nhap|luong|income)\s+(?:is\s+)?(?:khong on dinh|that thuong|variable|irregular)\b|\b(?:variable|irregular)\s+income\b/.test(
+            s,
+          )
+        ? 'variable'
+        : undefined;
+  const reserveMatch =
+    /\b(?:du phong|quy du phong|emergency reserve|reserve)\s*(\d{1,2})\s*(?:thang|months?)\b|\b(\d{1,2})\s*(?:thang|months?)\s*(?:du phong|emergency reserve|of emergency reserve)\b/.exec(
+      s,
+    );
+  const reserveMonths =
+    /\b(?:khong can|khong yeu cau|no)\s+(?:quy )?(?:du phong|emergency reserve)\b/.test(s)
+      ? 0
+      : reserveMatch
+        ? Number(reserveMatch[1] ?? reserveMatch[2])
+        : undefined;
   const rawTerm =
     pair?.[1] ??
     (early && validTerm(single?.[1]) === payoffAfter ? undefined : single?.[1]) ??
@@ -214,6 +267,7 @@ export function interpret(prompt: string): Intent {
       s,
       'luong(?: moi thang| hang thang)?|thu nhap(?: moi thang| hang thang)?|monthly income|income',
     ),
+    incomeStability: stability,
     expenses: moneyAfter(
       s,
       'chi phi(?: sinh hoat| thiet yeu| moi thang)?|chi tieu|monthly expenses|expenses',
@@ -225,6 +279,14 @@ export function interpret(prompt: string): Intent {
           'no hien tai|(?:dang )?tra no(?: moi thang| hang thang| hien tai)?|tien tra no(?: hien tai)?|existing debt|debt payments',
         ),
     savings: moneyAfter(s, 'tiet kiem du phong|quy du phong|emergency savings'),
+    essentialExpenses: moneyAfter(s, 'chi phi thiet yeu|essential expenses'),
+    discretionaryExpenses: moneyAfter(s, 'chi tieu tuy y|chi phi tuy y|discretionary expenses'),
+    currentSavings: moneyAfter(s, 'tiet kiem hien tai|current savings|savings balance'),
+    reserveMonths: reserveMonths !== undefined && reserveMonths <= 60 ? reserveMonths : undefined,
+    preferredPayment: moneyAfter(
+      s,
+      'muon tra moi thang|uu tien tra moi thang|(?:muon )?tra toi da|tra khong qua|preferred monthly repayment|preferred monthly payment|monthly payment preference|prefer a monthly payment of',
+    ),
     principalDelta,
     aprOnly,
     principal:
@@ -297,6 +359,16 @@ export function buildProfile(intent: Intent, persisted: Profile | null) {
       (k) => raw[k] === undefined || (k === 'income' && raw[k] === 0),
     ),
   };
+}
+export function consultationGaps(intent: Intent) {
+  return (['incomeStability', 'savings', 'reserveMonths', 'preferredPayment'] as const).filter(
+    (key) => intent[key] === undefined,
+  );
+}
+
+export function repaymentPreferenceGap(result: Estimate, preferredPayment: number | undefined) {
+  if (preferredPayment === undefined) return null;
+  return Math.max(0, Math.max(...result.schedule.map((row) => row.payment)) - preferredPayment);
 }
 export function snapshotOf(plan: IntelligenceScenario, firstDue: string): LoanInput {
   return {

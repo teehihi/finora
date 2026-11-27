@@ -107,7 +107,10 @@ export default function Workspace() {
         (key === 'ai' &&
           (path === '/intelligence' || path === '/documents' || path.startsWith('/documents/'))) ||
         (key === 'loans' &&
-          (path === '/repayments' || path === '/cashflow' || path.startsWith('/saved/'))),
+          (path === '/repayments' ||
+            path === '/cashflow' ||
+            path.startsWith('/saved/') ||
+            path.startsWith('/twin/'))),
     ),
   );
   useEffect(() => {

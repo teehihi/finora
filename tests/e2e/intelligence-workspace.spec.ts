@@ -47,7 +47,28 @@ test('analyze verified assumptions, explicitly save, and revisit the repayment s
   const composer = page.getByLabel('Bạn đang cân nhắc khoản vay nào?');
   await expect(composer).toHaveValue(question);
   expect(await (await context.request.get(api + '/api/intelligence/history')).json()).toEqual([]);
+  await page.evaluate(() => {
+    const state = window as typeof window & { __finoraProgress?: boolean };
+    state.__finoraProgress = false;
+    const observer = new MutationObserver(() => {
+      if (document.body.textContent?.includes('Đang tra cứu khoản vay công bố…')) {
+        state.__finoraProgress = true;
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  });
   await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+  if (captures) await page.screenshot({ path: info.outputPath('intelligence-progress-390.png') });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as typeof window & { __finoraProgress?: boolean }).__finoraProgress,
+      ),
+    )
+    .toBe(true);
+  if (captures)
+    await page.screenshot({ path: info.outputPath('intelligence-tool-progress-390.png') });
   await expect(page.getByText(/mình còn cần: lãi suất năm, cách tính lãi/)).toBeVisible();
   await composer.fill('Lãi suất 12%/năm, trả góp đều. Chưa biết phí.');
   await page.getByRole('button', { name: 'Gửi', exact: true }).click();

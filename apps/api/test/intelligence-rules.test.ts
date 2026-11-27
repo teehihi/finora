@@ -8,11 +8,53 @@ import {
   snapshotOf,
   toAffordability,
   toScenario,
+  consultationGaps,
+  repaymentPreferenceGap,
+  needsExternalTools,
 } from '../src/modules/intelligence-rules.js';
 import { financialTools } from '../src/modules/tools.js';
 
 const firstDue = '2027-01-01';
 describe('private deterministic intelligence', () => {
+  it('does not offer account tools for a general explanation without explicit financial task', () => {
+    expect(
+      needsExternalTools(
+        interpret('Could you continue helping me understand loans?'),
+        'Could you continue helping me understand loans?',
+      ),
+    ).toBe(false);
+    expect(
+      needsExternalTools(
+        interpret('Compare 12 and 24 month payments for a 20 million loan.'),
+        'Compare 12 and 24 month payments for a 20 million loan.',
+      ),
+    ).toBe(true);
+  });
+  it('asks for missing consultation preferences without treating explicit zero as absent', () => {
+    const missing = consultationGaps(interpret('I want to borrow 20 million.'));
+    expect(missing).toEqual(['incomeStability', 'savings', 'reserveMonths', 'preferredPayment']);
+    expect(
+      consultationGaps(
+        interpret(
+          'I want to borrow 20 million. My income is stable. Emergency savings 0. No emergency reserve required. I prefer a monthly payment of 0.',
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it('compares a stated payment preference only against an engine-produced installment', () => {
+    const input = {
+      principal: 12_000_000,
+      annualRate: 12,
+      months: 12,
+      method: 'annuity' as const,
+      fee: null,
+      firstDue,
+    };
+    const result = financialTools.simulateRepaymentScenario(input);
+    expect(repaymentPreferenceGap(result, 1_000_000)).toBe(66_191);
+    expect(repaymentPreferenceGap(result, undefined)).toBeNull();
+  });
   it('parses Vietnamese money, independent required fields and alternative terms', () => {
     const i = interpret(
       'Tôi lương 15 triệu, chi phí sinh hoạt 8,5 triệu, không có nợ. Vay 50 triệu mua xe trong 12 và 24 tháng, lãi 12%/năm trả góp đều.',

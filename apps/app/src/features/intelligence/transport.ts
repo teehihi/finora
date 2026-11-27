@@ -93,7 +93,7 @@ export async function loadIntelligenceStatus(signal: AbortSignal) {
     const body: unknown = await response.json();
     if (typeof body !== 'object' || !body || !('provider' in body))
       throw new Error('Invalid intelligence status');
-    if (body.provider !== 'mock' && body.provider !== 'openai')
+    if (body.provider !== 'mock' && body.provider !== 'openai' && body.provider !== 'anthropic')
       throw new Error('Invalid intelligence provider');
     return body.provider;
   }, signal);

@@ -40,7 +40,10 @@ test('Intelligence runs owned Vietnamese analysis, typed comparison and private 
         .map((line) => JSON.parse(line.slice(6)));
     };
     const events = await stream();
-    expect(events[0]).toEqual({ type: 'meta', provider: 'mock' });
+    expect(events.find((event) => event.type === 'meta')).toEqual({
+      type: 'meta',
+      provider: 'mock',
+    });
     const blocks = events.find((e) => e.type === 'structured')?.blocks;
     expect(blocks?.find((b: { kind: string }) => b.kind === 'affordability')).toMatchObject({
       monthlyCapacity: 4_250_000,
@@ -127,7 +130,10 @@ test('stress-tests a stated budget before a loan is specified without rewriting 
         .split('\n')
         .filter((line) => line.startsWith('data: '))
         .map((line) => JSON.parse(line.slice(6)));
-      expect(packets[0]).toEqual({ type: 'meta', provider: 'mock' });
+      expect(packets.find((packet) => packet.type === 'meta')).toEqual({
+        type: 'meta',
+        provider: 'mock',
+      });
       return packets.find((packet) => packet.type === 'structured')?.blocks;
     }
     const base = await run('Thu nhập 15 triệu, chi phí sinh hoạt 8 triệu, đang trả nợ 1 triệu.');

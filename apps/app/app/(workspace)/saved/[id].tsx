@@ -30,6 +30,10 @@ export default function Saved() {
           description={t('savedDate') + ' ' + date(s.createdAt, locale)}
           detail={{ onBack: () => backTo('/loans?pane=simulations') }}
         >
+          <Button
+            label={locale === 'vi-VN' ? 'Xem dòng tiền tương lai' : 'Explore future cash flow'}
+            onPress={() => router.push('/twin/' + id)}
+          />
           <MarketPanel style={{ borderRadius: 22, gap: 15, backgroundColor: c.secondary }}>
             <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
               <ProductIcon category={s.product.category} />
