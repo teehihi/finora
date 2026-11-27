@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
 import { Button, Text, useDesign } from '@finora/ui';
-import { Page } from '../../src/components/layout';
+import { AccountScroll, useProfileChrome } from '../../src/features/profile-chrome';
 import {
   AccountGroups,
   AccountHero,
@@ -14,6 +14,7 @@ import { auth } from '../../src/services/client';
 
 export default function ProfileScreen() {
   const { t, colors: c } = useDesign();
+  const { palette: p } = useProfileChrome();
   const { set } = usePrefs();
   const { data } = auth.useSession();
   const name = data?.user.name?.trim() || t('accountMember');
@@ -40,18 +41,22 @@ export default function ProfileScreen() {
   }
 
   return (
-    <Page
-      title={t('profileTitle')}
-      maxWidth={690}
-      header={<AccountHero name={name} owner={data?.user.id} open={() => open('personal')} />}
+    <AccountScroll
+      header={
+        <AccountHero
+          name={name}
+          owner={data?.user.id}
+          open={() => open('personal')}
+          payments={() => router.push('/repayments')}
+          cashflow={() => router.push('/cashflow')}
+        />
+      }
     >
       <AccountGroups open={open} />
       <View
         style={{
-          backgroundColor: c.surface,
-          borderWidth: 1,
-          borderColor: c.border,
-          borderRadius: 18,
+          backgroundColor: p.surface,
+          borderRadius: 14,
           padding: 6,
         }}
       >
@@ -68,6 +73,6 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
       </View>
-    </Page>
+    </AccountScroll>
   );
 }

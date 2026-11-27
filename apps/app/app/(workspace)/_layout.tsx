@@ -16,6 +16,7 @@ import { BlurTargetView } from 'expo-blur';
 import { ChevronRight, LockKeyhole } from 'lucide-react-native';
 import { useDesign, Text, Eyebrow, Action, Avatar, ErrorState } from '@finora/ui';
 import { LaunchScene } from '../../src/components/LaunchScene';
+import { profileLight } from '../../src/features/profile-chrome';
 import { Logo, WorkspaceDockInsetContext } from '../../src/components/layout';
 import {
   DockChrome,
@@ -362,7 +363,14 @@ export default function Workspace() {
         }}
         style={{
           flex: 1,
-          backgroundColor: rail || inSearch ? c.surface : c.background,
+          backgroundColor:
+            !rail && c !== dark && path === '/profile'
+              ? profileLight.warmTop
+              : !rail && c !== dark && path.startsWith('/profile/')
+                ? profileLight.surface
+                : rail || inSearch
+                  ? c.surface
+                  : c.background,
         }}
       >
         <KeyboardAvoidingView

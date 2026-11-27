@@ -108,7 +108,9 @@ test('distinct tab artwork and the profile hub retain task navigation', async ({
     'aria-selected',
     'true',
   );
-  await expect(page.getByText(email, { exact: true })).toBeVisible();
+  await expect(
+    page.getByTestId('personal-profile-identity').getByText(email, { exact: true }),
+  ).toBeVisible();
   expect(new URL(page.url()).search).toBe('');
   await snapshot('profile-personal-390-light');
   await back.click();

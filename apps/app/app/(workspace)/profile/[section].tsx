@@ -17,7 +17,7 @@ import {
 } from '@finora/ui';
 import { profileSchema, type Profile, type Preferences } from '@finora/contracts';
 import { getAccessStrings } from '@finora/i18n';
-import { backTo, Data, Page } from '../../../src/components/layout';
+import { backTo, Data } from '../../../src/components/layout';
 import { SignatureIcon } from '../../../src/components/signature';
 import { AccountIdentity } from '../../../src/components/AccountIdentity';
 import {
@@ -26,6 +26,7 @@ import {
   type AccountSection,
 } from '../../../src/features/profile-account-hub';
 import { AvatarEditor } from '../../../src/features/account-avatar/AvatarEditor';
+import { AccountScroll, useProfileChrome } from '../../../src/features/profile-chrome';
 import { ProfileInsights } from '../../../src/features/profile-insights';
 import { clearIntelligenceHistory } from '../../../src/features/intelligence/transport';
 import { api, auth } from '../../../src/services/client';
@@ -113,22 +114,22 @@ function Panel({
   icon?: typeof Banknote;
   children: ReactNode;
 }) {
-  const { colors: c } = useDesign();
+  const { palette: p } = useProfileChrome();
   return (
     <View
       style={{
-        gap: 15,
-        backgroundColor: c.surface,
-        borderWidth: 1,
-        borderColor: c.border,
-        padding: 16,
-        borderRadius: 20,
+        gap: 14,
+        backgroundColor: p.surface,
+        paddingHorizontal: 19,
+        paddingVertical: 19,
       }}
     >
       {title ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           {Icon ? <SignatureIcon icon={Icon} size={38} /> : null}
-          <Heading size={21}>{title}</Heading>
+          <Heading size={19} style={{ color: p.ink }}>
+            {title}
+          </Heading>
         </View>
       ) : null}
       {children}
@@ -182,6 +183,7 @@ function ProfileSection({ section }: { section: AccountSection }) {
     if (!pref.isPending) pref.mutate(p);
   };
   const vi = locale === 'vi-VN';
+  const { palette: p } = useProfileChrome();
   const user = session.data?.user;
   const name = user?.name?.trim() || t('accountMember');
   const title = {
@@ -191,53 +193,65 @@ function ProfileSection({ section }: { section: AccountSection }) {
     privacy: t('privacy'),
   }[section];
   return (
-    <Page title={title} detail={{ onBack: () => backTo('/profile') }} maxWidth={690}>
+    <AccountScroll detail={{ title, back: () => backTo('/profile') }}>
       {section === 'personal' ? (
         <>
           <View
             testID="personal-profile-identity"
             style={{
               alignItems: 'center',
-              backgroundColor: c.surface,
-              borderRadius: 22,
-              padding: 21,
+              backgroundColor: p.surface,
+              paddingTop: 30,
+              paddingBottom: 25,
+              paddingHorizontal: 19,
               gap: 7,
             }}
           >
             {uid ? (
               <AvatarEditor owner={uid} name={name} />
             ) : (
-              <ProfileAvatar name={name} size={92} />
+              <ProfileAvatar name={name} size={108} />
             )}
-            <Heading size={25} style={{ textAlign: 'center' }}>
+            <Heading size={26} style={{ textAlign: 'center', color: p.ink, marginTop: 4 }}>
               {name}
             </Heading>
+            {user?.email ? (
+              <Text small style={{ color: p.muted, textAlign: 'center' }}>
+                {user.email}
+              </Text>
+            ) : null}
             <Text
               small
               bold
               style={{
-                backgroundColor: c.secondary,
+                backgroundColor: p.profileChip,
                 color: c.primary,
                 paddingHorizontal: 10,
-                paddingVertical: 4,
+                paddingVertical: 3,
                 borderRadius: 14,
               }}
             >
               {user?.emailVerified ? t('authEmailVerified') : t('authEmailNotVerified')}
             </Text>
           </View>
-          {user?.email ? (
-            <Panel title={vi ? 'Thông tin cá nhân' : 'Personal information'}>
-              <View style={{ gap: 2 }}>
-                <Text small muted>
+          <Panel title={vi ? 'Thông tin cá nhân' : 'Personal information'}>
+            <View style={{ gap: 3 }}>
+              <Text small style={{ color: p.muted }}>
+                {vi ? 'Tên hiển thị' : 'Display name'}
+              </Text>
+              <Text style={{ color: p.ink }}>{name}</Text>
+            </View>
+            {user?.email ? (
+              <View style={{ gap: 3 }}>
+                <Text small style={{ color: p.muted }}>
                   Email
                 </Text>
-                <Text>{user.email}</Text>
+                <Text style={{ color: p.ink }}>{user.email}</Text>
               </View>
-            </Panel>
-          ) : null}
-          <Panel title={vi ? 'Bảo mật' : 'Security'} icon={LockKeyhole}>
-            <AccountIdentity showEmail={false} />
+            ) : null}
+          </Panel>
+          <Panel title={vi ? 'Bảo mật' : 'Security'}>
+            <AccountIdentity showEmail={false} compact />
           </Panel>
         </>
       ) : null}
@@ -361,6 +375,6 @@ function ProfileSection({ section }: { section: AccountSection }) {
           </Dialog>
         </Panel>
       ) : null}
-    </Page>
+    </AccountScroll>
   );
 }

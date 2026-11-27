@@ -9,8 +9,8 @@ test('confirms a selected avatar, restores it in another session, and isolates o
   page,
   request,
 }, info) => {
-  const name = 'Avatar Demo';
-  const email = randomUUID() + '@example.test';
+  const name = 'Minh An';
+  const email = 'avatar-' + randomUUID().slice(0, 6) + '@example.test';
   const password = randomUUID();
   const api = 'http://localhost:3000/api/account/avatar';
   const headers = { Origin: 'http://localhost:8081', 'Content-Type': 'image/jpeg' };
@@ -22,14 +22,13 @@ test('confirms a selected avatar, restores it in another session, and isolates o
   await page.goto('/profile/personal');
   const change = page.getByRole('button', { name: 'Đổi ảnh đại diện', exact: true });
   const file = resolve('apps/app/assets/scenes/workspace/profile-riverside.jpg');
-  await change.click();
-  const choose = page.getByRole('button', { name: 'Chọn ảnh', exact: true });
   const chooser = page.waitForEvent('filechooser');
-  await choose.click();
+  await change.click();
   await (await chooser).setFiles(file);
   const save = page.getByRole('button', { name: 'Lưu ảnh', exact: true });
   await expect(save).toBeVisible();
   expect(await (await context.request.get(api)).json()).toEqual({ dataUrl: null });
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.screenshot({ path: info.outputPath('profile-avatar-preview.png') });
   await save.click();
   await expect(page.getByTestId('account-avatar-image')).toBeVisible();
@@ -38,6 +37,7 @@ test('confirms a selected avatar, restores it in another session, and isolates o
   const avatar = await stored.json();
   expect(avatar.dataUrl).toMatch(/^data:image\/jpeg;base64,/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.screenshot({ path: info.outputPath('profile-avatar-saved.png') });
 
   expect(
@@ -46,6 +46,7 @@ test('confirms a selected avatar, restores it in another session, and isolates o
   expect(await (await context.request.get(api)).json()).toEqual(avatar);
   await page.goto('/profile');
   await expect(page.getByTestId('account-avatar-image')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('profile-account-with-avatar.png') });
 
   const other = await browser.newContext();
   const device = await browser.newContext();

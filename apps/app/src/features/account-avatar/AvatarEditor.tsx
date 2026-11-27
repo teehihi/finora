@@ -3,7 +3,7 @@ import { Image, Platform, View } from 'react-native';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { File } from 'expo-file-system';
 import { Camera } from 'lucide-react-native';
-import { Action, Button, Dialog, Text, useDesign } from '@finora/ui';
+import { Action, Button, BottomSheet, Text, useDesign } from '@finora/ui';
 import { avatarMime, maxAvatarBytes, type AvatarMime } from '@finora/contracts';
 import { ProfileAvatar } from '../profile-account-hub';
 import { queryClient } from '../../providers/AppProviders';
@@ -61,9 +61,13 @@ export function AvatarEditor({ owner, name }: { owner: string; name: string }) {
     setStatus('');
     try {
       const result = await chooseAvatar();
-      if (!result.canceled && result.assets[0]) setPicked(prepare(result.assets[0]));
+      if (!result.canceled && result.assets[0]) {
+        setPicked(prepare(result.assets[0]));
+        setOpen(true);
+      }
     } catch (error) {
       setStatus(errorText(error));
+      setOpen(true);
     } finally {
       locked.current = false;
       setBusy(undefined);
@@ -91,10 +95,11 @@ export function AvatarEditor({ owner, name }: { owner: string; name: string }) {
   return (
     <>
       <View style={{ paddingBottom: 3, paddingRight: 3 }}>
-        <ProfileAvatar name={name} owner={owner} size={92} />
+        <ProfileAvatar name={name} owner={owner} size={108} />
         <Action
           label={title}
-          onPress={() => setOpen(true)}
+          onPress={() => void pick()}
+          disabled={!!busy}
           style={{
             position: 'absolute',
             bottom: 0,
@@ -111,7 +116,7 @@ export function AvatarEditor({ owner, name }: { owner: string; name: string }) {
           <Camera size={18} color={c.onPrimary} />
         </Action>
       </View>
-      <Dialog visible={open} title={title} onClose={close}>
+      <BottomSheet visible={open} title={title} onClose={close}>
         <Text small muted>
           {vi
             ? 'Ảnh mới sẽ thay ảnh hiện tại và đồng bộ trên các thiết bị đăng nhập tài khoản này.'
@@ -160,7 +165,7 @@ export function AvatarEditor({ owner, name }: { owner: string; name: string }) {
           />
         ) : null}
         <Button label={vi ? 'Hủy' : 'Cancel'} variant="text" disabled={!!busy} onPress={close} />
-      </Dialog>
+      </BottomSheet>
     </>
   );
 }

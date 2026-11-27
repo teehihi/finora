@@ -15,7 +15,13 @@ import {
   useIdentityOptions,
 } from '../features/auth/identity';
 
-export function AccountIdentity({ showEmail = true }: { showEmail?: boolean }) {
+export function AccountIdentity({
+  showEmail = true,
+  compact = false,
+}: {
+  showEmail?: boolean;
+  compact?: boolean;
+}) {
   const { colors: c, t } = useDesign();
   const params = useLocalSearchParams<{ oauth?: string }>();
   const session = auth.useSession();
@@ -108,10 +114,19 @@ export function AccountIdentity({ showEmail = true }: { showEmail?: boolean }) {
   }
 
   return (
-    <View style={{ gap: 11, paddingVertical: 20, borderColor: c.border, borderTopWidth: 1 }}>
-      <Text role="header" bold style={{ fontSize: 17 }}>
-        {t('authAccountTitle')}
-      </Text>
+    <View
+      style={{
+        gap: 11,
+        paddingVertical: compact ? 0 : 20,
+        borderColor: c.border,
+        borderTopWidth: compact ? 0 : 1,
+      }}
+    >
+      {!compact ? (
+        <Text role="header" bold style={{ fontSize: 17 }}>
+          {t('authAccountTitle')}
+        </Text>
+      ) : null}
       {showEmail ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <Mail size={17} color={c.muted} />
