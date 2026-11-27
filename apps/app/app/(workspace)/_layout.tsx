@@ -13,15 +13,7 @@ import { Stack, Redirect, router, useGlobalSearchParams, usePathname } from 'exp
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurTargetView } from 'expo-blur';
-import {
-  House,
-  ChevronRight,
-  Compass,
-  Sparkle,
-  Wallet,
-  UserRound,
-  LockKeyhole,
-} from 'lucide-react-native';
+import { ChevronRight, LockKeyhole } from 'lucide-react-native';
 import { useDesign, Text, Eyebrow, Action, Avatar, ErrorState } from '@finora/ui';
 import { LaunchScene } from '../../src/components/LaunchScene';
 import { Logo, WorkspaceDockInsetContext } from '../../src/components/layout';
@@ -39,13 +31,8 @@ import { useReducedMotion } from '@finora/ui';
 import { workspaceMotion } from '../../src/features/navigation/workspace-motion';
 import { workspaceAuthReturn } from '../../src/features/auth/return-path';
 
-const links = [
-  ['home', '/home', House],
-  ['explore', '/explore', Compass],
-  ['ai', '/assistant', Sparkle],
-  ['loans', '/loans', Wallet],
-  ['profile', '/profile', UserRound],
-] as const;
+import { workspaceTabs as links } from '../../src/components/workspace-tabs';
+import { FinPromptSession } from '../../src/features/intelligence/prompt-session';
 
 function useDockPreferences() {
   const reduceMotion = useReducedMotion();
@@ -96,7 +83,8 @@ export default function Workspace() {
     (path === '/home' ||
       path === '/intelligence' ||
       (path === '/assistant' && search.mode !== 'legacy'));
-  const showDock = !rail && !keyboardVisible && !inSearch;
+  const finRoot = path === '/intelligence' || (path === '/assistant' && search.mode !== 'legacy');
+  const showDock = !rail && !keyboardVisible && !inSearch && !finRoot;
   const activeIndex = Math.max(
     0,
     links.findIndex(
@@ -294,8 +282,7 @@ export default function Workspace() {
   const selected = links[activeIndex];
   const nav = links.map(([key, href, Icon], index) => {
     const on = index === activeIndex;
-    const featured = !rail && key === 'ai';
-    const labelColor = on || featured ? c.primary : c.muted;
+    const labelColor = on ? c.primary : c.muted;
     return (
       <Action
         key={key}
@@ -307,40 +294,19 @@ export default function Workspace() {
           flex: rail ? undefined : 1,
           alignItems: 'center',
           minHeight: rail ? 48 : dockHeight,
-          paddingTop: !rail && !featured ? 19 : 0,
-          paddingBottom: featured ? 7 : 0,
           minWidth: 44,
           gap: full ? 11 : 2,
           paddingHorizontal: full ? 12 : 0,
           flexDirection: full ? 'row' : 'column',
-          justifyContent: full ? 'flex-start' : featured ? 'flex-end' : 'center',
+          justifyContent: full ? 'flex-start' : 'center',
           backgroundColor: rail && on ? c.secondary : 'transparent',
           borderRadius: rail ? tokens.radius.control : tokens.radius.card,
         }}
       >
-        {featured ? (
-          <View
-            pointerEvents="none"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: c.forestBorder,
-              backgroundColor: c.forest,
-              alignItems: 'center',
-              justifyContent: 'center',
-              elevation: 2,
-            }}
-          >
-            <Icon size={23} color={c.accent} strokeWidth={on ? 2.3 : 1.9} />
-          </View>
-        ) : (
-          <Icon size={rail ? 20 : 21} strokeWidth={on ? 2 : 1.6} color={labelColor} />
-        )}
+        <Icon size={rail ? 20 : 21} strokeWidth={on ? 2 : 1.65} color={labelColor} />
         <Text
           small
-          bold={on || featured}
+          bold={on}
           style={{
             fontSize: full ? 14 : rail ? 11 : 10,
             lineHeight: full ? 21 : 16,
@@ -487,17 +453,19 @@ export default function Workspace() {
                   </View>
                 </View>
               ) : null}
-              <CYLScrollContext.Provider value={usesCYLScroll ? reportCYLScroll : undefined}>
-                <Stack
-                  screenOptions={({ route }) => ({
-                    headerShown: false,
-                    ...workspaceMotion(route.name, reduceMotion, Platform.OS),
-                    contentStyle: {
-                      backgroundColor: route.name === 'search' ? c.surface : c.background,
-                    },
-                  })}
-                />
-              </CYLScrollContext.Provider>
+              <FinPromptSession key={data.user.id}>
+                <CYLScrollContext.Provider value={usesCYLScroll ? reportCYLScroll : undefined}>
+                  <Stack
+                    screenOptions={({ route }) => ({
+                      headerShown: false,
+                      ...workspaceMotion(route.name, reduceMotion, Platform.OS),
+                      contentStyle: {
+                        backgroundColor: route.name === 'search' ? c.surface : c.background,
+                      },
+                    })}
+                  />
+                </CYLScrollContext.Provider>
+              </FinPromptSession>
             </View>
           </BlurTargetView>
           {showCYL ? (
@@ -548,8 +516,8 @@ export default function Workspace() {
                     style={{
                       position: 'absolute',
                       left: 0,
-                      top: 23,
-                      bottom: 4,
+                      top: 5,
+                      bottom: 5,
                       width: navWidth / links.length,
                       transform: [{ translateX: indicatorX }],
                     }}

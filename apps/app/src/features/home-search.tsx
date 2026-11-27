@@ -14,7 +14,7 @@ export function HomeSearch({ greeting, gutter }: { greeting: string; gutter: num
         marginHorizontal: -gutter,
         paddingHorizontal: gutter,
         paddingTop: gutter ? 7 : 0,
-        gap: 12,
+        gap: gutter ? 8 : 12,
       }}
     >
       {gutter === 0 && <Heading size={28}>{greeting}</Heading>}

@@ -560,6 +560,8 @@ const copy = {
     'Kiểm tra chi phí và khả năng chi trả của mô phỏng này.',
     'Check the cost and affordability of this simulation.',
   ],
+  intelligenceTabs: ['Các tab', 'Tabs'],
+  intelligenceComposerHint: ['Hỏi Fin…', 'Ask Fin…'],
   intelligenceAskShort: ['Hỏi về khoản vay…', 'Ask about a loan…'],
   intelligenceAsk: [
     'Bạn đang cân nhắc khoản vay nào?',
