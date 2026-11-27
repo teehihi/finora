@@ -12,6 +12,7 @@ const config: ExpoConfig = {
   web: { bundler: 'metro', output: 'single' },
   plugins: [
     'expo-router',
+    './plugins/with-cyl-dock.cjs',
     'expo-secure-store',
     [
       'expo-splash-screen',

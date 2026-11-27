@@ -33,6 +33,7 @@ import {
   dockOffset,
 } from '../../src/components/DockChrome';
 import { auth } from '../../src/services/client';
+import CYLDockPilot, { pilotDockAvailable } from '../../src/components/CYLDockPilot';
 import { date } from '@finora/i18n';
 import { workspaceAuthReturn } from '../../src/features/auth/return-path';
 
@@ -84,6 +85,7 @@ export default function Workspace() {
   const dock = useRef<ComponentRef<typeof View> | null>(null);
   const dockX = useRef(0);
   const [navWidth, setNavWidth] = useState(0);
+  const [cylHeight, setCylHeight] = useState(83);
   const navWidthRef = useRef(0);
   const selectedIndex = useRef(0);
   const isDragging = useRef(false);
@@ -365,11 +367,14 @@ export default function Workspace() {
     );
   });
   const nativeGlass = Platform.OS === 'ios' && !!isLiquidGlassSupported;
+  const showCYL = showDock && nativeGlass && pilotDockAvailable;
 
   return (
-    <WorkspaceDockInsetContext.Provider value={showDock ? dockHeight + dockOffset + 5 : 0}>
+    <WorkspaceDockInsetContext.Provider
+      value={showCYL ? cylHeight + 5 : showDock ? dockHeight + dockOffset + 5 : 0}
+    >
       <SafeAreaView
-        edges={['top', 'right', 'bottom', 'left']}
+        edges={showCYL ? ['top', 'right', 'left'] : ['top', 'right', 'bottom', 'left']}
         style={{ flex: 1, backgroundColor: rail ? c.surface : c.background }}
       >
         <StatusBar style={c === dark ? 'light' : 'dark'} />
@@ -484,7 +489,19 @@ export default function Workspace() {
               />
             </View>
           </BlurTargetView>
-          {showDock ? (
+          {showCYL ? (
+            <CYLDockPilot
+              height={cylHeight}
+              dark={c === dark}
+              selectedIndex={activeIndex}
+              titles={links.map(([key]) => t(key))}
+              onHeight={setCylHeight}
+              onSelect={(index, identifier) => {
+                const entry = links[index];
+                if (entry && entry[0] === identifier && path !== entry[1]) router.replace(entry[1]);
+              }}
+            />
+          ) : showDock ? (
             <View
               style={{
                 position: 'absolute',
