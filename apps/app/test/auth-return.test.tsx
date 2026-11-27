@@ -11,6 +11,9 @@ describe('authentication return paths', () => {
       ['/saved/owned-example', {}, '/saved/owned-example'],
       ['/profile/personal', { oauth: 'link-error' }, '/profile/personal'],
       ['/profile/finance', {}, '/profile/finance'],
+      ['/profile/health', {}, '/profile/health'],
+      ['/profile/help', {}, '/profile/help'],
+      ['/profile/about', {}, '/profile/about'],
       ['/search', { term: 'private' }, '/search'],
     ] as const;
 

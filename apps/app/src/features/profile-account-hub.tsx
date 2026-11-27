@@ -1,19 +1,37 @@
 import { Image, Text as NativeText, View } from 'react-native';
 import {
+  Activity,
   Banknote,
+  Bell,
+  Bookmark,
   CalendarDays,
   ChevronRight,
+  FileText,
   Fingerprint,
+  Headphones,
+  History,
+  Info,
   LockKeyhole,
+  MessageSquare,
   Moon,
+  Sparkles,
   TrendingUp,
 } from 'lucide-react-native';
 import { tokens } from '@finora/design-tokens';
+import { profileMenuCopy } from '@finora/i18n';
 import { Action, Heading, Text, useDesign } from '@finora/ui';
 import { useAccountAvatar } from './account-avatar/client';
 import { useProfileChrome } from './profile-chrome';
 
-export const accountSections = ['personal', 'finance', 'preferences', 'privacy'] as const;
+export const accountSections = [
+  'personal',
+  'finance',
+  'preferences',
+  'privacy',
+  'health',
+  'help',
+  'about',
+] as const;
 export type AccountSection = (typeof accountSections)[number];
 export function accountSection(value: unknown): AccountSection | undefined {
   return accountSections.find((section) => section === value);
@@ -163,15 +181,23 @@ export function AccountHero({
   );
 }
 
-export function AccountGroups({ open }: { open: (section: AccountSection) => void }) {
+export type AccountDestination = AccountSection | 'documents' | 'simulations';
+
+export function AccountGroups({ open }: { open: (section: AccountDestination) => void }) {
   const { locale, t } = useDesign();
   const { night, palette: p } = useProfileChrome();
   const vi = locale === 'vi-VN';
-  const groups = [
+  const copy = profileMenuCopy[locale];
+  type Row = { section?: AccountDestination; title: string; icon: typeof Banknote };
+  const groups: Array<{ title: string; items: Row[] }> = [
     {
       title: vi ? 'Mục chính' : 'Main',
       items: [
         { section: 'finance', title: t('finance'), icon: Banknote },
+        { section: 'health', title: copy.health, icon: Activity },
+        { section: 'documents', title: copy.documents, icon: FileText },
+        { title: copy.savedProducts, icon: Bookmark },
+        { section: 'simulations', title: copy.simulations, icon: History },
         {
           section: 'personal',
           title: vi ? 'Thông tin và bảo mật' : 'Personal information and security',
@@ -183,10 +209,27 @@ export function AccountGroups({ open }: { open: (section: AccountSection) => voi
       title: vi ? 'Cài đặt' : 'Settings',
       items: [
         { section: 'preferences', title: t('settingsPreferences'), icon: Moon },
+        { title: copy.finPreferences, icon: Sparkles },
+        { title: copy.reminders, icon: Bell },
         { section: 'privacy', title: t('privacy'), icon: LockKeyhole },
       ],
     },
-  ] as const;
+    {
+      title: copy.support,
+      items: [
+        { section: 'help', title: copy.help, icon: Headphones },
+        { title: copy.feedback, icon: MessageSquare },
+        { section: 'about', title: copy.about, icon: Info },
+      ],
+    },
+  ];
+  const rowStyle = {
+    minHeight: 52,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  } as const;
   return (
     <View testID="account-hub-groups" style={{ gap: 15 }}>
       {groups.map(({ title, items }) => (
@@ -203,22 +246,22 @@ export function AccountGroups({ open }: { open: (section: AccountSection) => voi
             }}
           >
             {items.map(({ section, title: label, icon: Icon }, index) => (
-              <View key={section} style={{ borderTopWidth: index ? 1 : 0, borderColor: p.line }}>
-                <Action
-                  label={label}
-                  onPress={() => open(section)}
-                  style={{
-                    minHeight: 52,
-                    paddingVertical: 7,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 11,
-                  }}
-                >
-                  <Icon size={19} color={p.icon} />
-                  <Text style={{ flex: 1, minWidth: 0, color: p.ink }}>{label}</Text>
-                  <ChevronRight size={16} color={p.muted} />
-                </Action>
+              <View key={label} style={{ borderTopWidth: index ? 1 : 0, borderColor: p.line }}>
+                {section ? (
+                  <Action label={label} onPress={() => open(section)} style={rowStyle}>
+                    <Icon size={19} color={p.icon} />
+                    <Text style={{ flex: 1, minWidth: 0, color: p.ink }}>{label}</Text>
+                    <ChevronRight size={16} color={p.muted} />
+                  </Action>
+                ) : (
+                  <View style={rowStyle}>
+                    <Icon size={19} color={p.muted} />
+                    <Text style={{ flex: 1, minWidth: 0, color: p.muted }}>{label}</Text>
+                    <Text small style={{ flexShrink: 1, maxWidth: '35%', color: p.muted }}>
+                      {copy.unavailable}
+                    </Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
