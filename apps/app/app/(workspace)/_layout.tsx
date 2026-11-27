@@ -1,5 +1,5 @@
 import { dark, tokens } from '@finora/design-tokens';
-import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -33,7 +33,7 @@ import {
   dockOffset,
 } from '../../src/components/DockChrome';
 import { auth } from '../../src/services/client';
-import { cylScrollTarget } from '../../src/components/cyl-scroll-target';
+import { CYLScrollContext, cylScrollTarget } from '../../src/components/cyl-scroll-target';
 import CYLDockPilot, { pilotDockAvailable } from '../../src/components/CYLDockPilot';
 import { date } from '@finora/i18n';
 import { workspaceAuthReturn } from '../../src/features/auth/return-path';
@@ -94,6 +94,10 @@ export default function Workspace() {
   const { width } = useWindowDimensions();
   const path = usePathname();
   const search = useGlobalSearchParams();
+  const [cylCompactPath, setCylCompactPath] = useState<string>();
+  const reportCYLScroll = useCallback((route: string, compact: boolean) => {
+    setCylCompactPath((current) => (compact ? route : current === route ? undefined : current));
+  }, []);
   const { data, isPending, error, refetch } = auth.useSession();
   const { t, colors: c, locale } = useDesign();
   const { reduceMotion, keyboardVisible } = useDockPreferences();
@@ -369,6 +373,7 @@ export default function Workspace() {
   });
   const nativeGlass = Platform.OS === 'ios' && !!isLiquidGlassSupported;
   const showCYL = showDock && nativeGlass && pilotDockAvailable;
+  const usesCYLScroll = showCYL && path !== '/assistant' && path !== '/intelligence';
 
   return (
     <WorkspaceDockInsetContext.Provider
@@ -481,24 +486,23 @@ export default function Workspace() {
                   </View>
                 </View>
               ) : null}
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  animation: reduceMotion || Platform.OS === 'web' ? 'none' : 'fade',
-                  contentStyle: { backgroundColor: c.background },
-                }}
-              />
+              <CYLScrollContext.Provider value={usesCYLScroll ? reportCYLScroll : undefined}>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    animation: reduceMotion || Platform.OS === 'web' ? 'none' : 'fade',
+                    contentStyle: { backgroundColor: c.background },
+                  }}
+                />
+              </CYLScrollContext.Provider>
             </View>
           </BlurTargetView>
           {showCYL ? (
             <CYLDockPilot
               height={cylHeight}
               routeKey={path}
-              scrollTarget={
-                path === '/assistant' || path === '/intelligence'
-                  ? undefined
-                  : cylScrollTarget(path)
-              }
+              scrollTarget={usesCYLScroll ? cylScrollTarget(path) : undefined}
+              compact={usesCYLScroll && cylCompactPath === path}
               dark={c === dark}
               selectedIndex={activeIndex}
               titles={links.map(([key]) => t(key))}

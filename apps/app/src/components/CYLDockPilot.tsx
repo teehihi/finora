@@ -1,6 +1,7 @@
 export type CYLDockProps = {
   titles: string[];
   selectedIndex: number;
+  compact: boolean;
   dark: boolean;
   height: number;
   routeKey: string;

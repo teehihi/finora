@@ -112,7 +112,7 @@ export default function Home() {
   const refreshLabel = vi ? 'Làm mới dữ liệu' : 'Refresh data';
   return (
     <ScrollView
-      testID={scrollTarget}
+      {...scrollTarget}
       style={{ flex: 1, backgroundColor: c.surface }}
       keyboardShouldPersistTaps="handled"
       refreshControl={
