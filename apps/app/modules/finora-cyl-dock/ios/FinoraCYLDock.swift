@@ -5,6 +5,7 @@ import UIKit
 public final class FinoraCYLDockModule: Module {
   public func definition() -> ModuleDefinition {
     Name("FinoraCYLDock")
+    Constant("isLiquidGlassActive") { CYLConstants.isLiquidGlassActive() }
     View(FinoraCYLDockView.self) {
       Events("onTabSelect", "onDockHeight")
       Prop("titles") { (view, titles: [String]) in view.setTitles(titles) }

@@ -1,38 +1,49 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import type { ReactElement } from 'react';
-import type { CYLDockProps } from '../src/components/CYLDockPilot';
+import type { CYLDockProps } from '../src/components/CYLDock';
 
-const original = process.env.EXPO_PUBLIC_FINORA_DOCK;
+const originalMode = Object.getOwnPropertyDescriptor(globalThis, '__DEV__');
 afterEach(() => {
-  if (original !== undefined) process.env.EXPO_PUBLIC_FINORA_DOCK = original;
-  else delete process.env.EXPO_PUBLIC_FINORA_DOCK;
+  if (originalMode) Object.defineProperty(globalThis, '__DEV__', originalMode);
   jest.resetModules();
 });
 
-function load(mode: string, installed: boolean) {
-  process.env.EXPO_PUBLIC_FINORA_DOCK = mode;
-  const native = jest.fn(() => (installed ? {} : null));
+function load(installed: null | { isLiquidGlassActive?: boolean }) {
+  const native = jest.fn(() => installed);
   const view = jest.fn((_name: string) => 'NativeCYL');
   jest.doMock('expo', () => ({ requireOptionalNativeModule: native, requireNativeView: view }));
-  const result = jest.requireActual<typeof import('../src/components/CYLDockPilot.ios')>(
-    '../src/components/CYLDockPilot.ios',
+  const result = jest.requireActual<typeof import('../src/components/CYLDock.ios')>(
+    '../src/components/CYLDock.ios',
   );
   return { ...result, native, view };
 }
-describe('CYL pilot selection', () => {
-  it('keeps the baseline without even loading the view by default', () => {
-    const pilot = load('callstack', true);
-    expect(pilot.pilotDockAvailable).toBe(false);
-    expect(pilot.native).not.toHaveBeenCalled();
-    expect(pilot.view).not.toHaveBeenCalled();
+
+describe('CYL native selection', () => {
+  it('loads CYL by default in release without a developer flag', () => {
+    Object.defineProperty(globalThis, '__DEV__', { configurable: true, value: false });
+    const dock = load({ isLiquidGlassActive: true });
+    expect(dock.cylDockAvailable).toBe(true);
+    expect(dock.view).toHaveBeenCalledWith('FinoraCYLDock');
   });
-  it('falls back if Metro opts in but the binary lacks the pilot', () => {
-    const pilot = load('cyl', false);
-    expect(pilot.pilotDockAvailable).toBe(false);
-    expect(pilot.view).not.toHaveBeenCalled();
+
+  it.each([null, {}, { isLiquidGlassActive: false }])(
+    'keeps fallback when the native capability is absent: %p',
+    (module) => {
+      const dock = load(module);
+      expect(dock.cylDockAvailable).toBe(false);
+      expect(dock.view).not.toHaveBeenCalled();
+    },
+  );
+
+  it('does not link CYL from the Android/web entry point', () => {
+    const dock = jest.requireActual<typeof import('../src/components/CYLDock')>(
+      '../src/components/CYLDock',
+    );
+    expect(dock.cylDockAvailable).toBe(false);
   });
+
   it('wires native selection and safe-area-inclusive height only with an installed pilot', () => {
-    const pilot = load('cyl', true);
+    const pilot = load({ isLiquidGlassActive: true });
     expect(pilot.view).toHaveBeenCalledWith('FinoraCYLDock');
     const props: CYLDockProps = {
       height: 83,

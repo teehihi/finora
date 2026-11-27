@@ -34,7 +34,7 @@ import {
 } from '../../src/components/DockChrome';
 import { auth } from '../../src/services/client';
 import { CYLScrollContext, cylScrollTarget } from '../../src/components/cyl-scroll-target';
-import CYLDockPilot, { pilotDockAvailable } from '../../src/components/CYLDockPilot';
+import CYLDock, { cylDockAvailable } from '../../src/components/CYLDock';
 import { date } from '@finora/i18n';
 import { workspaceAuthReturn } from '../../src/features/auth/return-path';
 
@@ -372,7 +372,7 @@ export default function Workspace() {
     );
   });
   const nativeGlass = Platform.OS === 'ios' && !!isLiquidGlassSupported;
-  const showCYL = showDock && nativeGlass && pilotDockAvailable;
+  const showCYL = showDock && cylDockAvailable;
   const usesCYLScroll = showCYL && path !== '/assistant' && path !== '/intelligence';
 
   return (
@@ -498,7 +498,7 @@ export default function Workspace() {
             </View>
           </BlurTargetView>
           {showCYL ? (
-            <CYLDockPilot
+            <CYLDock
               height={cylHeight}
               routeKey={path}
               scrollTarget={usesCYLScroll ? cylScrollTarget(path) : undefined}

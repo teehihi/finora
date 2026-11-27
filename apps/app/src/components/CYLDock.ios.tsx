@@ -1,6 +1,6 @@
 import { requireNativeView, requireOptionalNativeModule } from 'expo';
 import type { NativeSyntheticEvent, ViewProps } from 'react-native';
-import type { CYLDockProps } from './CYLDockPilot';
+import type { CYLDockProps } from './CYLDock';
 
 type NativeProps = ViewProps & {
   titles: string[];
@@ -13,18 +13,19 @@ type NativeProps = ViewProps & {
   onDockHeight: (event: NativeSyntheticEvent<{ height: number }>) => void;
 };
 
-const enabled =
-  __DEV__ &&
-  process.env.EXPO_PUBLIC_FINORA_DOCK === 'cyl' &&
-  !!requireOptionalNativeModule('FinoraCYLDock');
-const Bar = enabled ? requireNativeView<NativeProps>('FinoraCYLDock') : undefined;
-export const pilotDockAvailable = !!Bar;
+// Older development binaries can still load the bundle and use the fallback.
+const nativeDock = requireOptionalNativeModule<{ isLiquidGlassActive: boolean }>('FinoraCYLDock');
+const Bar =
+  nativeDock?.isLiquidGlassActive === true
+    ? requireNativeView<NativeProps>('FinoraCYLDock')
+    : undefined;
+export const cylDockAvailable = !!Bar;
 
-export default function CYLDockPilot(props: CYLDockProps) {
+export default function CYLDock(props: CYLDockProps) {
   if (!Bar) return null;
   return (
     <Bar
-      testID="finora-cyl-pilot"
+      testID="finora-cyl-dock"
       style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: props.height }}
       titles={props.titles}
       selectedIndex={props.selectedIndex}

@@ -1,4 +1,0 @@
-{
-  "platforms": ["apple"],
-  "apple": { "debugOnly": true, "modules": ["FinoraCYLDockModule"] }
-}

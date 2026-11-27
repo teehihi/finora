@@ -1,0 +1,52 @@
+name: FINORA iOS Release build
+
+on:
+  pull_request:
+    paths:
+      - 'apps/app/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - '.nvmrc'
+      - 'scripts/verify-cyl-prebuild.mjs'
+      - '.github/workflows/ios-release-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finora-ios-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-compile:
+    runs-on: macos-26
+    timeout-minutes: 40
+    env:
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_URL: https://api.example.invalid
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prebuild and install pods
+        run: |
+          xcodebuild -version
+          pnpm --filter @finora/app exec expo prebuild --platform ios --no-install
+          node scripts/verify-cyl-prebuild.mjs
+          cd apps/app/ios
+          pod install
+          grep -q 'FinoraCYLDockModule.self' 'Pods/Target Support Files/Pods-Finora/ExpoModulesProvider.swift'
+      - name: Compile unsigned iOS Release
+        run: |
+          xcodebuild -workspace apps/app/ios/Finora.xcworkspace -scheme Finora \
+            -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/finora-ios-build" CODE_SIGNING_ALLOWED=NO build
