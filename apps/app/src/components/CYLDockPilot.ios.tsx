@@ -5,6 +5,8 @@ import type { CYLDockProps } from './CYLDockPilot';
 type NativeProps = ViewProps & {
   titles: string[];
   selectedIndex: number;
+  routeKey: string;
+  scrollTarget: string;
   dark: boolean;
   onTabSelect: (event: NativeSyntheticEvent<{ index: number; identifier: string }>) => void;
   onDockHeight: (event: NativeSyntheticEvent<{ height: number }>) => void;
@@ -26,6 +28,8 @@ export default function CYLDockPilot(props: CYLDockProps) {
       titles={props.titles}
       selectedIndex={props.selectedIndex}
       dark={props.dark}
+      routeKey={props.routeKey}
+      scrollTarget={props.scrollTarget ?? ''}
       onTabSelect={({ nativeEvent }) => props.onSelect(nativeEvent.index, nativeEvent.identifier)}
       onDockHeight={({ nativeEvent: { height } }) => {
         if (Number.isFinite(height) && height > 0) props.onHeight(Math.ceil(height));

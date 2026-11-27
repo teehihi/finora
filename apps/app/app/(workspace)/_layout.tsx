@@ -33,6 +33,7 @@ import {
   dockOffset,
 } from '../../src/components/DockChrome';
 import { auth } from '../../src/services/client';
+import { cylScrollTarget } from '../../src/components/cyl-scroll-target';
 import CYLDockPilot, { pilotDockAvailable } from '../../src/components/CYLDockPilot';
 import { date } from '@finora/i18n';
 import { workspaceAuthReturn } from '../../src/features/auth/return-path';
@@ -492,6 +493,12 @@ export default function Workspace() {
           {showCYL ? (
             <CYLDockPilot
               height={cylHeight}
+              routeKey={path}
+              scrollTarget={
+                path === '/assistant' || path === '/intelligence'
+                  ? undefined
+                  : cylScrollTarget(path)
+              }
               dark={c === dark}
               selectedIndex={activeIndex}
               titles={links.map(([key]) => t(key))}
