@@ -133,6 +133,7 @@ export function FinComposerDivider({ grown }: { grown: boolean }) {
       style={{
         width: 1,
         height: 28,
+        alignSelf: grown ? 'flex-end' : 'center',
         marginHorizontal: 6,
         marginBottom: grown ? 8 : 0,
         backgroundColor: c.border,

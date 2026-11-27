@@ -60,6 +60,7 @@ import { LakeScene } from './lake-scene';
 import {
   FIN_BAR_GUTTER,
   FIN_BAR_PADDING,
+  FIN_BAR_TARGET,
   FinBarButton,
   FinComposerDivider,
   FinComposerSurface,
@@ -82,6 +83,7 @@ import { requestId } from '../../services/request-id';
 const FIN_INPUT_MIN_HEIGHT = 44;
 const FIN_INPUT_LINE_HEIGHT = 21;
 const FIN_INPUT_VERTICAL_PADDING = 9;
+const FIN_TOOLBAR_BASE_HEIGHT = 62;
 const finInputFont = {
   fontFamily: tokens.font.body,
   fontSize: 16,
@@ -145,7 +147,7 @@ function Desk({
     if (!showTabTrigger) closeTabs();
   }, [closeTabs, showTabTrigger]);
   const [frameHeight, setFrameHeight] = useState(height);
-  const [toolbarHeight, setToolbarHeight] = useState(62);
+  const [toolbarHeight, setToolbarHeight] = useState(FIN_TOOLBAR_BASE_HEIGHT);
   const bottomGap = dock || 14;
   useFocusEffect(useCallback(() => closeTabs, [closeTabs]));
   const [confirmClear, setConfirmClear] = useState(false);
@@ -470,21 +472,139 @@ function Desk({
     <FinBarButton
       label={t('intelligenceTools')}
       onPress={() => openTools(true)}
-      backgroundColor={phone && !hasDraft ? 'transparent' : c.secondary}
-      borderColor={phone && !hasDraft ? c.primary : c.border}
-      visualSize={phone ? (hasDraft ? 34 : 23) : 36}
+      backgroundColor={phone ? 'transparent' : c.secondary}
+      borderColor={phone ? c.primary : c.border}
+      visualSize={phone ? 23 : 36}
     >
-      <Plus
-        size={phone ? (hasDraft ? 18 : 15) : 20}
-        strokeWidth={phone ? 1.65 : 2}
-        color={c.primary}
-      />
+      <Plus size={phone ? 15 : 20} strokeWidth={phone ? 1.65 : 2} color={c.primary} />
     </FinBarButton>
   );
 
   const sendUnavailable = !stream && (!hasDraft || scopeUnavailable || clearing);
   const inputPadding = phone ? 5 : 11;
   const composerGrown = inputHeight > FIN_INPUT_MIN_HEIGHT;
+  const singleLineInputNudge = phone && !composerGrown ? 3 : 0;
+  const plusShift = useRef(new Animated.Value(0)).current;
+  const sendShift = useRef(new Animated.Value(0)).current;
+  const previousHasDraft = useRef(hasDraft);
+  useLayoutEffect(() => {
+    if (previousHasDraft.current === hasDraft) return;
+    previousHasDraft.current = hasDraft;
+    if (!phone) return;
+
+    const enteringDraft = hasDraft;
+    // The tab button, divider, and row gaps take 61pt; typing adds 6pt of inset.
+    const leftActionShift = FIN_BAR_TARGET + 17 - 6;
+    plusShift.setValue(enteringDraft ? leftActionShift : -leftActionShift);
+    sendShift.setValue(enteringDraft ? 6 : -6);
+    const animation = Animated.parallel([
+      Animated.timing(plusShift, {
+        toValue: 0,
+        duration: reduceMotion ? 0 : 190,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.timing(sendShift, {
+        toValue: 0,
+        duration: reduceMotion ? 0 : 190,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [hasDraft, phone, plusShift, reduceMotion, sendShift]);
+  const composerInput = (
+    <View style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+      {Platform.OS === 'ios' && prompt ? (
+        <NativeText
+          key={inputPadding}
+          pointerEvents="none"
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          onTextLayout={({ nativeEvent: { lines } }) => {
+            const next = Math.max(1, lines.length);
+            if (nativeProbeHeight.current !== next) {
+              nativeProbeHeight.current = next;
+              setIOSLineCount(next);
+            }
+          }}
+          style={{
+            ...finInputFont,
+            position: 'absolute',
+            left: inputPadding,
+            right: inputPadding,
+            top: 0,
+            opacity: 0,
+          }}
+        >
+          {prompt + '\u200b'}
+        </NativeText>
+      ) : null}
+      <TextInput
+        ref={composer}
+        accessibilityLabel={t('intelligenceAsk')}
+        value={prompt}
+        onChangeText={(next) => {
+          if (!next) {
+            nativeProbeHeight.current = 0;
+            setIOSLineCount(1);
+          }
+          setPrompt(next);
+        }}
+        onFocus={() => setFocus(true)}
+        onBlur={() => setFocus(false)}
+        editable={!stream}
+        multiline
+        numberOfLines={Platform.OS === 'web' ? 1 : undefined}
+        scrollEnabled={measuredInputHeight > inputLimit}
+        onLayout={({ nativeEvent }) => {
+          if (Platform.OS === 'web') setInputWidth(nativeEvent.layout.width);
+        }}
+        onContentSizeChange={({ nativeEvent }) => {
+          if (Platform.OS === 'android') {
+            setInputContentHeight(Math.ceil(nativeEvent.contentSize.height));
+          }
+        }}
+        maxLength={1200}
+        placeholder={t(phone ? 'intelligenceComposerHint' : 'intelligenceAsk')}
+        placeholderTextColor={c.muted}
+        style={{
+          ...finInputFont,
+          height: inputHeight,
+          width: '100%',
+          textAlign: 'left',
+          textAlignVertical: composerGrown ? 'top' : 'center',
+          paddingHorizontal: inputPadding,
+          paddingTop: FIN_INPUT_VERTICAL_PADDING + singleLineInputNudge,
+          paddingBottom: FIN_INPUT_VERTICAL_PADDING - singleLineInputNudge,
+          color: c.foreground,
+          ...(Platform.OS === 'web'
+            ? {
+                outlineWidth: 0,
+                overflowY: measuredInputHeight > inputLimit ? 'auto' : 'hidden',
+              }
+            : {}),
+        }}
+      />
+    </View>
+  );
+  const sendButton = (
+    <FinBarButton
+      label={t(stream ? 'stop' : 'send')}
+      disabled={sendUnavailable}
+      onPress={() => (stream ? active.current?.abort() : void submit())}
+      backgroundColor={sendUnavailable ? (c === dark ? c.secondary : '#D7EDDF') : c.primary}
+      visualSize={phone ? (hasDraft ? 34 : 36) : 40}
+    >
+      {stream ? (
+        <Square size={15} color={c.onPrimary} fill={c.onPrimary} />
+      ) : (
+        <ArrowUp size={21} color={sendUnavailable ? c.primary : c.onPrimary} />
+      )}
+    </FinBarButton>
+  );
   const screen = (
     <Animated.View
       collapsable={false}
@@ -500,7 +620,7 @@ function Desk({
         ...(edgeMoving ? { transform: [{ translateX: edgeOffset }] } : {}),
       }}
     >
-      <LakeScene reading={engaged} dockInset={phone ? toolbarHeight + bottomGap : dock} />
+      <LakeScene reading={engaged} dockInset={phone ? FIN_TOOLBAR_BASE_HEIGHT + bottomGap : dock} />
       <View
         style={{
           paddingVertical: 10,
@@ -780,8 +900,8 @@ function Desk({
                 backgroundColor: phone ? 'transparent' : c.surface,
                 borderRadius: phone ? 32 : 28,
                 paddingTop: phone ? FIN_BAR_PADDING : 6,
-                paddingBottom: phone ? FIN_BAR_PADDING + (hasDraft && composerGrown ? 3 : 0) : 6,
-                paddingHorizontal: phone ? FIN_BAR_PADDING + (hasDraft ? 6 : 0) : 6,
+                paddingBottom: phone ? FIN_BAR_PADDING : 6,
+                paddingHorizontal: phone ? FIN_BAR_PADDING + 6 + (hasDraft ? 6 : 0) : 6,
                 marginHorizontal: phone ? FIN_BAR_GUTTER - 20 : 0,
               }}
             >
@@ -802,94 +922,33 @@ function Desk({
                     <FinComposerDivider grown={composerGrown} />
                   </>
                 ) : null}
-                {phone ? toolsButton : null}
-                <View style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-                  {Platform.OS === 'ios' && prompt ? (
-                    <NativeText
-                      key={inputPadding}
-                      pointerEvents="none"
-                      accessible={false}
-                      accessibilityElementsHidden
-                      importantForAccessibility="no-hide-descendants"
-                      onTextLayout={({ nativeEvent: { lines } }) => {
-                        const next = Math.max(1, lines.length);
-                        if (nativeProbeHeight.current !== next) {
-                          nativeProbeHeight.current = next;
-                          setIOSLineCount(next);
-                        }
-                      }}
-                      style={{
-                        ...finInputFont,
-                        position: 'absolute',
-                        left: inputPadding,
-                        right: inputPadding,
-                        top: 0,
-                        opacity: 0,
-                      }}
-                    >
-                      {prompt + '\u200b'}
-                    </NativeText>
-                  ) : null}
-                  <TextInput
-                    ref={composer}
-                    accessibilityLabel={t('intelligenceAsk')}
-                    value={prompt}
-                    onChangeText={(next) => {
-                      if (!next) {
-                        nativeProbeHeight.current = 0;
-                        setIOSLineCount(1);
-                      }
-                      setPrompt(next);
-                    }}
-                    onFocus={() => setFocus(true)}
-                    onBlur={() => setFocus(false)}
-                    editable={!stream}
-                    multiline
-                    numberOfLines={Platform.OS === 'web' ? 1 : undefined}
-                    scrollEnabled={measuredInputHeight > inputLimit}
-                    onLayout={({ nativeEvent }) => {
-                      if (Platform.OS === 'web') setInputWidth(nativeEvent.layout.width);
-                    }}
-                    onContentSizeChange={({ nativeEvent }) => {
-                      if (Platform.OS === 'android') {
-                        setInputContentHeight(Math.ceil(nativeEvent.contentSize.height));
-                      }
-                    }}
-                    maxLength={1200}
-                    placeholder={t(phone ? 'intelligenceComposerHint' : 'intelligenceAsk')}
-                    placeholderTextColor={c.muted}
+                {phone ? (
+                  <Animated.View
                     style={{
-                      ...finInputFont,
-                      height: inputHeight,
-                      width: '100%',
-                      textAlignVertical: 'top',
-                      paddingHorizontal: inputPadding,
-                      paddingVertical: FIN_INPUT_VERTICAL_PADDING,
-                      color: c.foreground,
-                      ...(Platform.OS === 'web'
-                        ? {
-                            outlineWidth: 0,
-                            overflowY: measuredInputHeight > inputLimit ? 'auto' : 'hidden',
-                          }
-                        : {}),
+                      width: FIN_BAR_TARGET,
+                      height: FIN_BAR_TARGET,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      alignSelf: composerGrown ? 'flex-end' : 'center',
+                      transform: [{ translateX: plusShift }],
                     }}
-                  />
-                </View>
-                <FinBarButton
-                  label={t(stream ? 'stop' : 'send')}
-                  disabled={sendUnavailable}
-                  onPress={() => (stream ? active.current?.abort() : void submit())}
-                  backgroundColor={
-                    sendUnavailable ? (c === dark ? c.secondary : '#D7EDDF') : c.primary
-                  }
-                  visualSize={phone ? (hasDraft ? 34 : 36) : 40}
+                  >
+                    {toolsButton}
+                  </Animated.View>
+                ) : null}
+                {composerInput}
+                <Animated.View
+                  style={{
+                    width: FIN_BAR_TARGET,
+                    height: FIN_BAR_TARGET,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    alignSelf: composerGrown ? 'flex-end' : 'center',
+                    transform: [{ translateX: sendShift }],
+                  }}
                 >
-                  {stream ? (
-                    <Square size={15} color={c.onPrimary} fill={c.onPrimary} />
-                  ) : (
-                    <ArrowUp size={21} color={sendUnavailable ? c.primary : c.onPrimary} />
-                  )}
-                </FinBarButton>
+                  {sendButton}
+                </Animated.View>
               </View>
             </View>
             {allowConsent && externalConsent ? (

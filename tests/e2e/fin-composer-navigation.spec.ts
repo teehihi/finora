@@ -38,7 +38,7 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
     const centers = buttons.map((box) => box!.y + box!.height * 0.5);
     expect(Math.max(...centers) - Math.min(...centers)).toBeLessThan(1);
     const frame = (await bar.boundingBox())!;
-    const bottomInset = !withGrid && frame.height > 55 ? 8 : 5;
+    const bottomInset = 5;
     for (const box of buttons) {
       expect(frame.y + frame.height - box!.y - box!.height).toBeCloseTo(bottomInset, 0);
       expect(box!.x).toBeGreaterThanOrEqual(frame.x + 4);
@@ -46,9 +46,9 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
     }
     if (!withGrid) {
       const [left, right] = buttons;
-      expect(left!.x - frame.x).toBeCloseTo(11, 0);
-      expect(frame.x + frame.width - right!.x - right!.width).toBeCloseTo(11, 0);
-      await expect(tools.getByTestId('fin-button-art')).toHaveCSS('width', '34px');
+      expect(left!.x - frame.x).toBeCloseTo(17, 0);
+      expect(frame.x + frame.width - right!.x - right!.width).toBeCloseTo(17, 0);
+      await expect(tools.getByTestId('fin-button-art')).toHaveCSS('width', '23px');
       await expect(send.getByTestId('fin-button-art')).toHaveCSS('width', '34px');
     }
   };
