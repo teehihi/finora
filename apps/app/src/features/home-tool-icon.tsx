@@ -1,78 +1,107 @@
 import { View } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 export type HomeTool = 'simulate' | 'schedule' | 'compare' | 'contract';
 
 const palette = {
   light: {
-    simulate: { ink: '#4D44A6', tile: '#EFECFB' },
-    schedule: { ink: '#18588B', tile: '#E5F1FB' },
-    compare: { ink: '#8B4F0D', tile: '#FCF0DE' },
-    contract: { ink: '#166651', tile: '#E3F3EB' },
+    simulate: { solid: '#5844AA', ink: '#403384', soft: '#E9E2FC', paper: '#FFFFFF' },
+    schedule: { solid: '#246AAF', ink: '#18578D', soft: '#DDEFFA', paper: '#FFFFFF' },
+    compare: { solid: '#A85820', ink: '#854215', soft: '#FFE7CC', paper: '#FFFFFF' },
+    contract: { solid: '#1A775E', ink: '#126149', soft: '#D9F0E5', paper: '#FFFFFF' },
   },
   dark: {
-    simulate: { ink: '#C9C0FA', tile: '#2E2946' },
-    schedule: { ink: '#AAD8FC', tile: '#20384B' },
-    compare: { ink: '#F1C786', tile: '#443521' },
-    contract: { ink: '#9BDFC3', tile: '#223D34' },
+    simulate: { solid: '#8B78D5', ink: '#EEE7FF', soft: '#D8C9FA', paper: '#34265B' },
+    schedule: { solid: '#5695D1', ink: '#D9EFFC', soft: '#BFE1F6', paper: '#17324C' },
+    compare: { solid: '#C88550', ink: '#FFE8C8', soft: '#F3CDA2', paper: '#482812' },
+    contract: { solid: '#55A58A', ink: '#E0F9EB', soft: '#B8E1D2', paper: '#173B31' },
   },
 } as const;
 
-const marks = {
-  simulate: (
-    <>
-      <Rect x="5" y="3" width="14" height="18" rx="2.3" />
-      <Path d="M8.5 7.5h7M8.5 12h2M13.5 12h2M8.5 16h2M13.5 16h2" />
-    </>
-  ),
-  schedule: (
-    <>
-      <Rect x="3.5" y="5.5" width="17" height="15.5" rx="2.4" />
-      <Path d="M7.5 3v5m9-5v5m-13 2h17m-12 5.2 2.1 2.1 4.3-4.3" />
-    </>
-  ),
-  compare: (
-    <>
-      <Rect x="3" y="5.5" width="7" height="13" rx="1.6" />
-      <Rect x="14" y="5.5" width="7" height="13" rx="1.6" />
-      <Path d="M5.5 10h2m-2 4h2m9-4h2m-2 4h2" />
-    </>
-  ),
-  contract: (
-    <>
-      <Path d="M18.5 12V7.5l-4-4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h4m3.5-17v4h4m-10 3h6m-6 3.5H11" />
-      <Path d="m14 18 4.8-4.8 2 2L16 20l-3 .9 1-2.9Z" />
-    </>
-  ),
-} as const;
+type Ink = (typeof palette)[keyof typeof palette][HomeTool];
+
+function artwork(tool: HomeTool, { solid, ink, soft, paper }: Ink, night: boolean) {
+  switch (tool) {
+    case 'simulate':
+      return (
+        <>
+          <Rect x={11} y={6} width={26} height={36} rx={5} fill={solid} />
+          <Rect x={16} y={11} width={16} height={8} rx={1.5} fill={soft} />
+          <Path d="M24.5 15h4" stroke={night ? paper : ink} strokeWidth={1.8} />
+          <Rect x={16} y={23} width={5.5} height={5} rx={1.2} fill={paper} />
+          <Rect x={26.5} y={23} width={5.5} height={5} rx={1.2} fill={paper} />
+          <Rect x={16} y={32} width={5.5} height={5} rx={1.2} fill={paper} />
+          <Rect x={26.5} y={32} width={5.5} height={5} rx={1.2} fill={soft} />
+        </>
+      );
+    case 'schedule':
+      return (
+        <>
+          <Rect x={6} y={10} width={31} height={28} rx={4.5} fill={solid} />
+          <Path d="M7.5 20h28v13.5a3 3 0 0 1-3 3h-22a3 3 0 0 1-3-3V20Z" fill={soft} />
+          <Path d="M14 7v8m15-8v8" stroke={ink} strokeWidth={2.8} />
+          <Path d="M13 25h4m5 0h4m-13 6h4" stroke={night ? paper : ink} strokeWidth={2} />
+          <Circle
+            cx={33.5}
+            cy={33.5}
+            r={9}
+            fill={paper}
+            stroke={night ? ink : solid}
+            strokeWidth={2.2}
+          />
+          <Path d="M33.5 29v4.8h3.4" stroke={night ? ink : solid} strokeWidth={2} />
+        </>
+      );
+    case 'compare':
+      return (
+        <>
+          <Rect x={5} y={10} width={17} height={28} rx={3.2} fill={soft} />
+          <Rect x={26} y={10} width={17} height={28} rx={3.2} fill={solid} />
+          <Path d="M9.5 17h8m-8 5h5" stroke={night ? paper : ink} strokeWidth={2} />
+          <Path d="M30.5 17h8m-8 5h5" stroke={paper} strokeWidth={2} />
+          <Rect x={9.5} y={30} width={8} height={3.5} rx={1.1} fill={night ? paper : ink} />
+          <Rect x={30.5} y={27} width={8} height={6.5} rx={1.1} fill={paper} />
+        </>
+      );
+    case 'contract':
+      return (
+        <>
+          <Path
+            d="M10 6.5h15l8 8v22a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4v-26a4 4 0 0 1 4-4Z"
+            fill={solid}
+          />
+          <Path d="M25 6.5v7a1 1 0 0 0 1 1h7Z" fill={soft} />
+          <Path d="M12 19.5h14m-14 5.5h8m-8 7h6" stroke={paper} strokeWidth={2} />
+          <Path
+            d="m36.1 20.7 4.8 4.8-12.4 12.4-6.6 1.7 1.8-6.5 12.4-12.4Z"
+            fill={soft}
+            stroke={night ? paper : ink}
+            strokeWidth={1.6}
+          />
+          <Path d="m33.2 23.6 4.8 4.8" stroke={night ? paper : ink} strokeWidth={1.6} />
+        </>
+      );
+  }
+}
 
 export function HomeToolIcon({ tool, night }: { tool: HomeTool; night: boolean }) {
-  const { ink, tile } = palette[night ? 'dark' : 'light'][tool];
+  const inks = palette[night ? 'dark' : 'light'][tool];
   return (
     <View
       accessible={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{
-        width: 46,
-        height: 46,
-        borderRadius: 14,
-        backgroundColor: tile,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      style={{ width: 46, height: 46 }}
     >
       <Svg
-        width={25}
-        height={25}
-        viewBox="0 0 24 24"
+        width={46}
+        height={46}
+        viewBox="0 0 48 48"
         fill="none"
-        stroke={ink}
-        strokeWidth={1.7}
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {marks[tool]}
+        {artwork(tool, inks, night)}
       </Svg>
     </View>
   );
