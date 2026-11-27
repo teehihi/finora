@@ -24,6 +24,7 @@ import {
 } from '@finora/ui';
 import { tokens } from '@finora/design-tokens';
 import { usePrefs } from '../providers/AppProviders';
+import { useCYLScrollTarget } from './cyl-scroll-target';
 export function Logo({ small = false }: { small?: boolean }) {
   const { colors: c } = useDesign();
   return (
@@ -156,6 +157,7 @@ export function Page({
   const tablet = width >= tokens.breakpoints.rail;
   const desktop = width >= tokens.breakpoints.desktop;
   const compact = !tablet && !!detail;
+  const scrollTarget = useCYLScrollTarget();
   const { colors: c, t } = useDesign();
   return (
     <>
@@ -189,6 +191,7 @@ export function Page({
         </View>
       ) : null}
       <ScrollView
+        testID={scrollTarget}
         ref={scrollRef}
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"

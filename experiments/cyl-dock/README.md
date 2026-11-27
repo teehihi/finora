@@ -9,6 +9,26 @@ cao: host coi nút đó là một trang đặc biệt, trong khi Fin cần nhậ
 cô lập riêng shader. API CYL chọn `liquidGlass`, không hứa tương đương
 `UIGlassEffect.Style.clear` của Callstack.
 
+## Thao tác trên nhánh thử này
+
+- Vuốt ngang **trên thanh CYL** để đổi tab; vuốt nội dung không đổi tab. Giữ
+  chọn tab và tuyến của Expo Router, cùng năm tab và SF Symbols như trước.
+  CYL gắn bộ vuốt mặc định lên trang của controller, không phải scroll React
+  bên ngoài. Vì vậy bridge bắt vuốt ngay trên host và cập nhật tab CYL qua
+  `selectedIndex`; không bật vuốt trên toàn màn để tránh tranh thao tác Back.
+- CYL bật phản hồi nhấn scale nhẹ, không dùng khi Giảm chuyển động đã bật lúc
+  dựng thanh. Không đưa Lottie, rung/âm thanh, số badge giả hay nút `+` thứ
+  sáu vào để tránh trang trí vô nghĩa và làm sai trạng thái tab Fin.
+- Với Home và các màn dùng Page, bridge tìm đúng ScrollView của tuyến đang
+  nhìn thấy rồi dùng UIKit `setContentScrollView(_:for:)` để gắn cho trang
+  đang chọn. CYL bật chế độ thu trên cuộn xuống và dùng scroll-to-top khi
+  bấm lại tab nếu tìm thấy đích. Không bật phần thu khi VoiceOver đang chạy,
+  khi không tìm được đích hay trên màn chat; không chèn chuyển động giả trên web.
+- Trên iPhone, kiểm tra trước ở Home đủ dài: cuộn xuống rồi lên, bấm tab đang
+  chọn để về đầu, sau đó chuyển Khoản vay và quay lại. Nếu không thấy thu,
+  ghi rõ phiên bản hệ điều hành và route: Linux không thể xác nhận liệu UIKit
+  có quan sát scroll view ngoài cây của trang giả lập trong CYL host.
+
 ## Thử trên Mac (iOS 26+, Xcode có SDK iOS 26+, CocoaPods)
 
 1. Dùng một checkout **riêng** của nhánh thử. Theo [README dự án](../../README.md)

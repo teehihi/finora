@@ -1,3 +1,4 @@
+import { useCYLScrollTarget } from '../../src/components/cyl-scroll-target';
 import { useState } from 'react';
 import { Platform, RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
@@ -31,6 +32,7 @@ import {
 export default function Home() {
   const { t, colors: c, locale } = useDesign();
   const { width } = useWindowDimensions();
+  const scrollTarget = useCYLScrollTarget();
   const copy = homeCopy(locale);
   const cashflow = cashflowCopy(locale);
   const vi = locale === 'vi-VN';
@@ -110,6 +112,7 @@ export default function Home() {
   const refreshLabel = vi ? 'Làm mới dữ liệu' : 'Refresh data';
   return (
     <ScrollView
+      testID={scrollTarget}
       style={{ flex: 1, backgroundColor: c.surface }}
       keyboardShouldPersistTaps="handled"
       refreshControl={

@@ -36,6 +36,8 @@ describe('CYL pilot selection', () => {
     expect(pilot.view).toHaveBeenCalledWith('FinoraCYLDock');
     const props: CYLDockProps = {
       height: 83,
+      routeKey: '/loans',
+      scrollTarget: 'finora-cyl-primary-scroll:/loans',
       dark: false,
       selectedIndex: 3,
       titles: ['Home', 'Explore', 'AI', 'Loans', 'Profile'],
@@ -44,10 +46,20 @@ describe('CYL pilot selection', () => {
     };
     const element = pilot.default(props) as ReactElement<{
       selectedIndex: number;
+      routeKey: string;
+      scrollTarget: string;
       onTabSelect: (event: { nativeEvent: { index: number; identifier: string } }) => void;
       onDockHeight: (event: { nativeEvent: { height: number } }) => void;
     }>;
     expect(element.props.selectedIndex).toBe(3);
+    expect(element.props.routeKey).toBe('/loans');
+    expect(element.props.scrollTarget).toBe('finora-cyl-primary-scroll:/loans');
+    const composer = pilot.default({
+      ...props,
+      routeKey: '/assistant',
+      scrollTarget: undefined,
+    }) as typeof element;
+    expect(composer.props.scrollTarget).toBe('');
     element.props.onTabSelect({ nativeEvent: { index: 2, identifier: 'ai' } });
     expect(props.onSelect).toHaveBeenCalledWith(2, 'ai');
     for (const height of [NaN, 0, -1, 92.5])
