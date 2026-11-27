@@ -13,10 +13,6 @@ import { Action, Heading, Text, useDesign } from '@finora/ui';
 import { useAccountAvatar } from './account-avatar/client';
 import { useProfileChrome } from './profile-chrome';
 
-import profileCover from '../../assets/brand/profile-cover.png';
-
-const coverHeight = 136;
-
 export const accountSections = ['personal', 'finance', 'preferences', 'privacy'] as const;
 export type AccountSection = (typeof accountSections)[number];
 export function accountSection(value: unknown): AccountSection | undefined {
@@ -92,37 +88,6 @@ export function AccountHero({
   ] as const;
   return (
     <View testID="account-hub-hero">
-      <View
-        pointerEvents="none"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
-          height: coverHeight,
-          overflow: 'hidden',
-          backgroundColor: p.hero,
-        }}
-      >
-        <Image
-          testID="account-hub-cover"
-          source={profileCover}
-          accessible={false}
-          resizeMode="cover"
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: 0,
-            height: '100%',
-            width: '100%',
-            // The mark is on the right: crop spare space from the left on narrow phones.
-            minWidth: coverHeight * 3,
-            opacity: night ? 0.14 : 1,
-          }}
-        />
-      </View>
       <View
         style={{
           paddingHorizontal: 16,

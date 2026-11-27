@@ -1,5 +1,12 @@
-import type { ReactNode } from 'react';
-import { ScrollView, View, useWindowDimensions } from 'react-native';
+import { useRef, type ReactNode } from 'react';
+import {
+  Animated,
+  Image,
+  Platform,
+  View,
+  useWindowDimensions,
+  type ImageSourcePropType,
+} from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
 import { dark, tokens } from '@finora/design-tokens';
 import { Action, Heading, useDesign } from '@finora/ui';
@@ -35,19 +42,62 @@ export function AccountScroll({
   children,
   header,
   detail,
+  fixedBackground,
 }: {
   children: ReactNode;
   header?: ReactNode;
   detail?: { title: string; back: () => void };
+  fixedBackground?: ImageSourcePropType;
 }) {
   const { t } = useDesign();
   const { palette: p } = useProfileChrome();
   const { width } = useWindowDimensions();
   const dockInset = useWorkspaceDockInset();
   const scrollTarget = useCYLScrollTarget();
+  const scrollY = useRef(new Animated.Value(0)).current;
   const wide = width >= tokens.breakpoints.rail;
+  const backdropOffset = scrollY.interpolate({
+    inputRange: [0, 136],
+    outputRange: [0, -136],
+    extrapolate: 'clamp',
+  });
   return (
     <View style={{ flex: 1, backgroundColor: p.background }}>
+      {fixedBackground ? (
+        <Animated.View
+          testID="profile-fixed-backdrop"
+          pointerEvents="none"
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 136,
+            overflow: 'hidden',
+            backgroundColor: p.hero,
+            transform: [{ translateY: backdropOffset }],
+          }}
+        >
+          <Image
+            source={fixedBackground}
+            accessible={false}
+            resizeMode="cover"
+            fadeDuration={0}
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              width: '100%',
+              minWidth: 408,
+              height: '100%',
+              opacity: p === profileDark ? 0.14 : 1,
+            }}
+          />
+        </Animated.View>
+      ) : null}
       {detail ? (
         <View
           testID="workspace-detail-chrome"
@@ -83,8 +133,17 @@ export function AccountScroll({
           </View>
         </View>
       ) : null}
-      <ScrollView
+      <Animated.ScrollView
         {...scrollTarget}
+        onScroll={
+          fixedBackground
+            ? Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+                useNativeDriver: Platform.OS !== 'web',
+                listener: scrollTarget?.onScroll,
+              })
+            : scrollTarget?.onScroll
+        }
+        scrollEventThrottle={fixedBackground ? 16 : scrollTarget?.scrollEventThrottle}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ alignItems: 'center', paddingBottom: dockInset + 24 }}
         style={{ flex: 1 }}
@@ -101,7 +160,7 @@ export function AccountScroll({
             {children}
           </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
