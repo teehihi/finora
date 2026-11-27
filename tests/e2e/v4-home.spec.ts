@@ -141,6 +141,10 @@ test('Home search finds local tools without accents and resets on Back', async (
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('tablist')).toHaveCount(0);
   await expect(page.getByTestId('home-fixed-backdrop')).toBeHidden();
+  const safeArea = page.getByTestId('workspace-safe-area');
+  const surface = page.getByTestId('service-search-surface');
+  const surfaceColor = await surface.evaluate((node) => getComputedStyle(node).backgroundColor);
+  await expect(safeArea).toHaveCSS('background-color', surfaceColor);
   const field = page.getByRole('textbox', { name: 'Tìm tiện ích' });
   await expect(field).toBeFocused();
   await field.fill('xyz');

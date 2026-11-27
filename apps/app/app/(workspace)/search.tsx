@@ -19,7 +19,7 @@ export default function SearchScreen() {
     router.push(href);
   };
   return (
-    <View style={{ flex: 1, backgroundColor: c.surface }}>
+    <View testID="service-search-surface" style={{ flex: 1, backgroundColor: c.surface }}>
       <View style={{ flex: 1, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 4 }}>
           <Action

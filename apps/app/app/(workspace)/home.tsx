@@ -1,6 +1,14 @@
 import { useCYLScrollTarget } from '../../src/components/cyl-scroll-target';
-import { useCallback, useRef, useState } from 'react';
-import { Platform, RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Platform,
+  RefreshControl,
+  View,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,6 +62,28 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const topInset = mobile ? insets.top : 0;
   const [focused, setFocused] = useState(false);
+  const [statusOverPhoto, setStatusOverPhoto] = useState(true);
+  const statusOverPhotoRef = useRef(true);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const dockOnScroll = scrollTarget?.onScroll;
+  const onMobileScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+        useNativeDriver: Platform.OS !== 'web',
+        listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+          dockOnScroll?.(event);
+          if (topInset > 0) {
+            const y = event.nativeEvent.contentOffset.y;
+            const next = statusOverPhotoRef.current ? y < 28 : y <= 12;
+            if (next !== statusOverPhotoRef.current) {
+              statusOverPhotoRef.current = next;
+              setStatusOverPhoto(next);
+            }
+          }
+        },
+      }),
+    [dockOnScroll, scrollY, topInset],
+  );
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
@@ -140,7 +170,9 @@ export default function Home() {
   const refreshLabel = vi ? 'Làm mới dữ liệu' : 'Refresh data';
   return (
     <View style={{ flex: 1, backgroundColor: c.surface }}>
-      {mobile && focused ? <StatusBar style="light" /> : null}
+      {mobile && focused ? (
+        <StatusBar style={c === dark || statusOverPhoto ? 'light' : 'dark'} />
+      ) : null}
       {mobile ? (
         <HomeBackdrop
           night={c === dark}
@@ -149,11 +181,14 @@ export default function Home() {
           cardTop={topInset + backdrop.cardTop}
           statusInset={topInset}
           surface={c.surface}
+          scrollY={scrollY}
         />
       ) : null}
-      <ScrollView
+      <Animated.ScrollView
         {...scrollTarget}
         testID={scrollTarget?.testID ?? 'home-refresh-scroll'}
+        onScroll={mobile ? onMobileScroll : scrollTarget?.onScroll}
+        scrollEventThrottle={mobile ? 16 : scrollTarget?.scrollEventThrottle}
         style={{ flex: 1, backgroundColor: mobile ? 'transparent' : c.surface }}
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="never"
@@ -231,7 +266,7 @@ export default function Home() {
             </Action>
           </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
