@@ -21,6 +21,14 @@ const config: ExpoConfig = {
     './plugins/with-cyl-dock.cjs',
     'expo-secure-store',
     [
+      'expo-image-picker',
+      {
+        photosPermission: 'Cho phép FINORA dùng ảnh bạn chọn làm ảnh đại diện.',
+        cameraPermission: false,
+        microphonePermission: false,
+      },
+    ],
+    [
       'expo-splash-screen',
       {
         image: './assets/brand/lockup.png',

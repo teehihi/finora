@@ -6,9 +6,10 @@ test('distinct tab artwork and the profile hub retain task navigation', async ({
   page,
   context,
 }, info) => {
+  const email = 'demo-' + randomUUID().slice(0, 7) + '@example.test';
   const session = await createLegacyAccount(context.request, {
     name: 'Tài khoản kiểm thử',
-    email: randomUUID() + '@example.test',
+    email,
     password: randomUUID(),
   });
   expect(session.ok()).toBe(true);
@@ -90,26 +91,46 @@ test('distinct tab artwork and the profile hub retain task navigation', async ({
   await expect(page.getByTestId('fin-composer')).toBeVisible();
   await snapshot('fin-390-reference');
   await page.goto('/profile');
-  const profile = page.getByTestId('profile-cover-card');
+  const profile = page.getByTestId('account-hub-hero');
   await expect(profile.getByText('Tài khoản kiểm thử')).toBeVisible();
-  const cover = (await profile.getByTestId('profile-photo-cover').boundingBox())!;
-  const mark = (await profile.getByTestId('profile-monogram').boundingBox())!;
-  expect(mark.y).toBeLessThan(cover.y + cover.height);
-  expect(mark.y + mark.height).toBeGreaterThan(cover.y + cover.height);
-  const section = page.getByTestId('profile-shortcuts');
+  const personal = profile.getByRole('button', { name: 'Hồ sơ cá nhân', exact: true });
+  const section = page.getByTestId('account-hub-groups');
   await expect(section.getByRole('button')).toHaveCount(4);
+  await expect(page.getByLabel('Thu nhập hằng tháng')).toHaveCount(0);
   await snapshot('profile-390-light');
-  const preferences = section.getByRole('button', { name: 'Đến mục Tùy chọn' });
+  await expectedTarget(personal);
+  await personal.click();
+  await expect(page).toHaveURL(/\/profile\/personal$/);
+  await expect(
+    page.getByTestId('personal-profile-identity').getByText('Tài khoản kiểm thử'),
+  ).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Hồ sơ', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(
+    page.getByTestId('personal-profile-identity').getByText(email, { exact: true }),
+  ).toBeVisible();
+  expect(new URL(page.url()).search).toBe('');
+  await snapshot('profile-personal-390-light');
+  await back.click();
+  await expect(page).toHaveURL(/\/profile$/);
+
+  const preferences = section.getByRole('button', { name: 'Tùy chọn sử dụng', exact: true });
   await expectedTarget(preferences);
   await preferences.click();
-  await expect(page.getByRole('heading', { name: 'Tùy chọn sử dụng' })).toBeInViewport();
-
-  await page.getByRole('radio', { name: 'Tối', exact: true }).click();
-  await expect(page.getByRole('radio', { name: 'Tối', exact: true })).toBeChecked();
+  await expect(page).toHaveURL(/\/profile\/preferences$/);
+  await expect(
+    page.getByRole('heading', { name: 'Tùy chọn sử dụng', exact: true }),
+  ).toBeInViewport();
+  const dark = page.getByRole('radio', { name: 'Tối', exact: true });
+  await dark.click();
+  await expect(dark).toBeChecked();
   await page.setViewportSize({ width: 320, height: 740 });
   await page.reload();
+  await expect(dark).toBeChecked();
+  await page.goto('/profile');
   await expect(profile.getByText('Tài khoản kiểm thử')).toBeVisible();
-  await expect(page.getByRole('radio', { name: 'Tối', exact: true })).toBeChecked();
   await snapshot('profile-320-dark');
   await page.goto('/explore');
   await expect(

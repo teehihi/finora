@@ -1,232 +1,264 @@
+import { Image, Text as NativeText, View } from 'react-native';
 import {
-  Image,
-  Text as NativeText,
-  View,
-  useWindowDimensions,
-  type ImageSourcePropType,
-} from 'react-native';
-import {
-  ArrowUpRight,
   Banknote,
+  CalendarDays,
+  ChevronRight,
   Fingerprint,
   LockKeyhole,
   Moon,
-  ShieldCheck,
+  TrendingUp,
 } from 'lucide-react-native';
 import { tokens } from '@finora/design-tokens';
-import { Action, Eyebrow, Heading, Text, useDesign } from '@finora/ui';
-import { SignatureIcon, type SignatureTone } from '../components/signature';
+import { Action, Heading, Text, useDesign } from '@finora/ui';
+import { useAccountAvatar } from './account-avatar/client';
+import { useProfileChrome } from './profile-chrome';
 
-export type AccountSection = 'finance' | 'identity' | 'preferences' | 'privacy';
+import profileCover from '../../assets/brand/profile-cover.png';
 
-const shortcuts = [
-  {
-    id: 'finance',
-    icon: Banknote,
-    tone: 'emerald',
-    vi: 'Tài chính',
-    en: 'Finances',
-    detailVi: 'Thu nhập và chi phí',
-    detailEn: 'Income and expenses',
-  },
-  {
-    id: 'identity',
-    icon: Fingerprint,
-    tone: 'blue',
-    vi: 'Đăng nhập',
-    en: 'Sign-in',
-    detailVi: 'Email và xác minh',
-    detailEn: 'Email and verification',
-  },
-  {
-    id: 'preferences',
-    icon: Moon,
-    tone: 'violet',
-    vi: 'Tùy chọn',
-    en: 'Preferences',
-    detailVi: 'Giao diện, ngôn ngữ',
-    detailEn: 'Appearance, language',
-  },
-  {
-    id: 'privacy',
-    icon: LockKeyhole,
-    tone: 'amber',
-    vi: 'Riêng tư',
-    en: 'Privacy',
-    detailVi: 'Dữ liệu và lịch sử',
-    detailEn: 'Data and history',
-  },
-] as const satisfies readonly {
-  id: AccountSection;
-  icon: typeof Banknote;
-  tone: SignatureTone;
-  vi: string;
-  en: string;
-  detailVi: string;
-  detailEn: string;
-}[];
+const coverHeight = 136;
 
-export function ProfileCover({
-  image,
-  title,
+export const accountSections = ['personal', 'finance', 'preferences', 'privacy'] as const;
+export type AccountSection = (typeof accountSections)[number];
+export function accountSection(value: unknown): AccountSection | undefined {
+  return accountSections.find((section) => section === value);
+}
+
+export function ProfileAvatar({
   name,
-  verified,
+  owner,
+  size = 48,
 }: {
-  image: ImageSourcePropType;
-  title: string;
   name: string;
-  verified: boolean;
+  owner?: string;
+  size?: number;
 }) {
   const { colors: c, locale } = useDesign();
-  const { width, fontScale } = useWindowDimensions();
-  const vi = locale === 'vi-VN';
-  const roomy = width >= tokens.breakpoints.rail;
-  const initial = (Array.from(name)[0] || 'F').toLocaleUpperCase(locale);
+  const { palette: p } = useProfileChrome();
+  const image = useAccountAvatar(owner).data?.dataUrl;
   return (
     <View
-      testID="profile-cover-card"
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       style={{
-        backgroundColor: c.surface,
-        borderColor: c.border,
-        borderRadius: tokens.signature.radius,
-        borderWidth: 1,
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: size / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: p.profileChip,
         overflow: 'hidden',
       }}
     >
+      {image ? (
+        <Image
+          testID="account-avatar-image"
+          accessible={false}
+          source={{ uri: image }}
+          style={{ width: size, height: size }}
+        />
+      ) : (
+        <NativeText
+          allowFontScaling={false}
+          style={{ fontFamily: tokens.font.heading, fontSize: size * 0.4, color: c.primary }}
+        >
+          {(Array.from(name.trim())[0] || 'F').toLocaleUpperCase(locale)}
+        </NativeText>
+      )}
+    </View>
+  );
+}
+
+export function AccountHero({
+  name,
+  owner,
+  open,
+  payments,
+  cashflow,
+}: {
+  name: string;
+  owner?: string;
+  open: () => void;
+  payments: () => void;
+  cashflow: () => void;
+}) {
+  const { colors: c, locale, t } = useDesign();
+  const { night, palette: p } = useProfileChrome();
+  const vi = locale === 'vi-VN';
+  const shortcuts = [
+    { label: vi ? 'Lịch trả nợ' : 'Repayment schedule', icon: CalendarDays, action: payments },
+    { label: vi ? 'Bản đồ dòng tiền' : 'Cash-flow map', icon: TrendingUp, action: cashflow },
+  ] as const;
+  return (
+    <View testID="account-hub-hero">
       <View
-        testID="profile-photo-cover"
-        accessible={false}
+        pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={{ height: roomy ? 164 : 112, backgroundColor: c.elevated, overflow: 'hidden' }}
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: 0,
+          height: coverHeight,
+          overflow: 'hidden',
+          backgroundColor: p.hero,
+        }}
       >
         <Image
-          source={image}
+          testID="account-hub-cover"
+          source={profileCover}
           accessible={false}
           resizeMode="cover"
-          fadeDuration={0}
-          style={{ width: '100%', height: '100%' }}
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            height: '100%',
+            width: '100%',
+            // The mark is on the right: crop spare space from the left on narrow phones.
+            minWidth: coverHeight * 3,
+            opacity: night ? 0.14 : 1,
+          }}
         />
       </View>
       <View
         style={{
-          paddingHorizontal: roomy ? 22 : 15,
-          paddingBottom: 15,
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          gap: 11,
+          paddingHorizontal: 16,
+          paddingTop: 24,
+          paddingBottom: 20,
+          minHeight: 75,
+          justifyContent: 'center',
         }}
       >
-        <View
-          testID="profile-monogram"
-          accessible={false}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            marginTop: -24,
-            width: roomy ? 70 : 60,
-            height: roomy ? 70 : 60,
-            flexShrink: 0,
-            borderWidth: 4,
-            borderColor: c.surface,
-            backgroundColor: c.primary,
-            borderRadius: 40,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <NativeText
+        <Heading size={23} style={{ color: p.ink }}>
+          {t('profileTitle')}
+        </Heading>
+      </View>
+      <View
+        style={{
+          marginHorizontal: 15,
+          borderRadius: 18,
+          backgroundColor: p.surface,
+          padding: 14,
+          gap: 10,
+          boxShadow: night ? '0px 6px 20px #00000030' : '0px 7px 24px #142D2316',
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+          <ProfileAvatar name={name} owner={owner} size={47} />
+          <Text bold style={{ flex: 1, minWidth: 0, color: p.ink, fontSize: 17, lineHeight: 23 }}>
+            {name}
+          </Text>
+          <Action
+            label={vi ? 'Hồ sơ cá nhân' : 'Personal profile'}
+            onPress={open}
             style={{
-              color: c.onPrimary,
-              fontFamily: tokens.font.heading,
-              fontSize: 25,
-              lineHeight: 31,
+              flexShrink: 1,
+              borderRadius: 22,
+              backgroundColor: p.profileChip,
+              paddingHorizontal: 13,
+              alignItems: 'center',
             }}
-            allowFontScaling={false}
           >
-            {initial}
-          </NativeText>
+            <Text bold small style={{ color: c.primary, textAlign: 'center' }}>
+              {vi ? 'Hồ sơ' : 'Profile'}
+            </Text>
+          </Action>
         </View>
-        <View style={{ flex: 1, minWidth: 0, gap: 2, paddingTop: 9 }}>
-          <Eyebrow tone="forest" style={{ fontSize: 11, lineHeight: 15 }}>
-            FINORA · {vi ? 'Tài khoản' : 'Account'}
-          </Eyebrow>
-          <Heading size={roomy ? 31 : 21}>{title}</Heading>
-          <Text style={{ color: c.muted }}>{name}</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {shortcuts.map(({ label, icon: Icon, action }) => (
+            <Action
+              key={label}
+              label={label}
+              onPress={action}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                borderRadius: 9,
+                gap: 6,
+                paddingHorizontal: 6,
+                paddingVertical: 5,
+                backgroundColor: c.secondary,
+              }}
+            >
+              <Icon size={15} color={c.primary} />
+              <Text small bold style={{ lineHeight: 16, color: c.primary, flexShrink: 1 }}>
+                {label}
+              </Text>
+            </Action>
+          ))}
         </View>
-        {verified && fontScale < 1.35 && width >= 360 ? (
-          <View
-            accessible
-            accessibilityLabel={vi ? 'Email đã xác minh' : 'Email verified'}
-            style={{ marginTop: 12, borderRadius: 14, backgroundColor: c.secondary, padding: 8 }}
-          >
-            <ShieldCheck size={19} color={c.success} />
-          </View>
-        ) : null}
       </View>
     </View>
   );
 }
 
-export function ProfileShortcuts({ open }: { open: (id: AccountSection) => void }) {
-  const { colors: c, locale } = useDesign();
-  const { width, fontScale } = useWindowDimensions();
+export function AccountGroups({ open }: { open: (section: AccountSection) => void }) {
+  const { locale, t } = useDesign();
+  const { night, palette: p } = useProfileChrome();
   const vi = locale === 'vi-VN';
-  const singleColumn = fontScale >= 1.25;
-  const wide = width >= tokens.breakpoints.desktop;
+  const groups = [
+    {
+      title: vi ? 'Mục chính' : 'Main',
+      items: [
+        { section: 'finance', title: t('finance'), icon: Banknote },
+        {
+          section: 'personal',
+          title: vi ? 'Thông tin và bảo mật' : 'Personal information and security',
+          icon: Fingerprint,
+        },
+      ],
+    },
+    {
+      title: vi ? 'Cài đặt' : 'Settings',
+      items: [
+        { section: 'preferences', title: t('settingsPreferences'), icon: Moon },
+        { section: 'privacy', title: t('privacy'), icon: LockKeyhole },
+      ],
+    },
+  ] as const;
   return (
-    <View
-      testID="profile-shortcuts"
-      style={{
-        padding: 12,
-        gap: 8,
-        borderRadius: 22,
-        borderWidth: 1,
-        borderColor: c.border,
-        backgroundColor: c.surface,
-      }}
-    >
-      <Heading size={17} style={{ marginLeft: 2 }}>
-        {vi ? 'Quản lý tài khoản' : 'Manage account'}
-      </Heading>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-        {shortcuts.map((item) => {
-          const label = vi ? item.vi : item.en;
-          return (
-            <Action
-              key={item.id}
-              label={(vi ? 'Đến mục ' : 'Go to ') + label}
-              onPress={() => open(item.id)}
-              style={{
-                flexGrow: 1,
-                flexBasis: singleColumn ? '100%' : wide ? '23%' : '47%',
-                minWidth: 0,
-                minHeight: 50,
-                borderRadius: 13,
-                borderWidth: 1,
-                borderColor: c.border,
-                padding: 6,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <SignatureIcon icon={item.icon} tone={item.tone} size={30} />
-              <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
-                <Text small bold style={{ lineHeight: 16 }}>
-                  {label}
-                </Text>
-                {width >= 360 || singleColumn ? (
-                  <Text muted style={{ fontSize: 11, lineHeight: 14 }}>
-                    {vi ? item.detailVi : item.detailEn}
-                  </Text>
-                ) : null}
+    <View testID="account-hub-groups" style={{ gap: 15 }}>
+      {groups.map(({ title, items }) => (
+        <View key={title} style={{ gap: 6 }}>
+          <Heading size={16} style={{ color: p.ink }}>
+            {title}
+          </Heading>
+          <View
+            style={{
+              borderRadius: 14,
+              backgroundColor: p.surface,
+              paddingHorizontal: 14,
+              boxShadow: night ? '0px 2px 6px #00000010' : '0px 2px 7px #151C260A',
+            }}
+          >
+            {items.map(({ section, title: label, icon: Icon }, index) => (
+              <View key={section} style={{ borderTopWidth: index ? 1 : 0, borderColor: p.line }}>
+                <Action
+                  label={label}
+                  onPress={() => open(section)}
+                  style={{
+                    minHeight: 52,
+                    paddingVertical: 7,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 11,
+                  }}
+                >
+                  <Icon size={19} color={p.icon} />
+                  <Text style={{ flex: 1, minWidth: 0, color: p.ink }}>{label}</Text>
+                  <ChevronRight size={16} color={p.muted} />
+                </Action>
               </View>
-              <ArrowUpRight size={13} color={c.muted} />
-            </Action>
-          );
-        })}
-      </View>
+            ))}
+          </View>
+        </View>
+      ))}
     </View>
   );
 }

@@ -147,7 +147,7 @@ test('capture every major Finora route with real local fixtures', async ({ page 
   await openScreen('/home', 'home-empty', async () => {
     await expect(page.getByRole('tab', { name: 'Tổng quan' })).toBeVisible();
   });
-  await openScreen('/profile', 'financial-profile-onboarding', async () => {
+  await openScreen('/profile/finance', 'financial-profile-onboarding', async () => {
     await expect(page.getByLabel('Thu nhập hằng tháng')).toBeVisible();
   });
 
@@ -262,7 +262,7 @@ test('capture every major Finora route with real local fixtures', async ({ page 
     await noOverflow('document-review', width);
     if (width === 390 || width === 1440) await capture('document-review', width);
   }
-  await openScreen('/profile', 'settings');
+  await openScreen('/profile/preferences', 'settings');
   const darkOption = page.getByRole('radio', { name: 'Tối', exact: true });
   for (const width of [390, 1440]) {
     await viewport(width);

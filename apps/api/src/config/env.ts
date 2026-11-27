@@ -48,10 +48,23 @@ const schema = z
     FINORA_AI_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).max(60).default(12),
     STORAGE_PROVIDER: z.literal('local'),
     LOCAL_STORAGE_PATH: z.string().min(1),
+    AVATAR_STORAGE_PROVIDER: z.enum(['local', 'r2']).default('local'),
+    R2_ACCOUNT_ID: z.string().trim().optional(),
+    R2_AVATAR_BUCKET: z.string().trim().optional(),
+    R2_ACCESS_KEY_ID: z.string().trim().optional(),
+    R2_SECRET_ACCESS_KEY: z.string().trim().optional(),
   })
   .superRefine((config, ctx) => {
     function issue(path: string, message: string) {
       ctx.addIssue({ code: 'custom', path: [path], message });
+    }
+    if (config.AVATAR_STORAGE_PROVIDER === 'r2') {
+      if (!/^[a-f0-9]{32}$/.test(config.R2_ACCOUNT_ID ?? ''))
+        issue('R2_ACCOUNT_ID', 'Set a Cloudflare account ID.');
+      if (!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(config.R2_AVATAR_BUCKET ?? ''))
+        issue('R2_AVATAR_BUCKET', 'Set the private R2 bucket name.');
+      if (!config.R2_ACCESS_KEY_ID || !config.R2_SECRET_ACCESS_KEY)
+        issue('R2_ACCESS_KEY_ID', 'Set both server-only R2 credentials.');
     }
     if (!!config.SMTP_USER !== !!config.SMTP_PASSWORD) {
       issue('SMTP_USER', 'Set both SMTP credentials or neither.');
