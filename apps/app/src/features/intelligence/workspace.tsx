@@ -1,11 +1,22 @@
-import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentRef,
+} from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { SourceSerif4_500Medium } from '@expo-google-fonts/source-serif-4/500Medium';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ActivityIndicator,
+  BackHandler,
+  Keyboard,
   Platform,
   ScrollView,
   TextInput,
@@ -35,7 +46,7 @@ import { Action, BottomSheet, Button, Dialog, Heading, Text, Switch, useDesign }
 import { useWorkspaceDockInset } from '../../components/layout';
 import { LakeScene } from './lake-scene';
 import { FinComposerSurface, FinTabPicker, FinTabsButton } from './fin-tab-picker';
-import { useFinPromptDraft } from './prompt-session';
+import { useFinPreviousPeer, useFinPromptDraft } from './prompt-session';
 import { AnalysisBlocks } from './blocks';
 import { FinancePrompt, FinAvatar, ModeMark } from './presentation';
 import { chooseDraftPrompt, chooseSimulationId } from './model';
@@ -47,6 +58,8 @@ import {
 } from './transport';
 import { api, auth } from '../../services/client';
 import { requestId } from '../../services/request-id';
+
+const FIN_INPUT_MIN_HEIGHT = 44;
 
 type Provider = IntelligenceTurn['provider'];
 type Draft = {
@@ -112,11 +125,54 @@ function Desk({
   const [draft, setDraft] = useState<Draft | null>(null);
   const active = useRef<AbortController | null>(null);
   const composer = useRef<ComponentRef<typeof TextInput>>(null);
+  const [inputContentHeight, setInputContentHeight] = useState(FIN_INPUT_MIN_HEIGHT);
+  const [inputWidth, setInputWidth] = useState(0);
+  const inputLimit = Math.min(phone ? 132 : 152, Math.max(74, Math.round(frameHeight * 0.27)));
+  const inputHeight = prompt
+    ? Math.min(inputLimit, Math.max(FIN_INPUT_MIN_HEIGHT, inputContentHeight))
+    : FIN_INPUT_MIN_HEIGHT;
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const followRef = useRef(true);
   const initial = useRef(false);
   const turnTop = useRef(0);
   const stream = draft?.stage === 'sending';
+  const previousPeer = useFinPreviousPeer();
+  const canReturnToPeer = phone && !tabsOpen && !toolSheet && !privacy && !confirmClear && !stream;
+  const openPreviousPeer = useCallback(() => {
+    Keyboard.dismiss();
+    router.replace(previousPeer());
+  }, [previousPeer]);
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android' || !canReturnToPeer) return;
+      const back = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (Keyboard.isVisible()) Keyboard.dismiss();
+        else openPreviousPeer();
+        return true;
+      });
+      return () => back.remove();
+    }, [canReturnToPeer, openPreviousPeer]),
+  );
+  const edgeBackGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(canReturnToPeer && !focus)
+        .hitSlop({ left: 0, width: 20 })
+        .activeOffsetX(14)
+        .failOffsetY([-22, 22])
+        .maxPointers(1)
+        .runOnJS(true)
+        .onEnd((event, success) => {
+          if (
+            success &&
+            event.translationX >= 65 &&
+            event.translationX > Math.abs(event.translationY) * 1.5
+          ) {
+            openPreviousPeer();
+          }
+        }),
+    [canReturnToPeer, focus, openPreviousPeer],
+  );
   const queryClient = useQueryClient();
   const historyKey = ['intelligence-history', uid] as const;
   const status = useQuery({
@@ -147,7 +203,20 @@ function Desk({
       ? null
       : draft;
   const engaged = !!current || historyRows.length > 0;
-  const provider = current?.provider ?? last?.provider;
+
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'web' || !composer.current) return;
+    // The web textarea's scrollHeight cannot shrink until it is unconstrained.
+    const node = composer.current as unknown as HTMLTextAreaElement;
+    if (!node.style) return;
+    const previous = node.style.height;
+    const previousScroll = node.scrollTop;
+    node.style.height = '0px';
+    const measured = node.scrollHeight;
+    node.style.height = previous;
+    node.scrollTop = previousScroll;
+    setInputContentHeight(Math.ceil(measured));
+  }, [inputWidth, prompt]);
 
   useEffect(() => {
     if (initialPrompt) setPrompt(initialPrompt);
@@ -244,13 +313,6 @@ function Desk({
     }
   }
 
-  const modeLabel = !provider
-    ? allowConsent && externalConsent
-      ? t('intelligenceExternalReady')
-      : t('intelligenceDefaultMark')
-    : provider === 'mock'
-      ? t('intelligenceLocal')
-      : t('intelligenceRemote') + ' · OpenAI';
   const starters = scoped
     ? ([
         ['intelligencePromptSaved', 'intelligenceStarterSaved', FileText],
@@ -329,19 +391,13 @@ function Desk({
     </View>
   );
 
-  const providerMark = (
-    <ModeMark
-      label={modeLabel}
-      external={provider ? provider !== 'mock' : allowConsent && externalConsent}
-    />
-  );
   const toolsButton = (
     <Action
       label={t('intelligenceTools')}
       onPress={() => openTools(true)}
       style={{
         width: 44,
-        minHeight: 44,
+        height: 44,
         alignItems: 'center',
         borderRadius: 22,
         backgroundColor: c.secondary,
@@ -351,8 +407,9 @@ function Desk({
     </Action>
   );
 
-  return (
+  const screen = (
     <View
+      collapsable={false}
       onLayout={({ nativeEvent }) => setFrameHeight(nativeEvent.layout.height)}
       style={{
         flex: 1,
@@ -394,8 +451,10 @@ function Desk({
             {t('ai')}
           </Text>
         </View>
-        {provider || (allowConsent && externalConsent) ? (
-          <View style={{ marginLeft: 'auto' }}>{providerMark}</View>
+        {allowConsent && externalConsent ? (
+          <View style={{ marginLeft: 'auto' }}>
+            <ModeMark label={t('intelligenceExternalReady')} external />
+          </View>
         ) : null}
         {!wide && !phone ? toolsButton : null}
       </View>
@@ -622,7 +681,16 @@ function Desk({
             <NativeText style={{ fontSize: 1, color: c.background }}>{announcement}</NativeText>
           </View>
           <View
-            onLayout={({ nativeEvent }) => setToolbarHeight(nativeEvent.layout.height)}
+            onLayout={({ nativeEvent }) => {
+              const next = nativeEvent.layout.height;
+              if (next === toolbarHeight) return;
+              setToolbarHeight(next);
+              if (engaged && followRef.current) {
+                requestAnimationFrame(() => {
+                  if (followRef.current) scroll.current?.scrollToEnd({ animated: false });
+                });
+              }
+            }}
             style={{ paddingTop: 7, gap: 5 }}
           >
             <View
@@ -654,7 +722,16 @@ function Desk({
                 onBlur={() => setFocus(false)}
                 editable={!stream}
                 multiline
-                numberOfLines={1}
+                numberOfLines={Platform.OS === 'web' ? 1 : undefined}
+                scrollEnabled={inputContentHeight > inputLimit}
+                onLayout={({ nativeEvent }) => {
+                  if (Platform.OS === 'web') setInputWidth(nativeEvent.layout.width);
+                }}
+                onContentSizeChange={({ nativeEvent }) => {
+                  if (Platform.OS !== 'web') {
+                    setInputContentHeight(Math.ceil(nativeEvent.contentSize.height));
+                  }
+                }}
                 maxLength={1200}
                 placeholder={t(phone ? 'intelligenceComposerHint' : 'intelligenceAsk')}
                 placeholderTextColor={c.muted}
@@ -663,14 +740,20 @@ function Desk({
                   zIndex: 1,
                   flex: 1,
                   minWidth: 0,
-                  minHeight: 44,
-                  maxHeight: 94,
+                  height: inputHeight,
+                  textAlignVertical: 'top',
                   paddingHorizontal: phone ? 5 : 11,
                   paddingVertical: 9,
                   color: c.foreground,
                   fontFamily: tokens.font.body,
                   fontSize: 16,
-                  ...(Platform.OS === 'web' ? { outlineWidth: 0 } : {}),
+                  lineHeight: 21,
+                  ...(Platform.OS === 'web'
+                    ? {
+                        outlineWidth: 0,
+                        overflowY: inputContentHeight > inputLimit ? 'auto' : 'hidden',
+                      }
+                    : {}),
                 }}
               />
               <Action
@@ -679,7 +762,7 @@ function Desk({
                 onPress={() => (stream ? active.current?.abort() : void submit())}
                 style={{
                   width: 44,
-                  minHeight: 44,
+                  height: 44,
                   alignItems: 'center',
                   backgroundColor:
                     !stream && (!prompt.trim() || scopeUnavailable || clearing)
@@ -780,6 +863,11 @@ function Desk({
         />
       </Dialog>
     </View>
+  );
+  return (
+    <GestureDetector gesture={edgeBackGesture} touchAction="pan-y">
+      {screen}
+    </GestureDetector>
   );
 }
 

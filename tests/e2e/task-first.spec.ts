@@ -4,6 +4,8 @@ import { createLegacyAccount } from './legacy-fixture';
 
 const base = 'http://localhost:3000/api';
 
+test.use({ hasTouch: true });
+
 test('keeps the latest installment visible while refreshing, then recovers in place', async ({
   context,
   page,
@@ -120,7 +122,10 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   expect(amount).toBeTruthy();
   expect(Math.abs((await tools.boundingBox())!.y - toolsBefore)).toBeLessThan(8);
   const repaymentCard = page.getByTestId('home-ledger-focus');
-  const greeting = await page.getByRole('heading', { name: 'Chào, QA', exact: true }).boundingBox();
+  const greetingHeading = page.getByRole('heading', { name: 'Chào, QA', exact: true });
+  await expect(page.getByTestId('home-greeting-name')).toHaveCSS('color', 'rgb(6, 75, 54)');
+  await expect(page.getByTestId('home-greeting-wave')).toHaveText('👋');
+  const greeting = await greetingHeading.boundingBox();
   const card = await repaymentCard.boundingBox();
   expect(card!.y - greeting!.y - greeting!.height).toBeLessThanOrEqual(42);
   const measureAnchorGap = async () => {
@@ -152,9 +157,21 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
   });
   await expect.poll(async () => (await backdrop.boundingBox())!.y).toBeCloseTo(restArt.y, 0);
 
-  const refresh = page.getByRole('button', { name: 'Làm mới dữ liệu' });
+  await expect(page.getByRole('button', { name: 'Làm mới dữ liệu' })).toHaveCount(0);
   pause();
-  await refresh.click();
+  const touch = await context.newCDPSession(page);
+  await touch.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: 186, y: 145 }],
+  });
+  for (const y of [175, 205, 235, 265]) {
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x: 186, y }],
+    });
+  }
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await touch.detach();
   await expect(page.getByTestId('task-refresh-indicator').first()).toBeVisible();
   await scroll.evaluate((node) => {
     node.scrollTop = 0;

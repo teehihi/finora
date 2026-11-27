@@ -6,23 +6,18 @@ import {
   RefreshControl,
   View,
   useWindowDimensions,
+  type GestureResponderEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Action, Heading, Text, useDesign } from '@finora/ui';
 import { dark, tokens } from '@finora/design-tokens';
 import { cashflowCopy, homeCopy } from '@finora/i18n';
-import {
-  Calculator,
-  ChartNoAxesCombined,
-  ChevronRight,
-  RefreshCw,
-  Wallet,
-} from 'lucide-react-native';
+import { Calculator, ChartNoAxesCombined, ChevronRight, Wallet } from 'lucide-react-native';
 import { api, auth } from '../../src/services/client';
 import { useAccount } from '../../src/providers/AppProviders';
 import { useRepaymentLedger } from '../../src/features/repayments';
@@ -71,13 +66,16 @@ export default function Home() {
   const statusOverPhotoRef = useRef(true);
   const scrollY = useRef(new Animated.Value(0)).current;
   const dockOnScroll = scrollTarget?.onScroll;
+  const viewportOffset = useRef(0);
+  const pendingPull = useRef<{ x: number; y: number; id: number } | null>(null);
   const onMobileScroll = useMemo(
     () =>
       Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
         useNativeDriver: Platform.OS !== 'web',
         listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
           dockOnScroll?.(event);
-          if (topInset > 0) {
+          viewportOffset.current = event.nativeEvent.contentOffset.y;
+          if (Platform.OS === 'android' && topInset > 0) {
             const y = event.nativeEvent.contentOffset.y;
             const next = statusOverPhotoRef.current ? y < statusCutover : y <= statusCutover - 12;
             if (next !== statusOverPhotoRef.current) {
@@ -117,6 +115,26 @@ export default function Home() {
     } finally {
       setRefreshing(false);
     }
+  };
+  // Native uses RefreshControl. On touch web, the same top-only gesture
+  // refreshes the app's queries instead of needing a duplicate footer button.
+  const touchRefresh = mobile && Platform.OS === 'web';
+  const beginWebPull = ({ nativeEvent }: GestureResponderEvent) => {
+    const finger = nativeEvent.touches[0];
+    pendingPull.current =
+      viewportOffset.current <= 1 && nativeEvent.touches.length === 1 && finger
+        ? { x: finger.pageX, y: finger.pageY, id: finger.identifier }
+        : null;
+  };
+  const finishWebPull = ({ nativeEvent }: GestureResponderEvent) => {
+    const start = pendingPull.current;
+    pendingPull.current = null;
+    const finger = Array.from(nativeEvent.changedTouches).find(
+      (touch) => touch.identifier === start?.id,
+    );
+    if (!start || !finger || viewportOffset.current > 1) return;
+    const distance = finger.pageY - start.y;
+    if (distance >= 72 && distance > 1.4 * Math.abs(finger.pageX - start.x)) void refresh();
   };
   const tools = <HomeTools />;
   const focus = (
@@ -169,15 +187,16 @@ export default function Home() {
       </HomeSection>
     </View>
   );
-  const refreshLabel = vi ? 'Làm mới dữ liệu' : 'Refresh data';
   const statusStyle = c === dark || statusOverPhoto ? 'light' : 'dark';
+  const statusBackingFrom = Math.max(0, fadeTop - topInset);
+  const statusBackingOpacity = scrollY.interpolate({
+    inputRange: [statusBackingFrom, statusBackingFrom + Math.max(1, topInset * 0.55)],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
   return (
     <View style={{ flex: 1, backgroundColor: c.surface }}>
-      {mobile && Platform.OS === 'ios' ? (
-        <Stack.Screen options={{ statusBarStyle: statusStyle }} />
-      ) : mobile && focused && Platform.OS === 'android' ? (
-        <StatusBar style={statusStyle} />
-      ) : null}
+      {mobile && focused && Platform.OS === 'android' ? <StatusBar style={statusStyle} /> : null}
       {mobile ? (
         <HomeBackdrop
           night={c === dark}
@@ -194,7 +213,20 @@ export default function Home() {
         testID={scrollTarget?.testID ?? 'home-refresh-scroll'}
         onScroll={mobile ? onMobileScroll : scrollTarget?.onScroll}
         scrollEventThrottle={mobile ? 16 : scrollTarget?.scrollEventThrottle}
-        style={{ flex: 1, backgroundColor: mobile ? 'transparent' : c.surface }}
+        style={{
+          flex: 1,
+          backgroundColor: mobile ? 'transparent' : c.surface,
+          ...(touchRefresh ? { overscrollBehaviorY: 'contain' } : {}),
+        }}
+        onTouchStart={touchRefresh ? beginWebPull : undefined}
+        onTouchEnd={touchRefresh ? finishWebPull : undefined}
+        onTouchCancel={
+          touchRefresh
+            ? () => {
+                pendingPull.current = null;
+              }
+            : undefined
+        }
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="never"
         refreshControl={
@@ -219,10 +251,14 @@ export default function Home() {
           <View style={{ marginBottom: mobile ? (Platform.OS === 'ios' ? 17 : 23) : 0 }}>
             <HomeSearch
               gutter={mobile ? gutter : 0}
+              animateHint={mobile && focused}
+              greetingName={mobile ? firstName : undefined}
               greeting={
                 mobile
                   ? firstName
-                    ? (vi ? 'Chào, ' : 'Hello, ') + firstName
+                    ? vi
+                      ? 'Chào, '
+                      : 'Hello, '
                     : t('greet')
                   : user?.name?.trim()
                     ? t('greet') + ', ' + user.name.trim() + '.'
@@ -250,28 +286,22 @@ export default function Home() {
               <HomeFin />
             </View>
           </View>
-          <View
-            style={{
-              alignItems: 'center',
-              borderTopWidth: 1,
-              borderColor: c.border,
-              paddingTop: 4,
-            }}
-          >
-            <Action
-              label={refreshLabel}
-              onPress={() => void refresh()}
-              disabled={ledger.isFetching || saved.isFetching || account.isFetching}
-              style={{ alignItems: 'center', flexDirection: 'row', gap: 7, paddingHorizontal: 10 }}
-            >
-              <RefreshCw size={15} color={c.muted} />
-              <Text small muted>
-                {refreshLabel}
-              </Text>
-            </Action>
-          </View>
         </View>
       </Animated.ScrollView>
+      {mobile && Platform.OS === 'ios' && topInset > 0 && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topInset,
+            backgroundColor: c.forest,
+            opacity: statusBackingOpacity,
+          }}
+        />
+      )}
     </View>
   );
 }

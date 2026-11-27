@@ -453,12 +453,20 @@ export default function Workspace() {
                   </View>
                 </View>
               ) : null}
-              <FinPromptSession key={data.user.id}>
+              <FinPromptSession key={data.user.id} path={path}>
                 <CYLScrollContext.Provider value={usesCYLScroll ? reportCYLScroll : undefined}>
                   <Stack
                     screenOptions={({ route }) => ({
                       headerShown: false,
                       ...workspaceMotion(route.name, reduceMotion, Platform.OS),
+                      // Fin is a peer tab; its left-edge action returns to the
+                      // last peer instead of popping an unrelated stack screen.
+                      ...(Platform.OS === 'ios' &&
+                      !rail &&
+                      finRoot &&
+                      (route.name === 'assistant' || route.name === 'intelligence')
+                        ? { gestureEnabled: false }
+                        : {}),
                       statusBarStyle:
                         Platform.OS === 'ios'
                           ? (route.name === 'home' && !rail) || c === dark
