@@ -1,3 +1,4 @@
+import { CashflowEntry } from '../../src/features/cashflow-map';
 import { View, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -5,7 +6,8 @@ import { Calculator, ChevronRight } from 'lucide-react-native';
 import { Action, Button, EmptyState, Heading, Text, useDesign } from '@finora/ui';
 import { date, numeric } from '@finora/i18n';
 import { api, auth } from '../../src/services/client';
-import { Page, Data } from '../../src/components/layout';
+import { Page } from '../../src/components/layout';
+import { TaskData } from '../../src/components/task-surface';
 import { useRepaymentLedger } from '../../src/features/repayments';
 import { MarketPanel, ProductIcon } from '../../src/features/market-ui';
 import { FilterTab, LoanList, PaymentFocus } from '../../src/features/loan-center';
@@ -30,6 +32,7 @@ export default function Loans() {
       {pane === 'schedule' && ledger.data ? (
         <PaymentFocus value={ledger.data} desktop={desktop} />
       ) : null}
+      {pane === 'schedule' ? <CashflowEntry /> : null}
       <View
         accessibilityRole="tablist"
         style={{ flexDirection: 'row', gap: 17, borderBottomWidth: 1, borderColor: c.border }}
@@ -44,9 +47,9 @@ export default function Loans() {
         ))}
       </View>
       {pane === 'schedule' ? (
-        <Data q={ledger}>
+        <TaskData query={ledger} kind="rows">
           {(value) => <LoanList value={value} onPlans={() => setPane('simulations')} />}
-        </Data>
+        </TaskData>
       ) : (
         <View style={{ flex: 1, minWidth: 0, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
@@ -68,7 +71,7 @@ export default function Loans() {
           <Text small muted>
             {t('savedOnlyNote')}
           </Text>
-          <Data q={saved}>
+          <TaskData query={saved} kind="rows">
             {(rows) =>
               rows.length ? (
                 <MarketPanel style={{ paddingHorizontal: 10, paddingVertical: 4, gap: 0 }}>
@@ -132,7 +135,7 @@ export default function Loans() {
                 </MarketPanel>
               )
             }
-          </Data>
+          </TaskData>
         </View>
       )}
     </Page>

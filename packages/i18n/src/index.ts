@@ -1,3 +1,5 @@
+export { cashflowCopy } from './cashflow';
+
 export type Locale = 'vi-VN' | 'en-US';
 const copy = {
   repaymentsTitle: ['Sổ trả nợ', 'Repayment ledger'],

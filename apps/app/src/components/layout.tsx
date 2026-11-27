@@ -133,6 +133,7 @@ export function Page({
   maxWidth = tokens.breakpoints.content,
   style,
   scrollRef,
+  mobileTask,
 }: {
   children: React.ReactNode;
   title: string;
@@ -142,41 +143,77 @@ export function Page({
   maxWidth?: number;
   style?: ViewStyle;
   scrollRef?: React.Ref<React.ComponentRef<typeof ScrollView>>;
+  mobileTask?: { onBack: () => void; action?: React.ReactNode };
 }) {
   const { width } = useWindowDimensions();
   const dockInset = useWorkspaceDockInset();
   const tablet = width >= tokens.breakpoints.rail;
   const desktop = width >= tokens.breakpoints.desktop;
+  const compact = !tablet && !!mobileTask;
+  const { colors: c, t } = useDesign();
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={{ flex: 1 }}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{
-        alignItems: 'center',
-        paddingHorizontal: desktop
-          ? tokens.layout.desktopGutter
-          : tablet
-            ? tokens.layout.tabletGutter
-            : tokens.layout.gutter,
-        paddingTop: tablet ? 28 : 18,
-        paddingBottom: dockInset + 28,
-      }}
-    >
-      <View style={[{ width: '100%', maxWidth, gap: tablet ? 25 : 19 }, style]}>
-        {top}
-        <View style={{ gap: 6 }}>
-          {eyebrow ? <Eyebrow tone="forest">{eyebrow}</Eyebrow> : null}
-          <Heading size={desktop ? 38 : 29}>{title}</Heading>
-          {description ? (
-            <Text muted style={{ maxWidth: tokens.layout.reading }}>
-              {description}
-            </Text>
-          ) : null}
+    <>
+      {compact && mobileTask ? (
+        <View
+          style={{
+            backgroundColor: c.surface,
+            borderColor: c.border,
+            borderBottomWidth: 1,
+            paddingHorizontal: 12,
+            minHeight: 54,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 6,
+          }}
+        >
+          <Action
+            label={t('back')}
+            onPress={mobileTask.onBack}
+            style={{ width: 44, height: 44, alignItems: 'center' }}
+          >
+            <ArrowLeft size={20} color={c.foreground} />
+          </Action>
+          <View style={{ flex: 1, minWidth: 0, paddingVertical: 6 }}>
+            <Heading size={17} style={{ textAlign: 'center' }}>
+              {title}
+            </Heading>
+          </View>
+          <View style={{ width: 44, height: 44 }}>{mobileTask.action}</View>
         </View>
-        {children}
-      </View>
-    </ScrollView>
+      ) : null}
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          alignItems: 'center',
+          paddingHorizontal: desktop
+            ? tokens.layout.desktopGutter
+            : tablet
+              ? tokens.layout.tabletGutter
+              : tokens.layout.gutter,
+          paddingTop: tablet ? 28 : compact ? 12 : 18,
+          paddingBottom: dockInset + 28,
+        }}
+      >
+        <View style={[{ width: '100%', maxWidth, gap: tablet ? 25 : compact ? 12 : 19 }, style]}>
+          {!compact ? top : null}
+          {!compact ? (
+            <View style={{ gap: 6 }}>
+              {eyebrow ? <Eyebrow tone="forest">{eyebrow}</Eyebrow> : null}
+              <Heading size={desktop ? 38 : 29}>{title}</Heading>
+              {description ? (
+                <Text muted style={{ maxWidth: tokens.layout.reading }}>
+                  {description}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+          {children}
+        </View>
+      </ScrollView>
+    </>
   );
 }
 export function Back({ to }: { to: () => void }) {
