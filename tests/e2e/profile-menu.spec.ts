@@ -71,4 +71,18 @@ test('profile menu preserves both screens and links real destinations', async ({
   await expect(page.getByText(/^Finora giúp bạn so sánh phương án vay/)).toBeVisible();
   await back().click();
   await expect(page.getByTestId('account-hub-cover')).toBeVisible();
+  const signOut = page.getByRole('button', { name: 'Đăng xuất', exact: true });
+  await expect(signOut).toHaveCSS('background-color', 'rgb(173, 48, 63)');
+  await button('Tùy chọn sử dụng').click();
+  await page.getByRole('radio', { name: 'Tối', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Tối', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await back().click();
+  await expect(signOut).toHaveCSS('background-color', 'rgb(255, 173, 170)');
+  await signOut.click();
+  await expect(page).toHaveURL(/\/auth/);
+  await page.goto('/profile');
+  await expect(page).toHaveURL(/\/auth/);
 });

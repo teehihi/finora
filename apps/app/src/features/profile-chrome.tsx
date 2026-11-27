@@ -82,6 +82,7 @@ export function AccountScroll({
           }}
         >
           <Image
+            testID="account-hub-cover"
             source={fixedBackground}
             accessible={false}
             resizeMode="cover"

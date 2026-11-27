@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { profileMenuCopy } from '@finora/i18n';
 import { LogOut } from 'lucide-react-native';
-import { Button, Text, useDesign } from '@finora/ui';
+import { Action, Text, useDesign } from '@finora/ui';
 import { AccountScroll, useProfileChrome } from '../../src/features/profile-chrome';
 import {
   AccountGroups,
@@ -62,20 +62,28 @@ export default function ProfileScreen() {
       }
     >
       <AccountGroups open={open} />
-      <View
-        style={{
-          backgroundColor: p.surface,
-          borderRadius: 14,
-          padding: 6,
-        }}
-      >
-        <Button
-          variant="text"
+      <View>
+        <Action
           label={t('out')}
-          icon={<LogOut size={17} color={c.primary} />}
-          loading={busy}
           onPress={signOut}
-        />
+          disabled={busy}
+          style={{
+            minHeight: 60,
+            borderRadius: 14,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            alignItems: 'center',
+            flexDirection: 'row',
+            gap: 9,
+            backgroundColor: c.error,
+          }}
+        >
+          {busy ? <ActivityIndicator color={c.surface} /> : null}
+          <Text bold style={{ color: c.surface, fontSize: 15, textAlign: 'center' }}>
+            {t('out')}
+          </Text>
+          <LogOut size={17} color={c.surface} />
+        </Action>
         {failed ? (
           <Text role="alert" style={{ color: c.error }}>
             {t('error')}
