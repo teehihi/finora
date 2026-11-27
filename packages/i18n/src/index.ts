@@ -490,6 +490,17 @@ const copy = {
   privacyDeleteHistory: ['Xác nhận xóa lịch sử', 'Confirm history deletion'],
   mock: ['Mô phỏng AI · Cục bộ', 'Mock AI · Local'],
   assistantTitle: ['Cùng hiểu khoản vay', 'Make sense of borrowing'],
+  intelligenceWelcome: ['Cùng Fin tính khoản vay', 'Plan your loan with Fin'],
+  intelligenceWelcomeHint: [
+    'Hỏi Fin về số tiền trả mỗi tháng, lãi và phí của khoản vay.',
+    'Ask Fin about monthly payments, interest and fees on your loan.',
+  ],
+  intelligenceTermExample: ['So sánh 12 và 24 tháng', 'Compare 12 and 24 months'],
+  intelligenceTermExampleDraft: [
+    'Tôi muốn vay 50 triệu để mua xe. Nếu trả trong 12 hay 24 tháng thì khác nhau thế nào?',
+    'I want to borrow 50 million VND to buy a vehicle. How do 12 and 24 months compare?',
+  ],
+  intelligenceDefaultMark: ['Cục bộ · mặc định', 'Local · default'],
   intelligenceTitle: ['Bàn phân tích khoản vay', 'Borrowing analysis desk'],
   intelligenceLabel: ['Phân tích khoản vay', 'Borrowing analysis'],
   intelligenceOpen: ['Mở bàn phân tích', 'Open analysis desk'],

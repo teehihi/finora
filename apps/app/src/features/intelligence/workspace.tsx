@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
+import { SourceSerif4_500Medium } from '@expo-google-fonts/source-serif-4/500Medium';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -21,6 +24,7 @@ import {
   Scale,
   FileText,
   Paperclip,
+  Plus,
   ShieldCheck,
   Square,
 } from 'lucide-react-native';
@@ -29,9 +33,9 @@ import { tokens } from '@finora/design-tokens';
 import { date } from '@finora/i18n';
 import { Action, BottomSheet, Button, Dialog, Heading, Text, Switch, useDesign } from '@finora/ui';
 import { useWorkspaceDockInset } from '../../components/layout';
-import { SignatureIcon } from '../../components/signature';
+import { LakeScene } from './lake-scene';
 import { AnalysisBlocks } from './blocks';
-import { FinancePrompt, FinAvatar, FinIntro, ModeMark } from './presentation';
+import { FinancePrompt, FinAvatar, ModeMark } from './presentation';
 import { chooseDraftPrompt, chooseSimulationId } from './model';
 import {
   clearIntelligenceHistory,
@@ -80,12 +84,12 @@ function Desk({
 }) {
   const { t, colors: c, locale, money } = useDesign();
   const vi = locale === 'vi-VN';
-  const title = vi ? 'Cùng Fin tính khoản vay' : 'Plan your loan with Fin';
-  const { width, fontScale } = useWindowDimensions();
-  const compactStarters = width >= 370 && fontScale < 1.25;
+  const [serifReady] = useFonts({ [tokens.font.serifVi]: SourceSerif4_500Medium });
+  const { width, height } = useWindowDimensions();
   const wide = width >= 1150;
   const phone = width < tokens.breakpoints.rail;
   const dock = useWorkspaceDockInset();
+  const insets = useSafeAreaInsets();
   const [externalConsent, setConsent] = useState(false);
   const [privacy, openPrivacy] = useState(false);
   const [toolSheet, openTools] = useState(false);
@@ -234,22 +238,20 @@ function Desk({
   const modeLabel = !provider
     ? allowConsent && externalConsent
       ? t('intelligenceExternalReady')
-      : vi
-        ? 'Cục bộ · mặc định'
-        : 'Local · default'
+      : t('intelligenceDefaultMark')
     : provider === 'mock'
       ? t('intelligenceLocal')
       : t('intelligenceRemote') + ' · OpenAI';
   const starters = scoped
     ? ([
-        ['intelligencePromptSaved', 'intelligenceStarterSaved'],
-        ['intelligencePromptShock', 'intelligenceStarterShock'],
-        ['intelligencePromptCompare', 'intelligenceStarterCompare'],
+        ['intelligencePromptSaved', 'intelligenceStarterSaved', FileText],
+        ['intelligencePromptShock', 'intelligenceStarterShock', ChartNoAxesCombined],
+        ['intelligencePromptCompare', 'intelligenceStarterCompare', Scale],
       ] as const)
     : ([
-        ['intelligencePromptAfford', 'intelligenceStarterAfford'],
-        ['intelligencePromptCompare', 'intelligenceStarterCompare'],
-        ['intelligencePromptShock', 'intelligenceStarterShock'],
+        ['intelligenceTermExampleDraft', 'intelligenceTermExample', Scale],
+        ['intelligencePromptAfford', 'intelligenceStarterAfford', CircleDollarSign],
+        ['intelligencePromptShock', 'intelligenceStarterShock', ChartNoAxesCombined],
       ] as const);
 
   async function clear() {
@@ -328,9 +330,15 @@ function Desk({
     <Action
       label={t('intelligenceTools')}
       onPress={() => openTools(true)}
-      style={{ width: 44, minHeight: 44, alignItems: 'center', borderRadius: 16 }}
+      style={{
+        width: 44,
+        minHeight: 44,
+        alignItems: 'center',
+        borderRadius: 22,
+        backgroundColor: c.secondary,
+      }}
     >
-      <BookOpen size={20} color={c.primary} />
+      <Plus size={20} color={c.primary} />
     </Action>
   );
 
@@ -341,41 +349,47 @@ function Desk({
         minHeight: 0,
         width: '100%',
         alignSelf: 'center',
-        maxWidth: 1240,
-        paddingHorizontal: wide ? 38 : 16,
+        paddingHorizontal: wide ? 38 : 20,
+        paddingTop: phone ? insets.top : 0,
         paddingBottom: dock || 14,
       }}
     >
-      {!phone ? (
+      <LakeScene reading={engaged} dockInset={dock} />
+      <View
+        style={{
+          paddingVertical: 10,
+          flexWrap: 'wrap',
+          flexDirection: 'row',
+          gap: 8,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
         <View
           style={{
-            paddingVertical: 7,
-            borderBottomWidth: 1,
-            borderColor: c.border,
             flexDirection: 'row',
-            gap: 8,
             alignItems: 'center',
-            justifyContent: 'space-between',
+            gap: 7,
+            paddingRight: 10,
+            borderRadius: 99,
+            backgroundColor: c.surface,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-            <FinAvatar />
-            <Text bold style={{ color: c.foreground, fontSize: 17 }}>
-              {t('ai')}
-            </Text>
-          </View>
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>{providerMark}</View>
-          {!wide ? toolsButton : null}
+          <FinAvatar />
+          <Text
+            role={engaged ? 'header' : undefined}
+            bold
+            style={{ color: c.foreground, fontSize: 17 }}
+          >
+            {t('ai')}
+          </Text>
         </View>
-      ) : null}
+        <View style={{ marginLeft: 'auto' }}>{providerMark}</View>
+        {!wide && !phone ? toolsButton : null}
+      </View>
 
       <View style={{ flex: 1, minHeight: 0, flexDirection: 'row', gap: wide ? 27 : 0 }}>
         <View style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
-          {engaged ? (
-            <Heading size={wide ? 28 : 22} style={{ paddingTop: 10, paddingBottom: 7 }}>
-              {title}
-            </Heading>
-          ) : null}
           {scoped || (simulationId && saved.isError) ? (
             <View
               style={{
@@ -432,83 +446,61 @@ function Desk({
             }}
           >
             {!engaged ? (
-              <>
-                <FinIntro
-                  title={title}
-                  signature
-                  description={
-                    vi
-                      ? 'Cho Fin biết bạn định vay bao nhiêu. Mình sẽ tách rõ số phải trả, lãi, phí và dòng tiền còn lại.'
-                      : 'Tell Fin how much you want to borrow. See installments, interest, fees and the cash you may have left.'
-                  }
-                  wide={wide}
-                />
-                <View style={{ gap: 10 }}>
-                  <Heading size={18}>{t('intelligenceStarter')}</Heading>
-                  {!scoped ? (
-                    <Action
-                      label={vi ? 'So sánh 12 và 24 tháng' : 'Compare 12 and 24 months'}
-                      onPress={() =>
-                        fill(
-                          vi
-                            ? 'Tôi muốn vay 50 triệu để mua xe. Nếu trả trong 12 hay 24 tháng thì khác nhau thế nào?'
-                            : 'I want to borrow 50 million VND to buy a vehicle. How do 12 and 24 months compare?',
-                        )
-                      }
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: 12,
-                        borderRadius: 19,
-                        backgroundColor: c.secondary,
-                      }}
-                    >
-                      <SignatureIcon icon={Scale} tone="emerald" size={38} />
-                      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-                        <Text bold style={{ color: c.foreground }}>
-                          {vi ? 'So sánh 12 và 24 tháng' : 'Compare 12 and 24 months'}
-                        </Text>
-                        <Text small muted>
-                          {vi
-                            ? 'Ví dụ 50 triệu ₫. Bạn sửa trước khi gửi.'
-                            : 'Example: VND 50 million. Edit before sending.'}
-                        </Text>
-                      </View>
-                      <ArrowUpRight size={17} color={c.primary} />
-                    </Action>
-                  ) : null}
-                  <View
+              <View
+                style={{
+                  gap: wide ? 26 : 18,
+                  paddingTop: height < 700 ? 0 : wide ? 38 : 18,
+                  maxWidth: 520,
+                }}
+              >
+                <View style={{ gap: 9 }}>
+                  <Heading
+                    size={wide ? 58 : 43}
                     style={{
-                      flexDirection: scoped && compactStarters ? 'row' : 'column',
-                      alignItems: 'stretch',
-                      gap: 7,
+                      fontFamily: serifReady ? tokens.font.serifVi : tokens.font.heading,
+                      maxWidth: wide ? 480 : 310,
+                      color: c.foreground,
                     }}
                   >
-                    {starters.map(([question, title], index) => {
-                      if (!scoped && question === 'intelligencePromptCompare') return null;
-                      const tile = scoped && compactStarters;
-                      const Icon = [CircleDollarSign, Scale, ChartNoAxesCombined][index]!;
-                      return (
-                        <FinancePrompt
-                          key={question}
-                          label={t(title)}
-                          tile={tile}
-                          style={tile ? { flex: 1, minWidth: 0 } : undefined}
-                          icon={
-                            <SignatureIcon
-                              icon={Icon}
-                              size={tile ? 36 : 31}
-                              tone={(['emerald', 'blue', 'amber'] as const)[index]}
-                            />
-                          }
-                          onPress={() => fill(t(question))}
-                        />
-                      );
-                    })}
-                  </View>
+                    {t('intelligenceWelcome')}
+                  </Heading>
+                  <Text style={{ maxWidth: wide ? 420 : 315, lineHeight: 23 }}>
+                    {t('intelligenceWelcomeHint')}
+                  </Text>
                 </View>
-              </>
+                <View
+                  style={{
+                    maxWidth: 440,
+                    backgroundColor: c.surface,
+                    borderRadius: tokens.radius.card,
+                    paddingHorizontal: 15,
+                  }}
+                >
+                  {starters.map(([question, label, Icon], index) => (
+                    <Action
+                      key={question}
+                      label={t(label)}
+                      onPress={() => fill(t(question))}
+                      style={{
+                        minHeight: 52,
+                        paddingVertical: 8,
+                        gap: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        borderRadius: 0,
+                        borderColor: c.border,
+                        borderTopWidth: index ? 1 : 0,
+                      }}
+                    >
+                      <Icon size={19} color={c.primary} strokeWidth={1.7} />
+                      <Text bold style={{ flex: 1, fontSize: 15, lineHeight: 22 }}>
+                        {t(label)}
+                      </Text>
+                      <ArrowUpRight size={16} color={c.muted} />
+                    </Action>
+                  ))}
+                </View>
+              </View>
             ) : null}
             {!history.data && history.isError ? (
               <Action label={t('retry')} onPress={() => void history.refetch()}>
@@ -529,7 +521,6 @@ function Desk({
                   turnId={row.id}
                   prompt={row.prompt}
                   answer={row.answer}
-                  provider={row.provider}
                   blocks={row.blocks}
                   followUp={
                     index === historyRows.length - 1 &&
@@ -553,7 +544,6 @@ function Desk({
                   turnId={current.stage === 'done' ? current.turnId : undefined}
                   prompt={current.request.prompt}
                   answer={current.answer}
-                  provider={current.provider}
                   blocks={current.blocks}
                   followUp={current.stage === 'done' && !prompt.trim() ? fill : undefined}
                 />
@@ -594,7 +584,7 @@ function Desk({
               </View>
             ) : null}
           </ScrollView>
-          {!follow ? (
+          {engaged && !follow ? (
             <Action
               label={t('assistantLatest')}
               onPress={jump}
@@ -628,19 +618,11 @@ function Desk({
                 flexDirection: 'row',
                 alignItems: 'flex-end',
                 borderWidth: 1,
-                borderColor: focus ? c.focus : c.borderStrong,
+                borderColor: focus ? c.focus : c.border,
                 backgroundColor: c.surface,
-                borderRadius: 23,
+                borderRadius: 28,
                 padding: 6,
                 gap: 7,
-                ...(focus
-                  ? {
-                      shadowColor: c.focus,
-                      shadowOpacity: 0.15,
-                      shadowRadius: 5,
-                      shadowOffset: { width: 0, height: 0 },
-                    }
-                  : {}),
               }}
             >
               {phone ? toolsButton : null}
@@ -675,31 +657,30 @@ function Desk({
                 disabled={!stream && (!prompt.trim() || scopeUnavailable || clearing)}
                 onPress={() => (stream ? active.current?.abort() : void submit())}
                 style={{
-                  width: 46,
-                  minHeight: 46,
+                  width: 44,
+                  minHeight: 44,
                   alignItems: 'center',
                   backgroundColor:
                     !stream && (!prompt.trim() || scopeUnavailable || clearing)
                       ? c.elevated
-                      : c.signatureLime,
-                  borderRadius: 17,
+                      : c.primary,
+                  borderRadius: 22,
                 }}
               >
                 {stream ? (
-                  <Square size={15} color={c.signatureInk} fill={c.signatureInk} />
+                  <Square size={15} color={c.onPrimary} fill={c.onPrimary} />
                 ) : (
                   <ArrowUp
                     size={21}
                     color={
                       !stream && (!prompt.trim() || scopeUnavailable || clearing)
                         ? c.muted
-                        : c.signatureInk
+                        : c.onPrimary
                     }
                   />
                 )}
               </Action>
             </View>
-            {phone ? providerMark : null}
             {allowConsent && externalConsent ? (
               <Text small muted>
                 {t('intelligenceConsentOn')}
@@ -774,7 +755,6 @@ function Desk({
 function Turn({
   prompt,
   answer,
-  provider,
   blocks,
   turnId,
   followUp,
@@ -801,31 +781,24 @@ function Turn({
           gap: 1,
         }}
       >
-        <Text small bold style={{ color: c.primary }}>
-          {t('you')}
-        </Text>
         <Text>{prompt}</Text>
       </View>
       {answer || blocks.length ? (
         <View style={{ gap: 9 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
             <FinAvatar />
-            <Text small bold>
-              {provider === 'mock'
-                ? t('intelligenceLocal')
-                : provider
-                  ? t('intelligenceRemote') + ' · OpenAI'
-                  : t('ai')}
+            <Text small bold style={{ color: c.primary }}>
+              {t('ai')}
             </Text>
           </View>
           {answer ? (
             <View
               style={{
-                borderLeftWidth: 3,
-                borderColor: c.signatureEdge,
                 backgroundColor: c.surface,
-                borderRadius: 13,
-                padding: 13,
+                borderRadius: 18,
+                borderTopLeftRadius: 5,
+                paddingHorizontal: 14,
+                paddingVertical: 11,
               }}
             >
               <Text style={{ maxWidth: tokens.layout.reading }}>{answer}</Text>
