@@ -470,11 +470,15 @@ function Desk({
     <FinBarButton
       label={t('intelligenceTools')}
       onPress={() => openTools(true)}
-      backgroundColor={phone ? 'transparent' : c.secondary}
-      borderColor={phone ? c.primary : c.border}
-      visualSize={phone ? 23 : 36}
+      backgroundColor={phone && !hasDraft ? 'transparent' : c.secondary}
+      borderColor={phone && !hasDraft ? c.primary : c.border}
+      visualSize={phone ? (hasDraft ? 34 : 23) : 36}
     >
-      <Plus size={phone ? 15 : 20} strokeWidth={phone ? 1.65 : 2} color={c.primary} />
+      <Plus
+        size={phone ? (hasDraft ? 18 : 15) : 20}
+        strokeWidth={phone ? 1.65 : 2}
+        color={c.primary}
+      />
     </FinBarButton>
   );
 
@@ -775,7 +779,9 @@ function Desk({
                 borderColor: focus ? c.focus : phone ? 'transparent' : c.border,
                 backgroundColor: phone ? 'transparent' : c.surface,
                 borderRadius: phone ? 32 : 28,
-                padding: phone ? FIN_BAR_PADDING : 6,
+                paddingTop: phone ? FIN_BAR_PADDING : 6,
+                paddingBottom: phone ? FIN_BAR_PADDING + (hasDraft && composerGrown ? 3 : 0) : 6,
+                paddingHorizontal: phone ? FIN_BAR_PADDING + (hasDraft ? 6 : 0) : 6,
                 marginHorizontal: phone ? FIN_BAR_GUTTER - 20 : 0,
               }}
             >
@@ -876,7 +882,7 @@ function Desk({
                   backgroundColor={
                     sendUnavailable ? (c === dark ? c.secondary : '#D7EDDF') : c.primary
                   }
-                  visualSize={phone ? 36 : 40}
+                  visualSize={phone ? (hasDraft ? 34 : 36) : 40}
                 >
                   {stream ? (
                     <Square size={15} color={c.onPrimary} fill={c.onPrimary} />
