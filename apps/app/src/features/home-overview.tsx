@@ -11,17 +11,14 @@ import {
 import { router, type Href } from 'expo-router';
 import { Action, Button, Choices, Dialog, Heading, Text, useDesign } from '@finora/ui';
 import { homeCopy } from '@finora/i18n';
+import { dark } from '@finora/design-tokens';
+import { HomeToolIcon } from './home-tool-icon';
 import type { AccountData, Profile } from '@finora/contracts';
 import type { Readiness } from '@finora/api-client';
 import { TaskData } from '../components/task-surface';
 import { SignatureIcon } from '../components/signature';
 import { homeCashFlow, homeStressPreview, type HomeStress } from './home-model';
 import fin from '../../assets/brand/fin-assistant.png';
-
-import simulateArt from '../../assets/home/simulate.png';
-import scheduleArt from '../../assets/home/schedule.png';
-import compareArt from '../../assets/home/compare.png';
-import contractArt from '../../assets/home/contract.png';
 
 const amountInk: TextStyle = { fontVariant: ['tabular-nums'] };
 
@@ -298,16 +295,16 @@ function HomeStressSheet({ profile, close }: { profile: Profile; close: () => vo
 }
 
 export function HomeTools() {
-  const { locale } = useDesign();
+  const { locale, colors } = useDesign();
   const { fontScale } = useWindowDimensions();
   const large = fontScale >= 1.35;
   const copy = homeCopy(locale);
   const vi = locale === 'vi-VN';
   const entries = [
-    [copy.simulate, vi ? 'Mô phỏng' : 'Simulate', '/simulate/personal-flex', simulateArt],
-    [copy.repayments, vi ? 'Lịch trả' : 'Schedule', '/repayments', scheduleArt],
-    [copy.compare, vi ? 'So sánh' : 'Compare', '/explore?mode=sample&intent=compare', compareArt],
-    [copy.documents, vi ? 'Hợp đồng' : 'Contracts', '/documents', contractArt],
+    [copy.simulate, vi ? 'Mô phỏng' : 'Simulate', '/simulate/personal-flex', 'simulate'],
+    [copy.repayments, vi ? 'Lịch trả' : 'Schedule', '/repayments', 'schedule'],
+    [copy.compare, vi ? 'So sánh' : 'Compare', '/explore?mode=sample&intent=compare', 'compare'],
+    [copy.documents, vi ? 'Hợp đồng' : 'Contracts', '/documents', 'contract'],
   ] as const;
   return (
     <HomeSection
@@ -316,7 +313,7 @@ export function HomeTools() {
       onPress={() => router.navigate('/explore')}
     >
       <View style={{ flexDirection: 'row', flexWrap: large ? 'wrap' : 'nowrap', gap: 4 }}>
-        {entries.map(([label, visible, href, art]) => (
+        {entries.map(([label, visible, href, tool]) => (
           <Action
             key={href}
             label={label}
@@ -333,12 +330,7 @@ export function HomeTools() {
               borderRadius: 12,
             }}
           >
-            <Image
-              source={art}
-              accessible={false}
-              resizeMode="contain"
-              style={{ width: 48, height: 48 }}
-            />
+            <HomeToolIcon tool={tool} night={colors === dark} />
             <Text small bold style={{ fontSize: 12, lineHeight: 16, textAlign: 'center' }}>
               {visible}
             </Text>

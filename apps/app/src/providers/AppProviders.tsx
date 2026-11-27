@@ -22,7 +22,7 @@ export const queryClient = new QueryClient({
 });
 export const usePrefs = create<Preferences & { set: (value: Preferences) => void }>((set) => ({
   locale: 'vi-VN',
-  appearance: 'system',
+  appearance: 'light',
   set,
 }));
 export function useAccount() {
@@ -35,10 +35,11 @@ export function useAccount() {
 }
 function Theme({ children }: { children: React.ReactNode }) {
   const account = useAccount();
-  const { locale, appearance, set } = usePrefs();
+  const { locale, set } = usePrefs();
   const scheme = useColorScheme();
-  // Signed-out surfaces follow the device, not the last account’s saved choice.
-  const activeAppearance = account.data ? appearance : 'system';
+  // The launch theme is also the default while no account is known. Opting
+  // into Dark/System is an account choice, not a guess based on the device.
+  const activeAppearance = account.data?.preferences.appearance ?? 'light';
   useEffect(() => {
     if (account.data) set(account.data.preferences);
   }, [account.data, set]);

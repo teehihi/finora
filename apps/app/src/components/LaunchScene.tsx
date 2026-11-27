@@ -1,5 +1,6 @@
-import { Animated, Image, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import { dark } from '@finora/design-tokens';
 import { useDesign } from '@finora/ui';
 import markLight from '../../assets/brand/lockup.png';
 import markDark from '../../assets/brand/lockup-night.png';
@@ -14,8 +15,8 @@ const curves = Array.from(
 ).join(' ');
 
 export function LaunchScene({ checking = false }: { checking?: boolean }) {
-  const night = useColorScheme() === 'dark';
-  const { t, locale } = useDesign();
+  const { t, locale, colors } = useDesign();
+  const night = colors === dark;
   const pulse = usePulse();
   const label = checking
     ? t('authChecking')
