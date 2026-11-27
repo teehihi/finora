@@ -31,13 +31,17 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
   const picker = page.getByTestId('fin-tab-picker');
   await expect(tools).toBeVisible();
   const send = bar.getByRole('button', { name: 'Gửi', exact: true });
-  const checkAligned = async () => {
-    const buttons = await Promise.all([tabs, tools, send].map((button) => button.boundingBox()));
+  const checkAligned = async (withGrid = true) => {
+    const buttons = await Promise.all(
+      (withGrid ? [tabs, tools, send] : [tools, send]).map((button) => button.boundingBox()),
+    );
     const centers = buttons.map((box) => box!.y + box!.height * 0.5);
     expect(Math.max(...centers) - Math.min(...centers)).toBeLessThan(1);
     const frame = (await bar.boundingBox())!;
     for (const box of buttons) {
       expect(frame.y + frame.height - box!.y - box!.height).toBeCloseTo(5, 0);
+      expect(box!.x).toBeGreaterThanOrEqual(frame.x + 4);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(frame.x + frame.width - 4);
     }
   };
   await checkAligned();
@@ -61,22 +65,26 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
   const iconColumns = menuIconBoxes.map((box) => box!.x);
   expect(Math.max(...iconColumns) - Math.min(...iconColumns)).toBeLessThan(1);
   await page.screenshot({ path: info.outputPath('fin-tabs-popover-empty.png') });
-  await tabs.click();
-  await expect(picker).toHaveCount(0);
-
+  const emptyInputFrame = (await input.boundingBox())!;
   await input.fill('Dòng đầu.\nDòng thứ hai.\nDòng cuối.');
+  await expect(tabs).toHaveCount(0);
+  await expect(picker).toHaveCount(0);
+  expect((await input.boundingBox())!.width).toBeGreaterThan(emptyInputFrame.width + 40);
   await expect(send).toBeEnabled();
   await expect(send.locator('svg')).toBeVisible();
   await expect
     .poll(async () => (await bar.boundingBox())!.height)
     .toBeGreaterThan(singleLine.height + 20);
-  await checkAligned();
+  await checkAligned(false);
   await page.screenshot({ path: info.outputPath('fin-composer-typed.png') });
   await input.fill('Ok');
   await expect
     .poll(async () => (await bar.boundingBox())!.height)
     .toBeCloseTo(singleLine.height, 0);
-  await input.fill('Bản nháp mua xe, chưa gửi');
+  await input.fill('  ');
+  await expect(tabs).toBeVisible();
+  await expect(send).toBeDisabled();
+  await input.clear();
   await checkAligned();
   await tabs.click();
   await expect(tabs).toHaveAttribute('aria-expanded', 'true');
@@ -110,7 +118,10 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
   await expect(page).toHaveURL(/\/profile$/);
   await page.setViewportSize({ width: 390, height: 844 });
   await fin.click();
-  await expect(input).toHaveValue('Bản nháp mua xe, chưa gửi');
+  await expect(input).toHaveValue('');
+  await input.fill('Bản nháp mua xe, chưa gửi');
+  await expect(tabs).toHaveCount(0);
+  await input.blur();
   const touch = await context.newCDPSession(page);
   const swipe = async (x0: number) => {
     await touch.send('Input.dispatchTouchEvent', {
@@ -150,14 +161,9 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
     Math.abs(tallFrame.y + tallFrame.height - (shortFrame.y + shortFrame.height)),
   ).toBeLessThan(2);
   expect(await input.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true);
-  await checkAligned();
+  await checkAligned(false);
+  await expect(tabs).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('fin-composer-long-prompt.png') });
-  await tabs.click();
-  await expect(picker).toBeVisible();
-  const expandedPicker = (await picker.boundingBox())!;
-  expect(expandedPicker.y + expandedPicker.height).toBeLessThanOrEqual(tallFrame.y);
-  await page.keyboard.press('Escape');
-  await expect(picker).toHaveCount(0);
   const request = page.waitForRequest(
     (req) =>
       req.method() === 'POST' &&
@@ -166,6 +172,7 @@ test('Fin owns a single toolbar, opens peer tabs, and keeps the unsent prompt', 
   );
   await send.click();
   await expect(input).toHaveValue('');
+  await expect(tabs).toBeVisible();
   await expect
     .poll(async () => (await bar.boundingBox())!.height)
     .toBeCloseTo(shortFrame.height, 0);

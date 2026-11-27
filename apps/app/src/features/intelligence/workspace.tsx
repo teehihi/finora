@@ -139,6 +139,11 @@ function Desk({
   const [prompt, setPrompt] = useFinPromptDraft(simulationId, initialPrompt);
   const [tabsOpen, showTabs] = useState(false);
   const closeTabs = useCallback(() => showTabs(false), []);
+  const hasDraft = prompt.trim().length > 0;
+  const showTabTrigger = phone && !hasDraft;
+  useEffect(() => {
+    if (!showTabTrigger) closeTabs();
+  }, [closeTabs, showTabTrigger]);
   const [frameHeight, setFrameHeight] = useState(height);
   const [toolbarHeight, setToolbarHeight] = useState(62);
   const bottomGap = dock || 14;
@@ -473,7 +478,7 @@ function Desk({
     </FinBarButton>
   );
 
-  const sendUnavailable = !stream && (!prompt.trim() || scopeUnavailable || clearing);
+  const sendUnavailable = !stream && (!hasDraft || scopeUnavailable || clearing);
   const inputPadding = phone ? 5 : 11;
   const composerGrown = inputHeight > FIN_INPUT_MIN_HEIGHT;
   const screen = (
@@ -785,13 +790,13 @@ function Desk({
                   gap: phone ? 2 : 7,
                 }}
               >
-                {phone ? (
+                {showTabTrigger ? (
                   <>
                     <FinTabsButton open={tabsOpen} onPress={() => showTabs((open) => !open)} />
                     <FinComposerDivider grown={composerGrown} />
-                    {toolsButton}
                   </>
                 ) : null}
+                {phone ? toolsButton : null}
                 <View style={{ flex: 1, minWidth: 0, position: 'relative' }}>
                   {Platform.OS === 'ios' && prompt ? (
                     <NativeText
@@ -897,7 +902,7 @@ function Desk({
           </ScrollView>
         ) : null}
       </View>
-      {phone && tabsOpen ? (
+      {showTabTrigger && tabsOpen ? (
         <FinTabPicker
           onClose={closeTabs}
           bottom={toolbarHeight + bottomGap}
