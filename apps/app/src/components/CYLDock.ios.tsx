@@ -9,6 +9,7 @@ type NativeProps = ViewProps & {
   scrollTarget: string;
   compact: boolean;
   dark: boolean;
+  primaryColor: string;
   onTabSelect: (event: NativeSyntheticEvent<{ index: number; identifier: string }>) => void;
   onDockHeight: (event: NativeSyntheticEvent<{ height: number }>) => void;
 };
@@ -31,6 +32,7 @@ export default function CYLDock(props: CYLDockProps) {
       selectedIndex={props.selectedIndex}
       compact={props.compact}
       dark={props.dark}
+      primaryColor={props.primaryColor}
       routeKey={props.routeKey}
       scrollTarget={props.scrollTarget ?? ''}
       onTabSelect={({ nativeEvent }) => props.onSelect(nativeEvent.index, nativeEvent.identifier)}

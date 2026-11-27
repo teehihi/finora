@@ -13,6 +13,7 @@ public final class FinoraCYLDockModule: Module {
       Prop("dark") { (view, dark: Bool) in
         view.overrideUserInterfaceStyle = dark ? .dark : .light
       }
+      Prop("primaryColor") { (view, color: UIColor?) in view.setPrimaryColor(color) }
       Prop("compact") { (view, compact: Bool) in view.setCompact(compact) }
       Prop("routeKey") { (view, route: String) in view.setRoute(route) }
       Prop("scrollTarget") { (view, target: String) in view.setScrollTarget(target) }
@@ -35,6 +36,7 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
   private var swipeStart: Int?
   private var compactRequested = false
   private var compact = false
+  private var primaryColor: UIColor?
   private lazy var dockPan: UIPanGestureRecognizer = {
     let gesture = UIPanGestureRecognizer(target: self, action: #selector(handleDockPan(_:)))
     gesture.minimumNumberOfTouches = 1
@@ -66,6 +68,7 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
       self.onTabSelect(["index": index, "identifier": identifier])
     }
     bar.preferredHeightDidChange = { [weak self] height in
+      self?.applyTabPresentation()
       self?.onDockHeight(["height": Double(height)])
       // Keep the full-height inset stable even when the host is visually compact.
       if self?.previousScroll == nil { self?.scheduleBinding() }
@@ -95,6 +98,7 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
     // Assign bounds/center, not frame, while the host has a transform.
     bar.bounds = CGRect(origin: .zero, size: bounds.size)
     bar.center = CGPoint(x: bounds.midX, y: bounds.midY)
+    applyTabPresentation()
     if compact { bar.transform = compactTransform }
   }
 
@@ -127,7 +131,13 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
   }
 
   private var compactTransform: CGAffineTransform {
-    let scale: CGFloat = 0.85
+    // Aim for 80%, but retain a normal-sized tab target in shorter or
+    // narrower layouts. The horizontal allowance covers both platter edges.
+    let width = max(1, bounds.width)
+    let fullHeight = bar.preferredHeight > 0 ? bar.preferredHeight : bounds.height
+    let itemHeight = max(1, fullHeight - safeAreaInsets.bottom)
+    let minScale = max((CGFloat(Self.tabs.count) * 44 + 40) / width, 44 / itemHeight)
+    let scale = min(1, max(0.80, minScale))
     let lowerAnchor = max(0, bounds.height / 2 - safeAreaInsets.bottom)
     return CGAffineTransform(translationX: 0, y: lowerAnchor * (1 - scale))
       .scaledBy(x: scale, y: scale)
@@ -139,7 +149,11 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
       !traitCollection.preferredContentSizeCategory.isAccessibilityCategory
     guard next != compact else { return }
     compact = next
-    let layout = { self.bar.transform = next ? self.compactTransform : .identity }
+    let layout = {
+      self.applyTabPresentation()
+      self.bar.transform = next ? self.compactTransform : .identity
+      self.bar.layoutIfNeeded()
+    }
     if UIAccessibility.isReduceMotionEnabled || window == nil {
       UIView.performWithoutAnimation(layout)
     } else {
@@ -147,6 +161,27 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
         withDuration: 0.30, delay: 0, usingSpringWithDamping: 0.86, initialSpringVelocity: 0,
         options: [.beginFromCurrentState, .allowUserInteraction], animations: layout
       )
+    }
+  }
+
+  func setPrimaryColor(_ color: UIColor?) {
+    primaryColor = color
+    applyTabPresentation()
+  }
+
+  private func applyTabPresentation() {
+    guard let controller = bar.tabBarController,
+          let pages = controller.viewControllers,
+          pages.count == titles.count else { return }
+    if let primaryColor, controller.tabBar.tintColor != primaryColor {
+      // Target the selected item, not the system glass background.
+      controller.tabBar.tintColor = primaryColor
+    }
+    for (page, title) in zip(pages, titles) {
+      let item: UITabBarItem? = page.tabBarItem
+      let displayTitle = compact ? "" : title
+      if item?.title != displayTitle { item?.title = displayTitle }
+      if item?.accessibilityLabel != title { item?.accessibilityLabel = title }
     }
   }
 
@@ -277,7 +312,8 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
     clearBinding()
     let items = zip(Self.tabs, titles).map { tab, title in
       [
-        "CYLTabBarItemIdentifier": tab.0, "CYLTabBarItemTitle": title,
+        "CYLTabBarItemIdentifier": tab.0, "CYLTabBarItemTitle": compact ? "" : title,
+        "CYLTabBarItemAccessibilityLabel": title,
         "CYLTabBarItemImage": "system:" + tab.1, "CYLTabBarItemSelectedImage": "system:" + tab.2
       ]
     }
@@ -287,6 +323,7 @@ final class FinoraCYLDockView: ExpoView, UIGestureRecognizerDelegate {
       "CYLTabBarControllerTabButtonTapAnimation": UIAccessibility.isReduceMotionEnabled ? "none" : "scale",
       "CYLTabBarControllerTabBarItemsAttributes": items
     ]
+    applyTabPresentation()
     scheduleBinding()
   }
 }

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { dark, light } from '@finora/design-tokens';
 import type { ReactElement } from 'react';
 import type { CYLDockProps } from '../src/components/CYLDock';
 
@@ -42,7 +43,7 @@ describe('CYL native selection', () => {
     expect(dock.cylDockAvailable).toBe(false);
   });
 
-  it('wires native selection and safe-area-inclusive height only with an installed pilot', () => {
+  it('wires native selection and safe-area-inclusive height with a compatible bridge', () => {
     const pilot = load({ isLiquidGlassActive: true });
     expect(pilot.view).toHaveBeenCalledWith('FinoraCYLDock');
     const props: CYLDockProps = {
@@ -51,6 +52,7 @@ describe('CYL native selection', () => {
       scrollTarget: 'finora-cyl-primary-scroll:/loans',
       compact: true,
       dark: false,
+      primaryColor: light.primary,
       selectedIndex: 3,
       titles: ['Home', 'Explore', 'AI', 'Loans', 'Profile'],
       onHeight: jest.fn(),
@@ -59,6 +61,7 @@ describe('CYL native selection', () => {
     const element = pilot.default(props) as ReactElement<{
       selectedIndex: number;
       compact: boolean;
+      primaryColor: string;
       routeKey: string;
       scrollTarget: string;
       onTabSelect: (event: { nativeEvent: { index: number; identifier: string } }) => void;
@@ -66,16 +69,20 @@ describe('CYL native selection', () => {
     }>;
     expect(element.props.selectedIndex).toBe(3);
     expect(element.props.compact).toBe(true);
+    expect(element.props.primaryColor).toBe(light.primary);
     expect(element.props.routeKey).toBe('/loans');
     expect(element.props.scrollTarget).toBe('finora-cyl-primary-scroll:/loans');
     const composer = pilot.default({
       ...props,
       routeKey: '/assistant',
+      dark: true,
+      primaryColor: dark.primary,
       compact: false,
       scrollTarget: undefined,
     }) as typeof element;
     expect(composer.props.scrollTarget).toBe('');
     expect(composer.props.compact).toBe(false);
+    expect(composer.props.primaryColor).toBe(dark.primary);
     element.props.onTabSelect({ nativeEvent: { index: 2, identifier: 'ai' } });
     expect(props.onSelect).toHaveBeenCalledWith(2, 'ai');
     for (const height of [NaN, 0, -1, 92.5])
