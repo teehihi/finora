@@ -128,14 +128,28 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
     return Math.abs(reflections!.y + reflections!.height - (card!.y + card!.height / 2));
   };
   await expect.poll(measureAnchorGap).toBeLessThan(3);
-  const fixedArt = await backdrop.boundingBox();
+  const restArt = (await backdrop.boundingBox())!;
   await page.screenshot({ path: info.outputPath('02-home-390.png') });
+
+  await scroll.evaluate((node) => {
+    node.scrollTop = 84;
+  });
+  await expect.poll(async () => (await backdrop.boundingBox())!.y).toBeCloseTo(restArt.y - 84, 0);
+  await expect.poll(measureAnchorGap).toBeLessThan(3);
+  await page.screenshot({ path: info.outputPath('02b-home-scrolled-390.png') });
+  await scroll.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await expect.poll(async () => (await backdrop.boundingBox())!.y).toBeCloseTo(restArt.y, 0);
 
   const refresh = page.getByRole('button', { name: 'Làm mới dữ liệu' });
   pause();
   await refresh.click();
   await expect(page.getByTestId('task-refresh-indicator').first()).toBeVisible();
-  expect(await backdrop.boundingBox()).toEqual(fixedArt);
+  await scroll.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await expect.poll(() => backdrop.boundingBox()).toEqual(restArt);
   await expect(checkout).toBeVisible();
   await expect(
     page.getByRole('heading', { name: amount ?? '', exact: true }).first(),

@@ -369,6 +369,7 @@ export default function Workspace() {
       value={showCYL ? cylHeight + 5 : showDock ? dockHeight + dockOffset + 5 : 0}
     >
       <SafeAreaView
+        testID="workspace-safe-area"
         edges={{
           top: showHomeBackdrop ? 'off' : 'additive',
           right: 'additive',
@@ -377,7 +378,7 @@ export default function Workspace() {
         }}
         style={{
           flex: 1,
-          backgroundColor: rail ? c.surface : c.background,
+          backgroundColor: rail || inSearch ? c.surface : c.background,
         }}
       >
         <KeyboardAvoidingView
@@ -388,7 +389,7 @@ export default function Workspace() {
             ref={blurTarget}
             style={{
               flex: 1,
-              backgroundColor: c.background,
+              backgroundColor: inSearch ? c.surface : c.background,
               flexDirection: rail ? 'row' : 'column',
             }}
           >
@@ -487,7 +488,9 @@ export default function Workspace() {
                   screenOptions={({ route }) => ({
                     headerShown: false,
                     ...workspaceMotion(route.name, reduceMotion, Platform.OS),
-                    contentStyle: { backgroundColor: c.background },
+                    contentStyle: {
+                      backgroundColor: route.name === 'search' ? c.surface : c.background,
+                    },
                   })}
                 />
               </CYLScrollContext.Provider>

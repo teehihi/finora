@@ -1,8 +1,8 @@
-import { Image, StyleSheet, View } from 'react-native';
+import { Animated, Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import riverside from '../../assets/brand/home-saigon.jpg';
 
-/** Full-bleed photo stays in the screen, not in the refreshable scroll surface. */
+/** Follow positive scroll, but never the negative offset of pull-to-refresh. */
 export function HomeBackdrop({
   night,
   height,
@@ -10,6 +10,7 @@ export function HomeBackdrop({
   cardTop,
   statusInset,
   surface,
+  scrollY,
 }: {
   night: boolean;
   height: number;
@@ -17,6 +18,7 @@ export function HomeBackdrop({
   cardTop: number;
   statusInset: number;
   surface: string;
+  scrollY: Animated.Value;
 }) {
   // Keep the canopy and skyline above the card. Stretch the reflection band
   // independently so the panorama can fade at the card midpoint.
@@ -24,16 +26,21 @@ export function HomeBackdrop({
   const skylineHeight = Math.min(cardTop - 4, statusInset + width * 0.405);
   const skylinePhotoHeight = skylineHeight / reflectionStart;
   const waterPhotoHeight = (height - skylineHeight) / (1 - reflectionStart);
-  const fadeTop = Math.max(skylineHeight, cardTop + 6);
+  const fadeTop = Math.max(skylineHeight, cardTop + (height - cardTop) * 0.32);
+  const translateY = scrollY.interpolate({
+    inputRange: [0, height],
+    outputRange: [0, -height],
+    extrapolate: 'clamp',
+  });
 
   return (
-    <View
+    <Animated.View
       testID="home-fixed-backdrop"
       pointerEvents="none"
       accessible={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.backdrop, { height, backgroundColor: surface }]}
+      style={[styles.backdrop, { height, transform: [{ translateY }] }]}
     >
       <View style={[styles.layer, styles.clip, { top: 0, height: skylineHeight }]}>
         <Image
@@ -62,7 +69,7 @@ export function HomeBackdrop({
           <Defs>
             <LinearGradient id="finora-photo-bottom" x1="0%" y1="0%" x2="0%" y2="100%">
               <Stop offset="0" stopColor={surface} stopOpacity="0" />
-              <Stop offset=".45" stopColor={surface} stopOpacity=".74" />
+              <Stop offset=".45" stopColor={surface} stopOpacity=".28" />
               <Stop offset="1" stopColor={surface} />
             </LinearGradient>
           </Defs>
@@ -74,11 +81,11 @@ export function HomeBackdrop({
           <Svg width="100%" height="100%">
             <Defs>
               <LinearGradient id="finora-photo-status" x1="0%" y1="0%" x2="0%" y2="100%">
-                <Stop offset="0" stopColor="#14251B" stopOpacity=".70" />
+                <Stop offset="0" stopColor="#14251B" stopOpacity=".63" />
                 <Stop
                   offset={statusInset / (statusInset + 24)}
                   stopColor="#14251B"
-                  stopOpacity=".64"
+                  stopOpacity=".58"
                 />
                 <Stop offset="1" stopColor="#14251B" stopOpacity="0" />
               </LinearGradient>
@@ -87,7 +94,7 @@ export function HomeBackdrop({
           </Svg>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
