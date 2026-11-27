@@ -759,10 +759,14 @@ function Block({
       return (
         <View
           style={{
-            padding: 12,
-            backgroundColor: value.kind === 'missing' ? c.secondary : c.elevated,
-            borderRadius: 13,
-            gap: 4,
+            paddingHorizontal: 13,
+            paddingVertical: 10,
+            backgroundColor: c.surface,
+            borderRadius: 16,
+            borderTopLeftRadius: 5,
+            borderWidth: 1,
+            borderColor: c.border,
+            gap: 5,
           }}
         >
           <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center' }}>
@@ -771,7 +775,7 @@ function Block({
             ) : (
               <Info size={16} color={c.primary} />
             )}
-            <Text small bold style={{ color: value.kind === 'missing' ? c.warning : c.primary }}>
+            <Text bold style={{ color: value.kind === 'missing' ? c.warning : c.primary }}>
               {t(value.kind === 'missing' ? 'intelligenceMissing' : 'intelligenceNotice')}
             </Text>
           </View>

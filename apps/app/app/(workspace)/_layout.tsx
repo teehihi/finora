@@ -91,7 +91,11 @@ export default function Workspace() {
   const rail = width >= tokens.breakpoints.rail;
   const full = width >= tokens.breakpoints.desktop;
   const inSearch = path === '/search';
-  const showHomeBackdrop = !rail && path === '/home';
+  const edgeToEdge =
+    !rail &&
+    (path === '/home' ||
+      path === '/intelligence' ||
+      (path === '/assistant' && search.mode !== 'legacy'));
   const showDock = !rail && !keyboardVisible && !inSearch;
   const activeIndex = Math.max(
     0,
@@ -371,7 +375,7 @@ export default function Workspace() {
       <SafeAreaView
         testID="workspace-safe-area"
         edges={{
-          top: showHomeBackdrop ? 'off' : 'additive',
+          top: edgeToEdge ? 'off' : 'additive',
           right: 'additive',
           bottom: showCYL ? 'off' : 'additive',
           left: 'additive',
