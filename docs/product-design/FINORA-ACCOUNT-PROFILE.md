@@ -6,6 +6,13 @@
 - Không thêm chỉnh tên, số điện thoại hay hạng hội viên. Không dùng ảnh hoặc thông tin cá nhân từ ảnh tham chiếu trong mã hay dữ liệu kiểm thử.
 - Mỗi màn con hỗ trợ đi lùi và truy cập bằng đường dẫn nội bộ được cho phép; không đặt email hoặc dữ liệu cá nhân trong URL.
 
+## Các mục bên dưới thẻ tài khoản
+
+- **Mục chính:** Sức khỏe tài chính hiển thị tổng quan từ hồ sơ đã lưu, không chấm điểm tín dụng. Tài liệu của tôi và Lịch sử mô phỏng mở trực tiếp các luồng sẵn có.
+- **Cài đặt:** các mục Cá nhân hóa Finora AI và Thông báo và nhắc nợ hiển thị `Chưa hỗ trợ`, không nhận dữ liệu hay bật cài đặt giả.
+- **Hỗ trợ:** Trung tâm hỗ trợ dẫn đến các tính năng liên quan; Về Finora và chân trang hiển thị phiên bản từ cấu hình app. Gửi phản hồi chưa có kênh cấu hình. Khoản vay đã lưu chưa có hệ thống lưu sản phẩm riêng, nên không dùng danh sách mô phỏng thay thế.
+- Không thay ảnh bìa, thẻ tài khoản, bố cục Hồ sơ cá nhân, giao diện đổi avatar hay thanh điều hướng. Không thêm endpoint hoặc migration ở thay đổi danh mục này.
+
 ## Đồng bộ ảnh đại diện
 
 Trong **Hồ sơ cá nhân**, bấm biểu tượng máy ảnh để mở thư viện hệ thống ngay, xem lại trong bảng mở từ dưới rồi bấm **Lưu ảnh**. Chọn hoặc hủy không tự tải ảnh lên. Ảnh gắn với tài khoản đang đăng nhập, không gửi đến trợ lý AI hay dùng cho quyết định tín dụng. API kiểm tra JPEG/PNG tối đa 5 MB, cắt ảnh vuông 512 px, mã hóa lại JPEG và bỏ metadata gốc, kể cả GPS. PostgreSQL chỉ lưu mã đối tượng; API đọc và ghi theo phiên, không tạo URL công khai cho ảnh.

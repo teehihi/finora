@@ -1,9 +1,18 @@
 import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
-import { Redirect, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import Constants from 'expo-constants';
 import { useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
-import { Banknote, Globe2, LockKeyhole, Moon, ShieldCheck } from 'lucide-react-native';
+import {
+  Banknote,
+  Calculator,
+  Globe2,
+  LockKeyhole,
+  Moon,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react-native';
 import {
   Text,
   Heading,
@@ -16,8 +25,8 @@ import {
   useDesign,
 } from '@finora/ui';
 import { profileSchema, type Profile, type Preferences } from '@finora/contracts';
-import { getAccessStrings } from '@finora/i18n';
-import { backTo, Data } from '../../../src/components/layout';
+import { getAccessStrings, profileMenuCopy } from '@finora/i18n';
+import { backTo, Data, LinkRow } from '../../../src/components/layout';
 import { SignatureIcon } from '../../../src/components/signature';
 import { AccountIdentity } from '../../../src/components/AccountIdentity';
 import {
@@ -186,11 +195,15 @@ function ProfileSection({ section }: { section: AccountSection }) {
   const { palette: p } = useProfileChrome();
   const user = session.data?.user;
   const name = user?.name?.trim() || t('accountMember');
+  const copy = profileMenuCopy[locale];
   const title = {
     personal: vi ? 'Hồ sơ cá nhân' : 'Personal profile',
     finance: t('finance'),
     preferences: t('settingsPreferences'),
     privacy: t('privacy'),
+    health: copy.health,
+    help: copy.help,
+    about: copy.about,
   }[section];
   return (
     <AccountScroll detail={{ title, back: () => backTo('/profile') }}>
@@ -286,6 +299,65 @@ function ProfileSection({ section }: { section: AccountSection }) {
               </>
             )}
           </Data>
+        </Panel>
+      ) : null}
+      {section === 'health' ? (
+        <Panel>
+          <Text small muted>
+            {copy.healthNote}
+          </Text>
+          <Data q={a}>
+            {(data) =>
+              data.profile ? (
+                <ProfileInsights profile={data.profile} readiness={data.readiness} />
+              ) : (
+                <Text>{copy.healthEmpty}</Text>
+              )
+            }
+          </Data>
+          <Button
+            variant="outline"
+            label={t('finance')}
+            onPress={() => router.push('/profile/finance')}
+          />
+        </Panel>
+      ) : null}
+      {section === 'help' ? (
+        <Panel>
+          <LinkRow
+            title={copy.helpFinance}
+            body={copy.helpFinanceNote}
+            icon={<Banknote size={18} color={c.primary} />}
+            onPress={() => router.push('/profile/finance')}
+          />
+          <LinkRow
+            title={copy.helpSimulations}
+            body={copy.helpSimulationsNote}
+            icon={<Calculator size={18} color={c.primary} />}
+            onPress={() => router.push({ pathname: '/loans', params: { pane: 'simulations' } })}
+          />
+          <LinkRow
+            title={copy.helpFin}
+            body={copy.helpFinNote}
+            icon={<Sparkles size={18} color={c.primary} />}
+            onPress={() => router.push('/assistant')}
+          />
+          <LinkRow
+            title={copy.helpAccount}
+            body={copy.helpAccountNote}
+            icon={<ShieldCheck size={18} color={c.primary} />}
+            onPress={() => router.push('/profile/personal')}
+          />
+        </Panel>
+      ) : null}
+      {section === 'about' ? (
+        <Panel title="Finora">
+          <Text>{copy.aboutDescription}</Text>
+          {Constants.expoConfig?.version ? (
+            <Text small muted>
+              {copy.version} {Constants.expoConfig.version}
+            </Text>
+          ) : null}
         </Panel>
       ) : null}
       {section === 'preferences' ? (
