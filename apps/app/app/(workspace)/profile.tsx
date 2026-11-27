@@ -181,6 +181,11 @@ export default function ProfileScreen() {
     mutationFn: api.preferences,
     onSuccess: (p) => {
       set(p);
+      if (uid) {
+        queryClient.setQueryData<NonNullable<typeof a.data>>(['account', uid], (current) =>
+          current ? { ...current, preferences: p } : current,
+        );
+      }
       void queryClient.invalidateQueries({ queryKey: ['account'] });
     },
   });

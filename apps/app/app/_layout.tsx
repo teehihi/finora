@@ -1,6 +1,8 @@
 import '../global.css';
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { dark } from '@finora/design-tokens';
 import * as SplashScreen from 'expo-splash-screen';
 import { LaunchScene } from '../src/components/LaunchScene';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -16,6 +18,10 @@ import { useDesign } from '@finora/ui';
 if (Platform.OS !== 'web') void SplashScreen.preventAutoHideAsync().catch(() => {});
 function releaseNativeSplash() {
   if (Platform.OS !== 'web') void SplashScreen.hideAsync().catch(() => {});
+}
+function AppStatusBar() {
+  const { colors } = useDesign();
+  return <StatusBar style={colors === dark ? 'light' : 'dark'} />;
 }
 function Routes() {
   const { colors } = useDesign();
@@ -38,7 +44,10 @@ export default function Layout() {
   return (
     <GestureHandlerRootView onLayout={releaseNativeSplash} style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <Providers>{loaded || error ? <Routes /> : <LaunchScene />}</Providers>
+        <Providers>
+          <AppStatusBar />
+          {loaded || error ? <Routes /> : <LaunchScene />}
+        </Providers>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

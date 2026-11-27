@@ -13,7 +13,6 @@ import { Stack, Redirect, router, useGlobalSearchParams, usePathname } from 'exp
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurTargetView } from 'expo-blur';
-import { StatusBar } from 'expo-status-bar';
 import {
   House,
   ChevronRight,
@@ -25,6 +24,7 @@ import {
 } from 'lucide-react-native';
 import { useDesign, Text, Eyebrow, Action, Avatar, ErrorState } from '@finora/ui';
 import { LaunchScene } from '../../src/components/LaunchScene';
+import { homeHeaderTopColor } from '../../src/features/home-header-theme';
 import { Logo, WorkspaceDockInsetContext } from '../../src/components/layout';
 import {
   DockChrome,
@@ -369,9 +369,15 @@ export default function Workspace() {
     >
       <SafeAreaView
         edges={showCYL ? ['top', 'right', 'left'] : ['top', 'right', 'bottom', 'left']}
-        style={{ flex: 1, backgroundColor: rail ? c.surface : c.background }}
+        style={{
+          flex: 1,
+          backgroundColor: rail
+            ? c.surface
+            : path === '/home'
+              ? homeHeaderTopColor(c === dark)
+              : c.background,
+        }}
       >
-        <StatusBar style={c === dark ? 'light' : 'dark'} />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}

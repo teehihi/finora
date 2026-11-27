@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import { dark } from '@finora/design-tokens';
+import { homeHeaderTopColor } from './home-header-theme';
 import { ChevronRight, Search } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { Action, Dialog, Field, Heading, Text, useDesign } from '@finora/ui';
 import { homeCopy } from '@finora/i18n';
 import { searchHomeServices } from './home-search-model';
 
-export function HomeSearch({ greeting }: { greeting: string }) {
+export function HomeSearch({ greeting, gutter }: { greeting: string; gutter: number }) {
   const { colors: c, locale } = useDesign();
   const copy = homeCopy(locale);
   const [open, setOpen] = useState(false);
@@ -19,65 +22,66 @@ export function HomeSearch({ greeting }: { greeting: string }) {
   return (
     <View
       style={{
-        borderRadius: 24,
-        paddingHorizontal: 18,
-        paddingVertical: 15,
+        marginHorizontal: -gutter,
+        paddingHorizontal: gutter,
+        paddingTop: gutter ? 7 : 0,
         gap: 12,
-        backgroundColor: c.forest,
-        overflow: 'hidden',
       }}
     >
-      <View
-        accessible={false}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          right: -58,
-          top: -95,
-          width: 220,
-          height: 220,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        {[220, 176, 132, 88].map((size) => (
-          <View
-            key={size}
-            style={{
-              position: 'absolute',
-              width: size,
-              height: size,
-              borderWidth: 1,
-              borderColor: c.signatureLime,
-              opacity: 0.24,
-              borderRadius: size / 2,
-            }}
-          />
-        ))}
-      </View>
-      <Heading size={22} style={{ color: c.onForest }}>
-        {greeting}
-      </Heading>
+      {gutter === 0 && <Heading size={28}>{greeting}</Heading>}
+      {gutter > 0 && (
+        <View
+          pointerEvents="none"
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={StyleSheet.absoluteFill}
+        >
+          <Svg width="100%" height="100%" viewBox="0 0 390 108" preserveAspectRatio="none">
+            <Defs>
+              <LinearGradient id="mastheadWash" x1="0%" y1="0%" x2="0%" y2="100%">
+                <Stop offset="0" stopColor={homeHeaderTopColor(c === dark)} />
+                <Stop offset=".48" stopColor={c === dark ? '#203A2E' : '#E8F5DE'} />
+                <Stop offset="1" stopColor={c.surface} />
+              </LinearGradient>
+            </Defs>
+            <Rect width="390" height="108" fill="url(#mastheadWash)" />
+            {[0, 1, 2, 3, 4].map((n) => (
+              <Path
+                key={n}
+                d={`M ${175 + n * 10} 85 C 250 80, 288 ${26 + n * 6}, 405 ${34 + n * 7}`}
+                fill="none"
+                stroke={c === dark ? '#66A47D' : '#6CA965'}
+                strokeWidth=".85"
+                opacity={0.15}
+              />
+            ))}
+          </Svg>
+        </View>
+      )}
       <Action
         label={copy.search}
         onPress={() => setOpen(true)}
         style={{
           minHeight: 46,
+          maxWidth: gutter ? undefined : 600,
           borderRadius: 24,
-          backgroundColor: c.surface,
+          backgroundColor: c === dark ? '#243C31' : '#FFFFFF',
+          borderWidth: 1,
+          borderColor: c === dark ? '#44634E' : '#C3DDC0',
+          justifyContent: 'flex-start',
           paddingHorizontal: 15,
           gap: 10,
           flexDirection: 'row',
           alignItems: 'center',
         }}
       >
-        <Search color={c.primary} size={19} />
-        <Text small muted>
+        <Search color={c === dark ? '#BFE5C1' : '#386F49'} size={20} strokeWidth={2.2} />
+        <Text style={{ fontSize: 15, color: c === dark ? '#D0E5D4' : '#41584A' }}>
           {copy.searchHint}
         </Text>
       </Action>
+      {gutter > 0 && <Heading size={23}>{greeting}</Heading>}
       <Dialog bottom visible={open} title={copy.search} onClose={close}>
         {open && (
           <>
