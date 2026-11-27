@@ -18,6 +18,7 @@ import { useAccount } from '../../src/providers/AppProviders';
 import { useRepaymentLedger } from '../../src/features/repayments';
 import { useWorkspaceDockInset } from '../../src/components/layout';
 import { TaskData } from '../../src/components/task-surface';
+import { HomeSearch } from '../../src/features/home-search';
 import { HomeFocus } from '../../src/features/home-focus';
 import {
   HomeActivityRow,
@@ -60,7 +61,7 @@ export default function Home() {
   };
   const tools = <HomeTools />;
   const focus = (
-    <TaskData query={ledger} missing={cashflow.dataError}>
+    <TaskData query={ledger} kind="hero" missing={cashflow.dataError}>
       {(value) => <HomeFocus ledger={value} />}
     </TaskData>
   );
@@ -133,15 +134,17 @@ export default function Home() {
       }}
     >
       <View style={{ width: '100%', maxWidth: 1120, gap: desktop ? 23 : 17 }}>
-        <Heading size={mobile ? 29 : 31}>
-          {mobile
-            ? firstName
-              ? (vi ? 'Chào, ' : 'Hello, ') + firstName
-              : t('greet')
-            : user?.name?.trim()
-              ? t('greet') + ', ' + user.name.trim() + '.'
-              : t('greet') + '!'}
-        </Heading>
+        <HomeSearch
+          greeting={
+            mobile
+              ? firstName
+                ? (vi ? 'Chào, ' : 'Hello, ') + firstName
+                : t('greet')
+              : user?.name?.trim()
+                ? t('greet') + ', ' + user.name.trim() + '.'
+                : t('greet') + '!'
+          }
+        />
         <View style={{ flexDirection: desktop ? 'row' : 'column', gap: desktop ? 44 : 24 }}>
           <View style={{ flex: desktop ? 1.2 : undefined, minWidth: 0, gap: desktop ? 23 : 17 }}>
             {focus}

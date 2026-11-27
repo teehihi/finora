@@ -122,3 +122,29 @@ test('Home stress sheet compares real profile cash flow without saving a change'
   const refreshed = await context.request.get(api + '/account');
   expect((await refreshed.json()).profile).toMatchObject(profile);
 });
+
+test('Home search finds local tools without accents and resets after cancel', async ({
+  context,
+  page,
+}) => {
+  const account = await createLegacyAccount(context.request, {
+    email: randomUUID() + '@example.test',
+    name: 'An',
+    password: randomUUID(),
+  });
+  expect(account.ok()).toBeTruthy();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/home');
+  const launcher = page.getByRole('button', { name: 'Tìm tiện ích', exact: true });
+  await launcher.click();
+  const dialog = page.getByRole('dialog');
+  const field = dialog.getByRole('textbox');
+  await field.fill('xyz');
+  await expect(dialog.getByText(/Không có tiện ích phù hợp/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Đóng' }).click();
+  await launcher.click();
+  await expect(field).toHaveValue('');
+  await field.fill('hop dong');
+  await dialog.getByRole('button', { name: 'Đọc hợp đồng' }).click();
+  await expect(page).toHaveURL(/\/documents\/?$/);
+});

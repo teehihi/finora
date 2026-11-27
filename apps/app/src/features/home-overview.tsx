@@ -4,11 +4,7 @@ import {
   Activity,
   ArrowRight,
   ArrowUpRight,
-  CalendarDays,
-  Calculator,
   ChevronRight,
-  Columns2,
-  FileScan,
   WalletCards,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -21,6 +17,11 @@ import { TaskData } from '../components/task-surface';
 import { SignatureIcon } from '../components/signature';
 import { homeCashFlow, homeStressPreview, type HomeStress } from './home-model';
 import fin from '../../assets/brand/fin-assistant.png';
+
+import simulateArt from '../../assets/home/simulate.png';
+import scheduleArt from '../../assets/home/schedule.png';
+import compareArt from '../../assets/home/compare.png';
+import contractArt from '../../assets/home/contract.png';
 
 const amountInk: TextStyle = { fontVariant: ['tabular-nums'] };
 
@@ -303,16 +304,10 @@ export function HomeTools() {
   const copy = homeCopy(locale);
   const vi = locale === 'vi-VN';
   const entries = [
-    [copy.simulate, vi ? 'Mô phỏng' : 'Simulate', '/simulate/personal-flex', Calculator, 'emerald'],
-    [copy.repayments, vi ? 'Lịch trả' : 'Schedule', '/repayments', CalendarDays, 'blue'],
-    [
-      copy.compare,
-      vi ? 'So sánh' : 'Compare',
-      '/explore?mode=sample&intent=compare',
-      Columns2,
-      'violet',
-    ],
-    [copy.documents, vi ? 'Hợp đồng' : 'Contracts', '/documents', FileScan, 'amber'],
+    [copy.simulate, vi ? 'Mô phỏng' : 'Simulate', '/simulate/personal-flex', simulateArt],
+    [copy.repayments, vi ? 'Lịch trả' : 'Schedule', '/repayments', scheduleArt],
+    [copy.compare, vi ? 'So sánh' : 'Compare', '/explore?mode=sample&intent=compare', compareArt],
+    [copy.documents, vi ? 'Hợp đồng' : 'Contracts', '/documents', contractArt],
   ] as const;
   return (
     <HomeSection
@@ -321,7 +316,7 @@ export function HomeTools() {
       onPress={() => router.navigate('/explore')}
     >
       <View style={{ flexDirection: 'row', flexWrap: large ? 'wrap' : 'nowrap', gap: 4 }}>
-        {entries.map(([label, visible, href, Icon, tone]) => (
+        {entries.map(([label, visible, href, art]) => (
           <Action
             key={href}
             label={label}
@@ -338,7 +333,12 @@ export function HomeTools() {
               borderRadius: 12,
             }}
           >
-            <SignatureIcon icon={Icon} tone={tone} size={44} style={{ borderRadius: 22 }} />
+            <Image
+              source={art}
+              accessible={false}
+              resizeMode="contain"
+              style={{ width: 48, height: 48 }}
+            />
             <Text small bold style={{ fontSize: 12, lineHeight: 16, textAlign: 'center' }}>
               {visible}
             </Text>

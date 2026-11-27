@@ -1,17 +1,11 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, View, useWindowDimensions } from 'react-native';
 import { Redirect, router, useLocalSearchParams, type Href } from 'expo-router';
-import {
-  ArrowRight,
-  ArrowUpRight,
-  LockKeyhole,
-  MailCheck,
-  ShieldCheck,
-  WifiOff,
-} from 'lucide-react-native';
+import { ArrowRight, ArrowUpRight, MailCheck, ShieldCheck, WifiOff } from 'lucide-react-native';
 import { z } from 'zod';
 import { getAccessStrings, type Key } from '@finora/i18n';
 import { Action, Button, Field, Heading, Text, useDesign } from '@finora/ui';
+import { LaunchScene } from '../src/components/LaunchScene';
 import { PublicPage } from '../src/components/layout';
 import { SignatureIcon } from '../src/components/signature';
 import { ResendCode, VerificationField, resendDelay } from '../src/features/auth/Verification';
@@ -227,29 +221,7 @@ export default function Auth() {
   const title = step === 'code' ? 'authCodeTitle' : 'signIn';
   const verificationInvalid =
     error === 'authCodeNeedSix' || error === 'authCodeAttempts' || error === 'authCodeInvalid';
-  if (session.isPending && !busy && !restoring && step === 'email') {
-    return (
-      <PublicPage auth>
-        <View
-          style={{
-            flex: 1,
-            minHeight: 300,
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
-          <SignatureIcon icon={LockKeyhole} tone="lime" size={53} />
-          <ActivityIndicator color={c.primary} />
-          <View accessibilityLiveRegion="polite">
-            <Text muted small>
-              {t('authChecking')}
-            </Text>
-          </View>
-        </View>
-      </PublicPage>
-    );
-  }
+  if (session.isPending && !busy && !restoring && step === 'email') return <LaunchScene checking />;
 
   if (restoring) {
     return (

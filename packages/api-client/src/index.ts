@@ -1,3 +1,5 @@
+import { withReadDeadline } from './read-deadline';
+export { ReadDeadlineError, withReadDeadline } from './read-deadline';
 import type {
   AccountData,
   Product,
@@ -32,14 +34,20 @@ export function createApi(
   transport: typeof fetch = fetch,
 ) {
   async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
-    const r = await transport(base + '/api/' + path, {
-      method,
-      credentials: 'include',
-      headers: { ...headers(), ...(body ? { 'Content-Type': 'application/json' } : {}) },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (!r.ok) throw new ApiError(r.status);
-    return r.json() as Promise<T>;
+    async function read(signal?: AbortSignal) {
+      const r = await transport(base + '/api/' + path, {
+        method,
+        signal,
+        credentials: 'include',
+        headers: { ...headers(), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!r.ok) throw new ApiError(r.status);
+      return (await r.json()) as T;
+    }
+    // Mutations and streams have their own completion and reconciliation
+    // semantics. Never silently time out a write and prompt a duplicate.
+    return method === 'GET' ? withReadDeadline(read) : read();
   }
   return {
     account: () => request<AccountData & { readiness: Readiness | null }>('account'),

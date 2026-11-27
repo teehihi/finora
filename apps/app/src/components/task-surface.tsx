@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Animated, Platform, View } from 'react-native';
-import { AlertCircle, RefreshCw } from 'lucide-react-native';
+import { AlertCircle, RefreshCw, ScanLine } from 'lucide-react-native';
 import { Action, Text, useDesign } from '@finora/ui';
 
-type LoadState = {
-  isError: boolean;
-  isFetching: boolean;
+import { canShowReadData, type ReadSnapshot } from './read-state';
+import { SignatureIcon } from './signature';
+
+export type LoadState = ReadSnapshot & {
   refetch: () => unknown;
 };
 
@@ -39,7 +40,7 @@ function useMotionAllowed() {
   return allowed;
 }
 
-function usePulse() {
+export function usePulse() {
   const motion = useMotionAllowed();
   const opacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -69,6 +70,73 @@ function usePulse() {
   return opacity;
 }
 
+// Never delay a response. This only adds reassurance if a real request stays pending.
+function useSlowRequest(pending: boolean) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    setSlow(false);
+    if (!pending) return;
+    const timer = setTimeout(() => setSlow(true), 3500);
+    return () => clearTimeout(timer);
+  }, [pending]);
+  return pending && slow;
+}
+
+export function DocumentProcessing({ title, detail }: { title: string; detail: string }) {
+  const { colors: c, t } = useDesign();
+  const opacity = usePulse();
+  const slow = useSlowRequest(true);
+  return (
+    <View
+      accessibilityLiveRegion="polite"
+      accessibilityState={{ busy: true }}
+      testID="document-processing"
+      style={{
+        alignItems: 'center',
+        gap: 8,
+        padding: 20,
+        overflow: 'hidden',
+        borderRadius: 20,
+        backgroundColor: c.surface,
+      }}
+    >
+      <View
+        pointerEvents="none"
+        accessible={false}
+        style={{
+          position: 'absolute',
+          bottom: -35,
+          width: '110%',
+          height: 48,
+          borderRadius: 100,
+          backgroundColor: c.secondary,
+        }}
+      />
+      <SignatureIcon icon={ScanLine} size={44} />
+      <Text bold style={{ textAlign: 'center' }}>
+        {title}
+      </Text>
+      <Text small muted style={{ textAlign: 'center', maxWidth: 320 }}>
+        {slow ? t('documentProcessingSlow') : detail}
+      </Text>
+      <View
+        accessible={false}
+        style={{
+          width: 40,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: c.secondary,
+          alignItems: 'center',
+        }}
+      >
+        <Animated.View
+          style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: c.primary, opacity }}
+        />
+      </View>
+    </View>
+  );
+}
+
 export function TaskSkeleton({ kind = 'hero' }: { kind?: 'hero' | 'rows' }) {
   const { colors: c, locale } = useDesign();
   const opacity = usePulse();
@@ -82,11 +150,11 @@ export function TaskSkeleton({ kind = 'hero' }: { kind?: 'hero' | 'rows' }) {
         padding: 16,
         borderRadius: hero ? 19 : 15,
         backgroundColor: hero ? c.secondary : c.surface,
-        minHeight: hero ? 169 : 87,
+        minHeight: hero ? 204 : 87,
       }}
     >
       <Animated.View
-        style={{ opacity, gap: 9 }}
+        style={{ opacity, gap: hero ? 13 : 9 }}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
@@ -160,14 +228,27 @@ export function TaskNotice({
   missing?: string;
 }) {
   const { colors: c, locale, t } = useDesign();
-  if (query.isFetching) return stale ? <RefreshIndicator /> : null;
-  if (!query.isError) return null;
+  const slow = useSlowRequest(!stale && query.isFetching);
+  const paused = query.fetchStatus === 'paused';
+  if (!paused && query.isFetching) {
+    if (stale) return <RefreshIndicator />;
+    return slow ? (
+      <View accessibilityLiveRegion="polite" testID="task-slow-notice">
+        <Text small muted>
+          {t('readSlow')}
+        </Text>
+      </View>
+    ) : null;
+  }
+  if (!query.isError && !paused) return null;
   const vi = locale === 'vi-VN';
-  const label = stale
-    ? vi
-      ? 'Chưa cập nhật được. Đang hiển thị dữ liệu lần gần nhất.'
-      : 'Could not refresh. Showing the last available data.'
-    : (missing ?? (vi ? 'Chưa tải được mục này.' : 'This section could not be loaded.'));
+  const label = paused
+    ? t(stale ? 'readPausedCached' : 'readPaused')
+    : stale
+      ? vi
+        ? 'Chưa cập nhật được. Đang hiển thị dữ liệu lần gần nhất.'
+        : 'Could not refresh. Showing the last available data.'
+      : (missing ?? (vi ? 'Chưa tải được mục này.' : 'This section could not be loaded.'));
   return (
     <View
       style={{
@@ -183,15 +264,17 @@ export function TaskNotice({
       <Text small role="alert" style={{ color: c.actionAmber, flex: 1, paddingVertical: 8 }}>
         {label}
       </Text>
-      <Action
-        label={t('retry')}
-        onPress={() => void query.refetch()}
-        style={{ paddingHorizontal: 4 }}
-      >
-        <Text small bold style={{ color: c.primary }}>
-          {t('retry')}
-        </Text>
-      </Action>
+      {!paused && (
+        <Action
+          label={t('retry')}
+          onPress={() => void query.refetch()}
+          style={{ paddingHorizontal: 6, minWidth: 44, minHeight: 44, justifyContent: 'center' }}
+        >
+          <Text small bold style={{ color: c.primary }}>
+            {t('retry')}
+          </Text>
+        </Action>
+      )}
     </View>
   );
 }
@@ -207,13 +290,14 @@ export function TaskData<T>({
   missing?: string;
   children: (value: T) => ReactNode;
 }) {
+  const visible = canShowReadData(query);
   return (
     <View style={{ gap: 8 }}>
-      {query.data === undefined && (query.isFetching || !query.isError) ? (
+      {!visible && query.fetchStatus !== 'paused' && (query.isFetching || !query.isError) ? (
         <TaskSkeleton kind={kind} />
       ) : null}
-      <TaskNotice query={query} stale={query.data !== undefined} missing={missing} />
-      {query.data !== undefined ? children(query.data) : null}
+      <TaskNotice query={query} stale={visible} missing={missing} />
+      {visible && query.data !== undefined ? children(query.data) : null}
     </View>
   );
 }

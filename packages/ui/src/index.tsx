@@ -18,6 +18,9 @@ import { Check, ChevronDown, Search, X } from 'lucide-react-native';
 import { light, tokens } from '@finora/design-tokens';
 import { translate, currency, type Locale, type Key } from '@finora/i18n';
 
+import { overlayMotion, useReducedMotion } from './motion';
+export { overlayMotion, useReducedMotion } from './motion';
+
 export const DesignContext = createContext({ colors: light, locale: 'vi-VN' as Locale });
 export function useDesign() {
   const ctx = useContext(DesignContext);
@@ -533,6 +536,7 @@ export function Dialog({
   bottom?: boolean;
 }) {
   const { colors: c, t } = useDesign();
+  const reduced = useReducedMotion();
   // React Native Web owns the focus trap and the outer dialog role.
   const webLabel = Platform.OS === 'web' ? { 'aria-label': title } : {};
   return (
@@ -541,7 +545,7 @@ export function Dialog({
       visible={visible}
       transparent
       onRequestClose={onClose}
-      animationType="none"
+      animationType={overlayMotion(bottom, reduced, Platform.OS)}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

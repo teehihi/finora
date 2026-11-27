@@ -1,3 +1,4 @@
+import { withReadDeadline } from '@finora/api-client';
 import { Platform } from 'react-native';
 import { fetch as expoFetch } from 'expo/fetch';
 import {
@@ -18,9 +19,11 @@ function init(signal: AbortSignal) {
 }
 
 export async function loadIntelligenceHistory(signal: AbortSignal) {
-  const response = await transport(`${base}/api/intelligence/history`, init(signal));
-  if (!response.ok) throw new Error('History unavailable');
-  return intelligenceHistorySchema.parse(await response.json());
+  return withReadDeadline(async (readSignal) => {
+    const response = await transport(`${base}/api/intelligence/history`, init(readSignal));
+    if (!response.ok) throw new Error('History unavailable');
+    return intelligenceHistorySchema.parse(await response.json());
+  }, signal);
 }
 
 export async function streamIntelligence(
@@ -84,14 +87,16 @@ export async function streamIntelligence(
 }
 
 export async function loadIntelligenceStatus(signal: AbortSignal) {
-  const response = await transport(`${base}/api/intelligence/status`, init(signal));
-  if (!response.ok) throw new Error('Status unavailable');
-  const body: unknown = await response.json();
-  if (typeof body !== 'object' || !body || !('provider' in body))
-    throw new Error('Invalid intelligence status');
-  if (body.provider !== 'mock' && body.provider !== 'openai')
-    throw new Error('Invalid intelligence provider');
-  return body.provider;
+  return withReadDeadline(async (readSignal) => {
+    const response = await transport(`${base}/api/intelligence/status`, init(readSignal));
+    if (!response.ok) throw new Error('Status unavailable');
+    const body: unknown = await response.json();
+    if (typeof body !== 'object' || !body || !('provider' in body))
+      throw new Error('Invalid intelligence status');
+    if (body.provider !== 'mock' && body.provider !== 'openai')
+      throw new Error('Invalid intelligence provider');
+    return body.provider;
+  }, signal);
 }
 
 export async function saveIntelligenceScenario(
