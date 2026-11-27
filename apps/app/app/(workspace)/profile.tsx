@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { useRef, useState, type ComponentRef, type ReactNode, type Ref } from 'react';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
@@ -11,7 +11,6 @@ import {
   LogOut,
   Moon,
   ShieldCheck,
-  UserRound,
 } from 'lucide-react-native';
 import {
   Text,
@@ -27,8 +26,14 @@ import {
 import { profileSchema, type Profile, type Preferences } from '@finora/contracts';
 import { getAccessStrings } from '@finora/i18n';
 import { Page, Data } from '../../src/components/layout';
-import { SignatureSweep } from '../../src/components/signature';
+import { SignatureIcon } from '../../src/components/signature';
 import { AccountIdentity } from '../../src/components/AccountIdentity';
+import {
+  ProfileCover,
+  ProfileShortcuts,
+  type AccountSection,
+} from '../../src/features/profile-account-hub';
+import { workspaceArtwork } from '../../src/components/workspace-artwork';
 import { ProfileInsights } from '../../src/features/profile-insights';
 import { clearIntelligenceHistory } from '../../src/features/intelligence/transport';
 import { api, auth } from '../../src/services/client';
@@ -110,15 +115,19 @@ function FinancialForm({ profile }: { profile: Profile | null }) {
 function Panel({
   title,
   icon: Icon,
+  anchorRef,
   children,
 }: {
   title?: string;
   icon?: typeof Banknote;
+  anchorRef?: Ref<ComponentRef<typeof View>>;
   children: ReactNode;
 }) {
   const { colors: c } = useDesign();
   return (
     <View
+      ref={anchorRef}
+      collapsable={!anchorRef}
       style={{
         gap: 15,
         backgroundColor: c.surface,
@@ -130,20 +139,7 @@ function Panel({
     >
       {title ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {Icon ? (
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 11,
-                backgroundColor: c.secondary,
-              }}
-            >
-              <Icon size={18} color={c.primary} />
-            </View>
-          ) : null}
+          {Icon ? <SignatureIcon icon={Icon} size={38} /> : null}
           <Heading size={21}>{title}</Heading>
         </View>
       ) : null}
@@ -209,51 +205,38 @@ export default function ProfileScreen() {
     }
   }
   const name = session.data?.user.name?.trim() || t('accountMember');
-  const initial = (name[0] || 'F').toLocaleUpperCase(locale);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const content = useRef<ComponentRef<typeof View>>(null);
+  const finance = useRef<ComponentRef<typeof View>>(null);
+  const identity = useRef<ComponentRef<typeof View>>(null);
+  const preferences = useRef<ComponentRef<typeof View>>(null);
+  const privacy = useRef<ComponentRef<typeof View>>(null);
+  const open = (id: AccountSection) => {
+    const reference = content.current;
+    if (!reference) return;
+    const panel = { finance, identity, preferences, privacy }[id].current;
+    panel?.measureLayout(reference, (_x, y) => {
+      scroll.current?.scrollTo({ y: Math.max(0, y - 4), animated: false });
+    });
+  };
   return (
-    <Page title={t('profileTitle')} description={t('settingsIntro')} showDescriptionOnPhone={false}>
-      <View
-        style={{
-          borderRadius: 24,
-          backgroundColor: c.forest,
-          overflow: 'hidden',
-          padding: 18,
-          gap: 11,
-          alignItems: 'center',
-          flexDirection: 'row',
-        }}
-      >
-        <SignatureSweep name="finora-profile-identity" />
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            borderRadius: 23,
-            width: 46,
-            height: 46,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: c.signatureLime,
-          }}
-        >
-          <Text bold style={{ color: c.signatureInk, fontSize: 22, lineHeight: 29 }}>
-            {initial}
-          </Text>
-        </View>
-        <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
-          <Text style={{ color: c.onForestMuted }} small>
-            {t('account')}
-          </Text>
-          <Text bold style={{ color: c.onForest, fontSize: 18 }}>
-            {name}
-          </Text>
-        </View>
-        <UserRound size={20} color={c.onForestMuted} />
-      </View>
-
+    <Page
+      title={t('profileTitle')}
+      scrollRef={scroll}
+      contentRef={content}
+      header={
+        <ProfileCover
+          image={workspaceArtwork.profile}
+          title={t('profileTitle')}
+          name={name}
+          verified={session.data?.user.emailVerified === true}
+        />
+      }
+    >
+      <ProfileShortcuts open={open} />
       <View style={{ flexDirection: desktop ? 'row' : 'column', alignItems: 'stretch', gap: 16 }}>
         <View style={{ flex: desktop ? 1.1 : undefined, minWidth: 0, gap: 15 }}>
-          <Panel title={t('finance')} icon={Banknote}>
+          <Panel title={t('finance')} icon={Banknote} anchorRef={finance}>
             <Text small muted>
               {t('financeHint')}
             </Text>
@@ -284,7 +267,7 @@ export default function ProfileScreen() {
               )}
             </Data>
           </Panel>
-          <Panel>
+          <Panel anchorRef={identity}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Fingerprint size={19} color={c.primary} />
               <Text bold style={{ color: c.primary }}>
@@ -296,7 +279,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ flex: desktop ? 0.9 : undefined, minWidth: 0, gap: 15 }}>
-          <Panel title={t('settingsPreferences')} icon={Moon}>
+          <Panel title={t('settingsPreferences')} icon={Moon} anchorRef={preferences}>
             <View style={{ gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                 <Globe2 size={15} color={c.muted} />
@@ -334,7 +317,7 @@ export default function ProfileScreen() {
             ) : null}
           </Panel>
 
-          <Panel title={t('privacy')} icon={LockKeyhole}>
+          <Panel title={t('privacy')} icon={LockKeyhole} anchorRef={privacy}>
             <Text muted small>
               {t('privacyText')}
             </Text>

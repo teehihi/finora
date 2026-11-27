@@ -18,6 +18,11 @@ import { Heading, Text, useDesign, Action, Button, Eyebrow } from '@finora/ui';
 import { tokens } from '@finora/design-tokens';
 import { usePrefs } from '../providers/AppProviders';
 import { useCYLScrollTarget } from './cyl-scroll-target';
+import {
+  WorkspaceBackButton,
+  WorkspaceScene,
+  type WorkspaceSceneIdentity,
+} from './workspace-scene';
 export function Logo({ small = false }: { small?: boolean }) {
   const { colors: c } = useDesign();
   return (
@@ -133,6 +138,9 @@ export function Page({
   style,
   scrollRef,
   detail,
+  scene,
+  header,
+  contentRef,
   showDescriptionOnPhone = true,
 }: {
   children: React.ReactNode;
@@ -143,6 +151,9 @@ export function Page({
   style?: ViewStyle;
   scrollRef?: React.Ref<React.ComponentRef<typeof ScrollView>>;
   showDescriptionOnPhone?: boolean;
+  scene?: WorkspaceSceneIdentity;
+  header?: React.ReactNode;
+  contentRef?: React.Ref<React.ComponentRef<typeof View>>;
   detail?: { onBack: () => void; action?: React.ReactNode };
 }) {
   const { width } = useWindowDimensions();
@@ -156,11 +167,16 @@ export function Page({
     <>
       {compact && detail ? (
         <View
+          testID="workspace-detail-chrome"
           style={{
-            backgroundColor: c.surface,
+            backgroundColor: c.elevated,
             borderColor: c.border,
-            borderBottomWidth: 1,
-            paddingHorizontal: 12,
+            borderWidth: 1,
+            borderRadius: 23,
+            marginHorizontal: 12,
+            marginTop: 5,
+            paddingHorizontal: 4,
+            paddingVertical: 3,
             minHeight: 54,
             flexDirection: 'row',
             alignItems: 'center',
@@ -168,13 +184,9 @@ export function Page({
             gap: 6,
           }}
         >
-          <Action
-            label={t('back')}
-            onPress={detail.onBack}
-            style={{ width: 44, height: 44, alignItems: 'center' }}
-          >
-            <ArrowLeft size={20} color={c.foreground} />
-          </Action>
+          <WorkspaceBackButton label={t('back')} onPress={detail.onBack}>
+            <ArrowLeft size={19} color={c.primary} />
+          </WorkspaceBackButton>
           <View style={{ flex: 1, minWidth: 0, paddingVertical: 6 }}>
             <Heading size={17} style={{ textAlign: 'center' }}>
               {title}
@@ -195,11 +207,15 @@ export function Page({
             : tablet
               ? tokens.layout.tabletGutter
               : tokens.layout.gutter,
-          paddingTop: tablet ? 28 : compact ? 12 : 18,
+          paddingTop: tablet ? 26 : compact ? 12 : 13,
           paddingBottom: dockInset + 28,
         }}
       >
-        <View style={[{ width: '100%', maxWidth, gap: tablet ? 25 : compact ? 12 : 19 }, style]}>
+        <View
+          ref={contentRef}
+          collapsable={!contentRef}
+          style={[{ width: '100%', maxWidth, gap: tablet ? 22 : compact ? 12 : 13 }, style]}
+        >
           {tablet && detail ? (
             <View
               style={{
@@ -212,7 +228,18 @@ export function Page({
               {detail.action}
             </View>
           ) : null}
-          {!compact ? (
+          {header !== undefined ? (
+            header
+          ) : scene ? (
+            <View style={{ gap: 9 }}>
+              <WorkspaceScene title={title} identity={scene} desktop={desktop} />
+              {description && (tablet || showDescriptionOnPhone) ? (
+                <Text small muted style={{ maxWidth: tokens.layout.reading }}>
+                  {description}
+                </Text>
+              ) : null}
+            </View>
+          ) : !compact ? (
             <View style={{ gap: 6 }}>
               {eyebrow ? <Eyebrow tone="forest">{eyebrow}</Eyebrow> : null}
               <Heading size={desktop ? 38 : 29}>{title}</Heading>
@@ -239,7 +266,17 @@ export function Back({ to }: { to: () => void }) {
     <Action
       label={t('back')}
       onPress={to}
-      style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6 }}
+      style={{
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 7,
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: c.border,
+        backgroundColor: c.surface,
+        paddingHorizontal: 12,
+      }}
     >
       <ArrowLeft size={17} color={c.muted} />
       <Text small muted>

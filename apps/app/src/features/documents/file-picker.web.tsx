@@ -40,10 +40,10 @@ export function PrivateFilePicker({
       />
       <Button
         label={label}
-        variant="onForest"
+        variant="primary"
         loading={busy}
         disabled={busy}
-        leading={<Upload size={17} color={c.forest} />}
+        leading={<Upload size={17} color={c.onPrimary} />}
         onPress={() => picker.current?.click()}
       />
     </>

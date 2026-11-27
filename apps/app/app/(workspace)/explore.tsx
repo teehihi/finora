@@ -7,17 +7,18 @@ import {
   Text,
   Choices,
   SearchInput,
-  SegmentedControl,
   BottomSheet,
   Dialog,
   Button,
   EmptyState,
   useDesign,
 } from '@finora/ui';
-import { ArrowUpRight, Calculator, SlidersHorizontal } from 'lucide-react-native';
+import { ArrowUpRight, Calculator, Compass, SlidersHorizontal } from 'lucide-react-native';
 import { numeric, percent } from '@finora/i18n';
 import { api } from '../../src/services/client';
 import { Page, Data } from '../../src/components/layout';
+import { workspaceArtwork } from '../../src/components/workspace-artwork';
+import { WorkspaceModeRail } from '../../src/components/workspace-scene';
 import { SignatureIcon } from '../../src/components/signature';
 import { LoanProductCard, ProductComparison } from '../../src/features/catalog';
 import { PublicCatalogView } from '../../src/features/public-catalog';
@@ -30,17 +31,25 @@ import {
 } from '../../src/features/catalog-model';
 
 export default function Explore() {
-  const { t } = useDesign();
+  const { t, locale } = useDesign();
+  const vi = locale === 'vi-VN';
   const params = useLocalSearchParams<{ mode?: string; intent?: string }>();
   const mode = params.mode === 'sample' ? 'sample' : 'public';
   return (
     <Page
       title={t('catalog')}
-      showDescriptionOnPhone={false}
       description={t(mode === 'public' ? 'publicCatalogIntro' : 'catalogIntro')}
+      showDescriptionOnPhone={false}
+      scene={{
+        image: workspaceArtwork.discover,
+        label: vi ? 'FINORA · Tìm và so sánh' : 'FINORA · Find and compare',
+        icon: Compass,
+        subtitle: vi ? 'Tra cứu trước khi ra quyết định' : 'Know your options before deciding',
+      }}
     >
-      <SegmentedControl
+      <WorkspaceModeRail
         value={mode}
+        label={t('catalog')}
         onChange={(value) => router.setParams({ mode: value })}
         options={[
           { value: 'public', label: t('publicCatalog') },
@@ -67,19 +76,16 @@ function PersonalTerms() {
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: c.surface,
+        backgroundColor: c.secondary,
         borderWidth: 1,
         borderColor: c.border,
-        borderRadius: 14,
-        gap: 9,
-        padding: 9,
+        borderRadius: 19,
+        gap: 11,
+        padding: 11,
       }}
     >
-      <SignatureIcon icon={Calculator} size={32} tone="emerald" />
+      <SignatureIcon icon={Calculator} size={39} style={{ backgroundColor: c.surface }} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text small muted>
-          {locale === 'vi-VN' ? 'Điều khoản cá nhân' : 'Personal loan terms'}
-        </Text>
         <Text bold style={{ color: c.primary }}>
           {label}
         </Text>
