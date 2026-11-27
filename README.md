@@ -1,10 +1,51 @@
-# Finora
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/app/assets/brand/lockup-night.png">
+    <img src="apps/app/assets/brand/lockup.png" alt="Finora" width="190">
+  </picture>
+</p>
 
-**Vay thông minh, trả chủ động.** FINORA là trợ thủ khoản vay dành cho người dùng Việt Nam: so sánh chi phí, xem trước từng kỳ trả, đọc và rà soát điều khoản trong hồ sơ vay, rồi theo dõi các kỳ đến hạn.
+<h1 align="center">Vay thông minh, trả chủ động.</h1>
 
-FINORA dùng Expo cho iOS, Android và web; API dùng NestJS, Better Auth và PostgreSQL. Bản local mặc định dùng trợ lý mô phỏng có nhãn rõ ràng và bốn sản phẩm mẫu tổng hợp. Đây không phải dịch vụ cho vay, không nhận hồ sơ xin vay và không đưa ra quyết định tín dụng.
+<p align="center">
+  Hiểu mình sẽ trả bao nhiêu trước khi vay.<br>
+  Theo dõi từng kỳ và chuẩn bị dòng tiền sau khi vay.
+</p>
 
-[Chạy trên máy](#chạy-trên-máy) · [Đóng góp](CONTRIBUTING.md) · [Báo lỗi bảo mật](SECURITY.md) · [Giấy phép và tài sản](docs/maintainers/LICENSING.md)
+<p align="center">
+  <a href="#giao-diện">Giao diện</a> ·
+  <a href="#luồng-dùng-thử">Luồng dùng thử</a> ·
+  <a href="#chạy-trên-máy">Chạy trên máy</a> ·
+  <a href="#mã-nguồn-và-tài-liệu">Tài liệu kỹ thuật</a>
+</p>
+
+---
+
+FINORA là trợ thủ khoản vay dành cho người dùng Việt Nam. Bạn có thể đối chiếu điều kiện công bố, nhập điều khoản của mình để tính lịch trả, rồi lưu phương án hoặc theo dõi kỳ đến hạn. **FINORA không cấp tín dụng, không nhận hồ sơ xin vay và không quyết định duyệt vay.**
+
+## Giao diện
+
+|                                                                                    Khám phá                                                                                    |                                                                                       Khoản vay                                                                                       |                                                                                         Hồ sơ                                                                                          |
+| :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| [<img src="docs/product-design/media/explore-390-light.jpg" width="225" alt="Màn Khám phá với thư viện khoản vay và bộ lọc">](docs/product-design/media/explore-390-light.jpg) | [<img src="docs/product-design/media/loans-390-light.jpg" width="225" alt="Màn Khoản vay với kỳ sắp đến và lối vào bản đồ dòng tiền">](docs/product-design/media/loans-390-light.jpg) | [<img src="docs/product-design/media/profile-390-light.jpg" width="225" alt="Màn Hồ sơ có ảnh bìa và các lối tắt quản lý tài khoản">](docs/product-design/media/profile-390-light.jpg) |
+
+_Ảnh chụp từ bản Expo Web ở chiều rộng 390 px, dùng dữ liệu kiểm thử. Bấm ảnh để xem nguyên kích thước._
+
+<details>
+<summary>Xem thêm Tổng quan và Chat với Fin</summary>
+<br>
+<p>
+  <a href="docs/product-design/media/home-390-reference.jpg"><img src="docs/product-design/media/home-390-reference.jpg" width="225" alt="Màn Tổng quan"></a>
+  <a href="docs/product-design/media/fin-390-reference.jpg"><img src="docs/product-design/media/fin-390-reference.jpg" width="225" alt="Màn trò chuyện với Fin"></a>
+</p>
+</details>
+
+## Luồng dùng thử
+
+1. **Tìm và đối chiếu.** Mở **Khám phá** để xem điều kiện công bố và nguồn gốc thông tin. Danh mục sản phẩm mẫu được tách riêng để thử mô phỏng.
+2. **Tính từng kỳ.** Chọn sản phẩm mẫu hoặc nhập điều khoản của bạn. Kiểm tra số tiền, lãi suất, kỳ hạn và ngày trả đầu tiên, rồi chọn **Tính lịch trả nợ**. Phí chưa biết không được coi là bằng 0.
+3. **Theo dõi khi đã có khoản vay.** Lưu bản mô phỏng vào **Khoản vay**. Bản lưu không tự tạo nghĩa vụ trả nợ. Khi cần, bạn có thể chủ động đưa khoản vay vào sổ theo dõi hoặc mở bản đồ dòng tiền 90 ngày.
+4. **Hỏi Fin hoặc rà soát giấy tờ.** Dùng Fin để giải thích bản tính. Khi đọc tài liệu, kiểm tra và xác nhận điều khoản trước khi dùng chúng để mô phỏng lại.
 
 ## Chạy trên máy
 
@@ -21,12 +62,6 @@ pnpm dev
 **Dùng đúng `pnpm run setup`.** Cú pháp `pnpm setup` là lệnh tích hợp để cấu hình shell của pnpm. Script của Finora tạo các file môi trường còn thiếu, sinh secret ngẫu nhiên, chờ PostgreSQL healthy, khởi động Mailpit, sinh Prisma Client, áp dụng migration và upsert bốn sản phẩm. Chạy lại giữ dữ liệu và cấu hình hiện có. Nếu tự sao chép file mẫu, đặt `BETTER_AUTH_SECRET` thành secret ngẫu nhiên ít nhất 32 ký tự trước khi chạy API.
 
 Mở [Expo Web](http://localhost:8081), [tình trạng API](http://localhost:3000/health) hoặc [Swagger](http://localhost:3000/docs). Nhập email thử nghiệm (ví dụ `finora-demo@example.test`) rồi mở [Mailpit](http://127.0.0.1:8025) để lấy mã đăng nhập. Mailpit chỉ nhận thư cục bộ. Người dùng đã có mật khẩu vẫn có thể dùng phương thức cũ. [Hướng dẫn OTP, Google và liên kết tài khoản](docs/architecture/AUTHENTICATION.md).
-
-1. Mở **Hồ sơ**, nhập thu nhập, chi phí và tiền trả nợ hằng tháng bằng VND.
-2. Trong **Khám phá**, chọn một sản phẩm mẫu và mở **Mô phỏng trả nợ**.
-3. Điều chỉnh số tiền, kỳ hạn, lãi suất và ngày đầu tiên. Nhấn **Tính lịch trả nợ** để xem chi tiết.
-4. Chọn **Lưu bản mô phỏng**. Bạn có thể đăng nhập lại và mở bản đã lưu trong **Khoản vay**.
-5. Chọn **Giải thích cùng Finora AI** để nhận lời giải thích cục bộ từ dữ liệu bản tính.
 
 ### Cấu hình mạng
 
@@ -67,24 +102,16 @@ CYL và `@callstack/liquid-glass` là native module nên dùng development build
 
 Để chạy E2E từ bản build, hoàn thành setup và build, chạy `pnpm exec playwright install chromium`, rồi `pnpm test:e2e`. Bài test đọc PDF cần `pdftotext` trong `PATH` (Ubuntu/Debian: `sudo apt-get install poppler-utils`; macOS: `brew install poppler`). Kiểm tra bằng `pdftotext -v`. CI tự cài trình đọc này; OCR cho ảnh là tùy chọn riêng. Có thể dùng Chrome sẵn có bằng `FINORA_BROWSER_CHANNEL=chrome pnpm test:e2e`. Khi hai cổng trống, cấu hình Playwright tự khởi động API và máy chủ web tĩnh có hỗ trợ deep link. Khi đang phát triển, bộ test có thể dùng các tiến trình đã chạy trên cùng cổng. E2E ghi tài khoản và fixture tổng hợp vào **database phát triển**. CI dùng volume mới trên runner.
 
-### Mã nguồn và tài liệu
+## Mã nguồn và tài liệu
 
-- `apps/app` chứa Expo Router, ứng dụng di động và React Native Web. Mở `/showcase` trên web để xem trang giới thiệu FINORA. Ứng dụng vẫn mở màn đăng nhập khi chưa có phiên.
-- `apps/api` chứa NestJS, Better Auth, kiểm tra quyền, lưu trữ private và trợ lý SSE.
-- `packages` chứa hợp đồng Zod, bộ tính, Prisma, API client, bản dịch, design token và thành phần giao diện.
-- [Kiến trúc](docs/architecture/ARCHITECTURE.md) · [Cơ sở dữ liệu](docs/architecture/DATABASE.md) · [Trợ lý AI](docs/architecture/AI_ARCHITECTURE.md) · [Công thức](docs/architecture/CALCULATIONS.md).
-- [Phạm vi MVP](docs/product/MVP_SCOPE.md) · [Thương hiệu](docs/design-system/BRAND_GUIDELINES.md) · [Kết quả kiểm tra](docs/VERIFICATION.md).
+| Thành phần | Công nghệ và nhiệm vụ                                                                                                                          |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/app` | Expo Router và React Native cho iOS, Android và web. Bản web có trang giới thiệu tại `/showcase`; app mặc định mở đăng nhập nếu chưa có phiên. |
+| `apps/api` | NestJS, Better Auth và PostgreSQL; xử lý phiên, phân quyền, lưu trữ tài liệu riêng và luồng trả lời của Fin.                                   |
+| `packages` | Hợp đồng Zod, bộ tính khoản vay, Prisma, API client, bản dịch và thư viện giao diện.                                                           |
 
-[GitHub Actions](https://github.com/teehihi/finora/actions/workflows/ci.yml) chạy kiểm định dạng, lint, typecheck, unit test, build và E2E. [Hướng dẫn maintainers](docs/maintainers/GITHUB.md) ghi các trường About và cấu hình review đề xuất.
+Bản local dùng bốn sản phẩm tổng hợp và trợ lý chạy ở chế độ cục bộ mặc định. Chế độ AI bên ngoài phải được cấu hình trên máy chủ và cần sự đồng ý cho từng câu hỏi. [Kiến trúc Fin và ranh giới dữ liệu](docs/architecture/INTELLIGENCE.md).
 
-### Intelligence 3.0
-
-[Run the local Vietnamese borrowing demo and see the data boundaries](docs/architecture/INTELLIGENCE.md).
-Public lender terms are sourced and separate from the sample catalog. AI uses a
-clearly labeled local mode by default; external interpretation is optional,
-server-configured and requires consent for each question. No service deployment
-or lender application is part of the demo.
-
-### Consumer Fintech 4.0
-
-[Xem hướng thiết kế, bản thử và bằng chứng kiểm tra giao diện](docs/design-system/FINORA_V4.md).
+- **Kỹ thuật:** [Kiến trúc](docs/architecture/ARCHITECTURE.md) · [Cơ sở dữ liệu](docs/architecture/DATABASE.md) · [Công thức](docs/architecture/CALCULATIONS.md) · [Kết quả kiểm tra](docs/VERIFICATION.md)
+- **Sản phẩm và thiết kế:** [Phạm vi MVP](docs/product/MVP_SCOPE.md) · [Thương hiệu](docs/design-system/BRAND_GUIDELINES.md) · [Bộ ảnh giao diện](docs/product-design/FINORA-UI-COHESION.md) · [Consumer Fintech 4.0](docs/design-system/FINORA_V4.md)
+- **Đóng góp:** [Quy trình PR](CONTRIBUTING.md) · [GitHub Actions](https://github.com/teehihi/finora/actions/workflows/ci.yml) · [Hướng dẫn maintainer](docs/maintainers/GITHUB.md) · [Báo lỗi bảo mật](SECURITY.md) · [Giấy phép và tài sản](docs/maintainers/LICENSING.md)
