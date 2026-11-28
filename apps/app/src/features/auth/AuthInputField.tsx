@@ -25,6 +25,7 @@ export function AuthInputField({
         {label}
       </Text>
       <View
+        testID="finora-auth-input-group"
         style={{
           minHeight: 56,
           flexDirection: 'row',

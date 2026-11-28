@@ -127,3 +127,13 @@ the external Google account handoff were not exercised here.
   Native rendering and owner UAT remain pending.
 - Full lint, typecheck, test and web build passed. No native-device or auth
   E2E run was needed for this layout-only change.
+
+## Pass 11 · Remove browser focus outline on desktop · 28 November 2026
+
+- Removed the browser's blue focus outline from auth inputs at desktop widths.
+  The surrounding Finora focus border remains as the field's focus indicator;
+  mobile and native styling are unchanged.
+- Reviewed the focused email field in Chromium at 1440px. The blue outline is
+  gone and the Finora field border remains visible. Full lint, typecheck, test
+  and web build passed; mobile/native styling is unaffected by the desktop-only
+  media rule.
