@@ -137,3 +137,13 @@ the external Google account handoff were not exercised here.
   gone and the Finora field border remains visible. Full lint, typecheck, test
   and web build passed; mobile/native styling is unaffected by the desktop-only
   media rule.
+
+## Pass 12 · Login focus motion · 28 November 2026
+
+- On narrow screens, focusing the email or password field now lifts the brand
+  and introduction by 22px over 110ms before the keyboard-driven layout shift.
+  The input remains in normal keyboard-avoidance flow, while the header returns
+  when focus leaves or the keyboard closes. Desktop focus behavior is unchanged.
+- The typecheck passed. Chromium visual review could not run because the local
+  Expo web server did not open its port in this environment. Native keyboard
+  timing and owner UAT remain pending.

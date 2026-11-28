@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Platform, View, useWindowDimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Image,
+  Keyboard,
+  Platform,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { Redirect, useLocalSearchParams, type Href } from 'expo-router';
 import { ArrowRight, LockKeyhole, Mail, MailCheck } from 'lucide-react-native';
 import { z } from 'zod';
@@ -26,14 +35,7 @@ import finVerification from '../assets/brand/fin-verification.png';
 
 type Step = 'email' | 'code' | 'password' | 'totp';
 type Pending =
-  | 'request'
-  | 'resend'
-  | 'verify'
-  | 'password'
-  | 'google'
-  | 'passkey'
-  | 'reconnect'
-  | 'restore';
+  'request' | 'resend' | 'verify' | 'password' | 'google' | 'passkey' | 'reconnect' | 'restore';
 const emailSchema = z.email().max(254);
 
 export default function Auth() {
@@ -45,6 +47,8 @@ export default function Auth() {
   const passkey = passkeyCopy[locale];
   const { width } = useWindowDimensions();
   const wide = width >= 1024;
+  const authHeaderLift = useRef(new Animated.Value(0)).current;
+  const keyboardBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const session = auth.useSession();
   const methods = useIdentityOptions();
   const [step, setStep] = useState<Step>('email');
@@ -63,6 +67,61 @@ export default function Auth() {
     params.oauth === 'error' ? 'authGoogleError' : null,
   );
   const [notice, setNotice] = useState<Key | null>(null);
+
+  useEffect(() => {
+    if (width >= 768) {
+      authHeaderLift.setValue(0);
+      return;
+    }
+
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const resetHeader = () => {
+      if (keyboardBlurTimer.current) clearTimeout(keyboardBlurTimer.current);
+      Animated.timing(authHeaderLift, {
+        toValue: 0,
+        duration: 160,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web',
+      }).start();
+    };
+    const keyboardSubscription = Keyboard.addListener(hideEvent, resetHeader);
+    const viewport = Platform.OS === 'web' ? window.visualViewport : null;
+    const startingHeight = viewport?.height ?? 0;
+    const onViewportResize = () => {
+      if (viewport && viewport.height >= startingHeight - 80) resetHeader();
+    };
+    viewport?.addEventListener('resize', onViewportResize);
+
+    return () => {
+      keyboardSubscription.remove();
+      viewport?.removeEventListener('resize', onViewportResize);
+      if (keyboardBlurTimer.current) clearTimeout(keyboardBlurTimer.current);
+    };
+  }, [authHeaderLift, width]);
+
+  function prepareForKeyboard() {
+    if (width >= 768) return;
+    if (keyboardBlurTimer.current) clearTimeout(keyboardBlurTimer.current);
+    Animated.timing(authHeaderLift, {
+      toValue: 1,
+      duration: 110,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  }
+
+  function restoreHeaderAfterBlur() {
+    if (Platform.OS !== 'web') return;
+    if (keyboardBlurTimer.current) clearTimeout(keyboardBlurTimer.current);
+    keyboardBlurTimer.current = setTimeout(() => {
+      Animated.timing(authHeaderLift, {
+        toValue: 0,
+        duration: 150,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web',
+      }).start();
+    }, 160);
+  }
 
   useEffect(() => {
     if (Platform.OS !== 'web' || params.oauth !== 'complete') return;
@@ -442,8 +501,19 @@ export default function Auth() {
             paddingVertical: 12,
           }}
         >
-          <View
-            style={{ gap: 8, alignItems: step === 'code' || step === 'totp' ? 'center' : 'stretch' }}
+          <Animated.View
+            style={{
+              gap: 8,
+              alignItems: step === 'code' || step === 'totp' ? 'center' : 'stretch',
+              transform: [
+                {
+                  translateY: authHeaderLift.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -22],
+                  }),
+                },
+              ],
+            }}
           >
             {step !== 'code' ? (
               <View style={{ alignItems: 'center', gap: 1, marginBottom: 5 }}>
@@ -513,7 +583,7 @@ export default function Auth() {
                 {t(step === 'password' ? 'authPasswordIntro' : 'authWelcomeBody')}
               </Text>
             )}
-          </View>
+          </Animated.View>
 
           {step === 'totp' ? (
             <Field
@@ -564,6 +634,8 @@ export default function Auth() {
                 editable={!busy}
                 placeholder={t('authEmailPlaceholder')}
                 inputMode="email"
+                onKeyboardFocus={prepareForKeyboard}
+                onKeyboardBlur={restoreHeaderAfterBlur}
                 error={error === 'authEmailInvalid' ? t(error) : undefined}
                 onSubmitEditing={step === 'email' ? () => requestCode() : undefined}
               />
@@ -581,6 +653,8 @@ export default function Auth() {
                   autoFocus
                   maxLength={128}
                   editable={!busy}
+                  onKeyboardFocus={prepareForKeyboard}
+                  onKeyboardBlur={restoreHeaderAfterBlur}
                   error={error === 'authPasswordRequired' ? t(error) : undefined}
                   onSubmitEditing={signInPassword}
                 />
