@@ -58,7 +58,7 @@ function moneyAfterDetail(prompt: string, label: string): AmountDetail | undefin
   const r = new RegExp(
     '(?:^|[^a-z0-9])(?:' +
       label +
-      ')\\s*(?:(?:la|khoang|tam|gan|it nhat|chinh xac|about|approximately|of|:|=)\\s*)*' +
+      ')\\s*(?:(?:la|doi thanh|thay doi thanh|cap nhat thanh|khoang|tam|gan|it nhat|chinh xac|changed to|about|approximately|of|:|=)\\s*)*' +
       amountPattern,
   ).exec(prompt);
   if (!r?.[1]) return undefined;

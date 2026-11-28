@@ -95,6 +95,7 @@ describe('private deterministic intelligence', () => {
   });
   it('understands ordinary Vietnamese budget statements without treating omitted values as zero', () => {
     expect(interpret('Thu nhập của tôi là 12 triệu mỗi tháng.').income).toBe(12_000_000);
+    expect(interpret('Thu nhập của tôi đổi thành 13 triệu mỗi tháng.').income).toBe(13_000_000);
     expect(
       interpret(
         'Chi phí sinh hoạt khoảng 7 triệu, đang trả một khoản nợ khác 500 nghìn mỗi tháng.',

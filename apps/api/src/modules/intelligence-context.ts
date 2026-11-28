@@ -137,6 +137,7 @@ export function continueIntent(
     current.incomeCut !== undefined ||
     current.extraExpense !== undefined ||
     current.expenseRisePercent !== undefined ||
+    current.knownPayment !== undefined ||
     current.resetStress ||
     current.principalDelta !== undefined ||
     current.early;

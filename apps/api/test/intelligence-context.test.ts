@@ -63,6 +63,21 @@ describe('conversation-local borrowing assumptions', () => {
     });
     expect(buildProfile(summary.intent, null).missing).toEqual([]);
   });
+  it('uses the retained budget when a later turn assumes an additional monthly payment', () => {
+    const prior = interpret(
+      'Vay 20 triệu sửa xe. Thu nhập 12 triệu, chi phí 7 triệu, trả nợ 500 nghìn.',
+    );
+    const prompt = 'Giả sử trả thêm 2 triệu mỗi tháng thì còn bao nhiêu?';
+    const next = parse(prompt, [store('first', captureContext(prior))]);
+    expect(next.continues).toBe(true);
+    expect(next.intent).toMatchObject({
+      principal: 20_000_000,
+      income: 12_000_000,
+      expenses: 7_000_000,
+      debt: 500_000,
+      knownPayment: 2_000_000,
+    });
+  });
   it('keeps loan terms separate from reserve months in a three-turn consultation', () => {
     const firstPrompt = 'Tôi muốn vay 50 triệu mua xe, so sánh kỳ hạn 12 tháng và 24 tháng.';
     const secondPrompt =

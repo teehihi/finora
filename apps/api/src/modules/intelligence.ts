@@ -591,23 +591,35 @@ async function resultFor(
     const before = p.income - p.expenses - p.debt;
     const adjusted = stressBudget(p, intent)?.cashFlow ?? before;
     const after = num(adjusted - intent.knownPayment, input.locale);
+    const assumed = profileSchema.safeParse({
+      ...p,
+      debt: p.debt + intent.knownPayment,
+    });
+    const assumedDti = assumed.success
+      ? financialTools.analyzeFinancialProfile(assumed.data).debtToIncome
+      : null;
     notice(
       say(
         'Dòng tiền trước khoản trả mới là ' +
           num(before, input.locale) +
           ' ₫. Sau khoản trả mới và các thay đổi đã nêu, còn ' +
           after +
-          ' ₫/tháng.',
+          ' ₫/tháng.' +
+          (assumedDti === null
+            ? ''
+            : ` Nếu kỳ trả giả định thực sự là ${num(intent.knownPayment, input.locale)} ₫/tháng, tỷ lệ nợ trên thu nhập sẽ là ${num(assumedDti, input.locale)}%.`),
         'Cash flow before the new payment is ' +
           num(before, input.locale) +
           ' VND. After the new payment and stated changes, ' +
           after +
-          ' VND per month remains.',
+          ' VND per month remains.' +
+          (assumedDti === null
+            ? ''
+            : ` If the assumed payment is actually ${num(intent.knownPayment, input.locale)} VND per month, debt to income would be ${num(assumedDti, input.locale)}%.`),
       ),
     );
   }
   const requestedCatalog =
-    route.selected.has('searchLoanProducts') ||
     /\b(?:tim khoan vay|tra dieu kien|xem san pham vay|loan products?|search loans?|browse loans?)\b/u.test(
       normalizeVn(input.prompt),
     );
@@ -625,7 +637,6 @@ async function resultFor(
     );
   }
   const wantsMatching =
-    route.selected.has('matchLoanProducts') ||
     /\b(?:goi y|phu hop|xep hang|nen chon|so sanh khoan vay|recommend|match|suitable|best loan)\b/u.test(
       normalizeVn(input.prompt),
     );
@@ -667,8 +678,6 @@ async function resultFor(
     }
   }
   if (
-    route.selected.has('getUpcomingRepayments') ||
-    route.selected.has('monitorRepayments') ||
     /ky (thanh toan|tra no) sap toi|no den han|khoan (thanh toan|tra no) sap toi|upcoming repayments|upcoming payments|chuan bi.*tra no|thieu tien.*tra|prepare.*payment|repayment shortfall/i.test(
       normalizeVn(input.prompt),
     )
