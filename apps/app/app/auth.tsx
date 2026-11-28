@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Platform, View, useWindowDimensions } from 'react-native';
 import { Redirect, useLocalSearchParams, type Href } from 'expo-router';
 import { ArrowRight, LockKeyhole, Mail, MailCheck } from 'lucide-react-native';
 import { z } from 'zod';
 import { getAccessStrings, type Key } from '@finora/i18n';
-import { Action, Button, Heading, Text, useDesign } from '@finora/ui';
+import { Action, Button, Field, Heading, Text, useDesign } from '@finora/ui';
 import { LaunchScene } from '../src/components/LaunchScene';
 import { Logo, PublicPage } from '../src/components/layout';
 import { SignatureIcon } from '../src/components/signature';
@@ -19,10 +19,21 @@ import {
 import { auth } from '../src/services/client';
 import { GoogleAction } from '../src/features/auth/GoogleAction';
 import { AuthInputField } from '../src/features/auth/AuthInputField';
+import { passkeySupported } from '../src/services/passkey-client';
+import { passkeyCopy } from '../src/features/auth/passkey-copy';
+import { twoFactorCopy } from '../src/features/auth/two-factor-copy';
 import finVerification from '../assets/brand/fin-verification.png';
 
-type Step = 'email' | 'code' | 'password';
-type Pending = 'request' | 'resend' | 'verify' | 'password' | 'google' | 'reconnect' | 'restore';
+type Step = 'email' | 'code' | 'password' | 'totp';
+type Pending =
+  | 'request'
+  | 'resend'
+  | 'verify'
+  | 'password'
+  | 'google'
+  | 'passkey'
+  | 'reconnect'
+  | 'restore';
 const emailSchema = z.email().max(254);
 
 export default function Auth() {
@@ -30,6 +41,8 @@ export default function Auth() {
   const returnTo = allowedAuthReturn(params.returnTo);
   const { colors: c, locale, t } = useDesign();
   const copy = getAccessStrings(locale);
+  const factor = twoFactorCopy[locale];
+  const passkey = passkeyCopy[locale];
   const { width } = useWindowDimensions();
   const wide = width >= 1024;
   const session = auth.useSession();
@@ -37,6 +50,9 @@ export default function Auth() {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [recovery, setRecovery] = useState(false);
+  const [factorBackStep, setFactorBackStep] = useState<'email' | 'password'>('email');
+  const [factorError, setFactorError] = useState<string>();
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState<Pending | null>(null);
   const inFlight = useRef(false);
@@ -48,6 +64,28 @@ export default function Auth() {
   );
   const [notice, setNotice] = useState<Key | null>(null);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || params.oauth !== 'complete') return;
+    let active = true;
+    void auth.$fetch<{ required: boolean }>('/two-factor/status').then(
+      ({ data, error }) => {
+        if (!active) return;
+        if (data?.required) {
+          setFactorBackStep('email');
+          setStep('totp');
+        } else if (error) {
+          setError('authConnectionError');
+        }
+      },
+      () => {
+        if (active) setError('authConnectionError');
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [params.oauth]);
+
   if (session.data) return <Redirect href={returnTo as Href} />;
 
   async function run(work: () => Promise<void>, operation: Pending, fallback: Key) {
@@ -55,6 +93,7 @@ export default function Auth() {
     inFlight.current = true;
     setPending(operation);
     setError(null);
+    setFactorError(undefined);
     setNotice(null);
     try {
       await work();
@@ -73,8 +112,10 @@ export default function Auth() {
   function changeStep(next: Step) {
     if (inFlight.current) return;
     setError(null);
+    setFactorError(undefined);
     setNotice(null);
     setRestoring(false);
+    setRecovery(false);
     setPassword('');
     setCode('');
     setStep(next);
@@ -135,6 +176,9 @@ export default function Auth() {
         const result = await auth.signIn.emailOtp({ email, otp: code });
         if (result.error) return setError(codeFailure(result.error));
         lastDelivery.current = null;
+        if (result.data && 'twoFactorRedirect' in result.data && result.data.twoFactorRedirect) {
+          return startFactor('email');
+        }
         setRestoring(true);
         await session.refetch();
       },
@@ -165,10 +209,93 @@ export default function Auth() {
           );
         }
         setPassword('');
+        if (result.data && 'twoFactorRedirect' in result.data && result.data.twoFactorRedirect) {
+          return startFactor('password');
+        }
         setRestoring(true);
         await session.refetch();
       },
       'password',
+      'authConnectionError',
+    );
+  }
+
+  function startFactor(back: 'email' | 'password') {
+    setCode('');
+    setRecovery(false);
+    setFactorBackStep(back);
+    setStep('totp');
+  }
+
+  function cancelAuthenticator() {
+    void run(
+      async () => {
+        const result = await auth.$fetch('/two-factor/cancel', { method: 'POST' });
+        if (result.error) return setError('authGenericError');
+        setCode('');
+        setRecovery(false);
+        setStep(factorBackStep);
+      },
+      'verify',
+      'authConnectionError',
+    );
+  }
+
+  function verifyAuthenticator() {
+    if (inFlight.current) return;
+    if (recovery ? !code.trim() : !/^\\d{6}$/.test(code)) return setFactorError(factor.incorrect);
+    void run(
+      async () => {
+        const result = recovery
+          ? await auth.twoFactor.verifyBackupCode({ code: code.trim() })
+          : await auth.twoFactor.verifyTotp({ code });
+        if (result.error) {
+          const reason = result.error.code;
+          if (
+            reason === 'INVALID_TWO_FACTOR_COOKIE' ||
+            reason === 'TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE' ||
+            reason === 'ACCOUNT_TEMPORARILY_LOCKED'
+          ) {
+            setStep(factorBackStep);
+            setRecovery(false);
+            setFactorError(
+              reason === 'ACCOUNT_TEMPORARILY_LOCKED' ? factor.locked : factor.expired,
+            );
+          } else if (result.error.status === 429) {
+            setFactorError(factor.locked);
+          } else if (reason === 'INVALID_CODE' || reason === 'INVALID_BACKUP_CODE') {
+            setFactorError(factor.incorrect);
+          } else {
+            setError('authGenericError');
+          }
+          setCode('');
+          return;
+        }
+        setCode('');
+        setRestoring(true);
+        await session.refetch();
+      },
+      'verify',
+      'authConnectionError',
+    );
+  }
+
+  function signInPasskey() {
+    if (!passkeySupported(methods.data?.passkey)) return;
+    void run(
+      async () => {
+        const result = await auth.signIn.passkey();
+        if (result.error || !result.data?.session) {
+          const code = result.error && 'code' in result.error ? result.error.code : undefined;
+          setFactorError(
+            code === 'ERROR_CEREMONY_ABORTED' ? passkey.cancelled : passkey.unavailable,
+          );
+          return;
+        }
+        setRestoring(true);
+        await session.refetch();
+      },
+      'passkey',
       'authConnectionError',
     );
   }
@@ -180,14 +307,20 @@ export default function Auth() {
       async () => {
         const result = await auth.signIn.social({
           provider: 'google',
-          callbackURL: oauthCallback(returnTo),
+          callbackURL: oauthCallback(
+            `/auth?oauth=complete&returnTo=${encodeURIComponent(returnTo)}`,
+          ),
           errorCallbackURL: oauthCallback(errorPath),
         });
         if (result.error) return setError('authGoogleError');
         if (Platform.OS !== 'web') {
           // Expo's system browser can return without a session when dismissed.
           const restored = await auth.getSession();
-          if (!restored.data) return setError('authGoogleNoSession');
+          if (!restored.data) {
+            const status = await auth.$fetch<{ required: boolean }>('/two-factor/status');
+            if (status.data?.required) return startFactor('email');
+            return setError('authGoogleNoSession');
+          }
           setRestoring(true);
           await session.refetch();
         }
@@ -217,6 +350,7 @@ export default function Auth() {
   );
   const googleAvailable = methods.data?.google === true && redirectOAuthSupported;
   const emailAvailable = methods.data?.emailOtp !== false;
+  const showPasskey = step === 'email' && passkeySupported(methods.data?.passkey);
   const title =
     step === 'code' ? 'authCodeTitle' : step === 'password' ? 'authPasswordTitle' : 'authWelcome';
   const verificationInvalid =
@@ -278,7 +412,12 @@ export default function Auth() {
       auth
       authBrand={false}
       authBack={
-        step === 'email' ? undefined : { label: t('back'), onPress: () => changeStep('email') }
+        step === 'email'
+          ? undefined
+          : {
+              label: t('back'),
+              onPress: step === 'totp' ? cancelAuthenticator : () => changeStep('email'),
+            }
       }
     >
       <View
@@ -303,7 +442,9 @@ export default function Auth() {
             paddingVertical: 12,
           }}
         >
-          <View style={{ gap: 8, alignItems: step === 'code' ? 'center' : 'stretch' }}>
+          <View
+            style={{ gap: 8, alignItems: step === 'code' || step === 'totp' ? 'center' : 'stretch' }}
+          >
             {step !== 'code' ? (
               <View style={{ alignItems: 'center', gap: 1, marginBottom: 5 }}>
                 <Logo auth />
@@ -324,9 +465,9 @@ export default function Auth() {
             ) : null}
             <Heading
               size={wide ? 34 : 29}
-              style={{ textAlign: step === 'code' ? 'center' : 'left' }}
+              style={{ textAlign: step === 'code' || step === 'totp' ? 'center' : 'left' }}
             >
-              {t(title)}
+              {step === 'totp' ? factor.title : t(title)}
             </Heading>
             {step === 'code' ? (
               <View style={{ alignItems: 'center', gap: 3 }}>
@@ -355,6 +496,10 @@ export default function Auth() {
                   </Action>
                 </View>
               </View>
+            ) : step === 'totp' ? (
+              <Text muted style={{ fontSize: 15, lineHeight: 22, textAlign: 'center' }}>
+                {recovery ? factor.recoveryIntro : factor.intro}
+              </Text>
             ) : (
               <Text
                 muted
@@ -370,7 +515,24 @@ export default function Auth() {
             )}
           </View>
 
-          {step === 'code' ? (
+          {step === 'totp' ? (
+            <Field
+              label={recovery ? factor.recoveryCode : factor.code}
+              value={code}
+              onChangeText={(value) => {
+                setFactorError(undefined);
+                setCode(recovery ? value : value.replace(/[^0-9]/g, '').slice(0, 6));
+              }}
+              keyboardType={recovery ? 'default' : 'number-pad'}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="off"
+              maxLength={recovery ? 32 : 6}
+              editable={!busy}
+              error={factorError}
+              onSubmitEditing={verifyAuthenticator}
+            />
+          ) : step === 'code' ? (
             <View style={{ gap: 13 }}>
               <VerificationField
                 code={code}
@@ -426,6 +588,11 @@ export default function Auth() {
             </View>
           )}
 
+          {factorError && step !== 'totp' ? (
+            <Text role="alert" small style={{ color: c.error }}>
+              {factorError}
+            </Text>
+          ) : null}
           {error &&
           !['authConnectionError', 'authEmailInvalid', 'authPasswordRequired'].includes(error) ? (
             <Text
@@ -449,28 +616,47 @@ export default function Auth() {
             </Text>
           ) : null}
 
+          {showPasskey ? (
+            <Button
+              variant="outline"
+              label={passkey.action}
+              onPress={signInPasskey}
+              loading={pending === 'passkey'}
+              disabled={busy}
+            />
+          ) : null}
+
           <View style={{ gap: 8 }}>
             <Button
-              icon={<ArrowRight size={17} color={c.onPrimary} />}
+              variant={showPasskey ? 'outline' : 'primary'}
+              icon={<ArrowRight size={17} color={showPasskey ? c.primary : c.onPrimary} />}
               label={t(
-                step === 'code'
+                step === 'code' || step === 'totp'
                   ? 'authCodeConfirm'
                   : step === 'password'
                     ? 'signIn'
                     : 'authContinueEmail',
               )}
               onPress={
-                step === 'code'
-                  ? verifyCode
-                  : step === 'password'
-                    ? signInPassword
-                    : () => requestCode()
+                step === 'totp'
+                  ? verifyAuthenticator
+                  : step === 'code'
+                    ? verifyCode
+                    : step === 'password'
+                      ? signInPassword
+                      : () => requestCode()
               }
-              loading={pending === 'request' || pending === 'verify' || pending === 'password'}
+              loading={
+                pending === 'request' ||
+                pending === 'verify' ||
+                pending === 'password' ||
+                pending === 'passkey'
+              }
               disabled={
                 busy ||
                 (step === 'email' && !emailAvailable) ||
-                (step === 'code' && code.length !== 6)
+                ((step === 'code' || (step === 'totp' && !recovery)) && code.length !== 6) ||
+                (step === 'totp' && recovery && !code.trim())
               }
             />
             {connectionIssue ? (
@@ -502,7 +688,27 @@ export default function Auth() {
                 </Action>
               </View>
             ) : null}
-            {step === 'code' ? (
+            {step === 'totp' ? (
+              <>
+                <Button
+                  variant="text"
+                  label={recovery ? factor.useAuthenticator : factor.useRecovery}
+                  disabled={busy}
+                  onPress={() => {
+                    setCode('');
+                    setFactorError(undefined);
+                    setError(null);
+                    setRecovery(!recovery);
+                  }}
+                />
+                <Button
+                  variant="text"
+                  label={factor.back}
+                  disabled={busy}
+                  onPress={cancelAuthenticator}
+                />
+              </>
+            ) : step === 'code' ? (
               <View
                 style={{
                   flexDirection: 'row',
@@ -541,7 +747,7 @@ export default function Auth() {
             )}
           </View>
 
-          {step !== 'code' ? (
+          {step !== 'code' && step !== 'totp' ? (
             <View style={{ gap: 9, marginTop: 2 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={{ height: 1, flex: 1, backgroundColor: c.border }} />

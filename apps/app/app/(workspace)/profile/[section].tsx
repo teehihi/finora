@@ -36,6 +36,7 @@ import {
 } from '../../../src/features/profile-account-hub';
 import { AvatarEditor } from '../../../src/features/account-avatar/AvatarEditor';
 import { AccountScroll, useProfileChrome } from '../../../src/features/profile-chrome';
+import { ProfileNameEditor, ProfileSignInMethods } from '../../../src/features/personal-profile';
 import { ProfileInsights } from '../../../src/features/profile-insights';
 import { clearIntelligenceHistory } from '../../../src/features/intelligence/transport';
 import { api, auth } from '../../../src/services/client';
@@ -117,10 +118,12 @@ function FinancialForm({ profile }: { profile: Profile | null }) {
 function Panel({
   title,
   icon: Icon,
+  action,
   children,
 }: {
   title?: string;
   icon?: typeof Banknote;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   const { palette: p } = useProfileChrome();
@@ -136,9 +139,10 @@ function Panel({
       {title ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           {Icon ? <SignatureIcon icon={Icon} size={38} /> : null}
-          <Heading size={19} style={{ color: p.ink }}>
+          <Heading size={19} style={{ color: p.ink, ...(action && { flex: 1 }) }}>
             {title}
           </Heading>
+          {action}
         </View>
       ) : null}
       {children}
@@ -247,7 +251,10 @@ function ProfileSection({ section }: { section: AccountSection }) {
               {user?.emailVerified ? t('authEmailVerified') : t('authEmailNotVerified')}
             </Text>
           </View>
-          <Panel title={vi ? 'Thông tin cá nhân' : 'Personal information'}>
+          <Panel
+            title={vi ? 'Thông tin cá nhân' : 'Personal information'}
+            action={uid ? <ProfileNameEditor key={uid} name={user?.name ?? ''} /> : undefined}
+          >
             <View style={{ gap: 3 }}>
               <Text small style={{ color: p.muted }}>
                 {vi ? 'Tên hiển thị' : 'Display name'}
@@ -264,6 +271,7 @@ function ProfileSection({ section }: { section: AccountSection }) {
             ) : null}
           </Panel>
           <Panel title={vi ? 'Bảo mật' : 'Security'}>
+            {uid ? <ProfileSignInMethods key={uid} owner={uid} /> : null}
             <AccountIdentity showEmail={false} compact />
           </Panel>
         </>

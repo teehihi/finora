@@ -20,6 +20,9 @@ const schema = z
     APPLE_CLIENT_ID: z.string().trim().optional(),
     APPLE_CLIENT_SECRET: z.string().trim().optional(),
     APPLE_APP_BUNDLE_IDENTIFIER: z.string().trim().optional(),
+    PASSKEY_RP_ID: z.string().trim().optional(),
+    PASSKEY_ORIGINS: z.string().trim().optional(),
+    PASSKEY_APPLE_APP_ID: z.string().trim().optional(),
     WEB_ORIGINS: z
       .string()
       .min(1)
@@ -59,6 +62,49 @@ const schema = z
   .superRefine((config, ctx) => {
     function issue(path: string, message: string) {
       ctx.addIssue({ code: 'custom', path: [path], message });
+    }
+    const { PASSKEY_RP_ID: rpId, PASSKEY_ORIGINS: origins, PASSKEY_APPLE_APP_ID: appId } = config;
+    if (rpId || origins || appId) {
+      const validHost =
+        rpId === 'localhost' ||
+        (!!rpId &&
+          rpId.length <= 253 &&
+          /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(
+            rpId,
+          ));
+      if (!validHost)
+        issue('PASSKEY_RP_ID', 'Set an exact relying-party host without scheme or port.');
+      const allowed = origins?.split(',').map((value) => value.trim()) ?? [];
+      if (
+        !allowed.length ||
+        !allowed.every((value) => {
+          try {
+            const url = new URL(value);
+            return (
+              url.origin === value &&
+              (url.hostname === rpId || url.hostname.endsWith('.' + rpId)) &&
+              (url.protocol === 'https:' ||
+                (url.protocol === 'http:' && url.hostname === 'localhost'))
+            );
+          } catch {
+            return false;
+          }
+        })
+      )
+        issue(
+          'PASSKEY_ORIGINS',
+          'Set exact HTTPS origins below the RP ID (HTTP is localhost-only).',
+        );
+      if (
+        appId &&
+        (!/^[A-Z0-9]{10}\.dev\.finora\.app$/.test(appId) ||
+          !allowed.includes('https://' + rpId) ||
+          !config.BETTER_AUTH_URL.startsWith('https://'))
+      )
+        issue(
+          'PASSKEY_APPLE_APP_ID',
+          'Native iOS needs the signed app ID, an HTTPS API and the HTTPS RP origin.',
+        );
     }
     if (config.AVATAR_STORAGE_PROVIDER === 'r2') {
       if (!/^[a-f0-9]{32}$/.test(config.R2_ACCOUNT_ID ?? ''))
