@@ -52,12 +52,8 @@ export const normaliseCode = (text: string) => text.replace(/[^0-9]/g, '').slice
 export function codeFailure(error: { code?: string; status?: number }) {
   if (error.code === 'TOO_MANY_ATTEMPTS') return 'authCodeAttempts' as const;
   if (error.status === 429) return 'authRateLimited' as const;
-  if (
-    error.status === 400 ||
-    error.status === 401 ||
-    error.code === 'INVALID_OTP' ||
-    error.code === 'OTP_EXPIRED'
-  )
+  if (error.code === 'OTP_EXPIRED') return 'authCodeExpired' as const;
+  if (error.status === 400 || error.status === 401 || error.code === 'INVALID_OTP')
     return 'authCodeInvalid' as const;
   return 'authGenericError' as const;
 }

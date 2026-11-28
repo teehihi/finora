@@ -33,7 +33,7 @@ export function VerificationField({
           aria-hidden
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={{ flexDirection: 'row', gap: 5 }}
+          style={{ flexDirection: 'row', gap: 6 }}
         >
           {Array.from({ length: 6 }, (_, index) => {
             const active = editable && focused && index === Math.min(code.length, 5);
@@ -44,18 +44,18 @@ export function VerificationField({
                 style={{
                   flex: 1,
                   minWidth: 0,
-                  minHeight: 58,
+                  minHeight: 52,
                   marginRight: index === 2 ? 5 : 0,
-                  borderRadius: 14,
-                  borderWidth: active ? 2 : 1,
+                  borderWidth: active ? 1.5 : 1,
                   borderColor: invalid
                     ? c.error
                     : active
                       ? c.focus
                       : entered
-                        ? c.border
+                        ? c.primary
                         : c.borderStrong,
-                  backgroundColor: active || entered ? c.secondary : c.input,
+                  borderRadius: 11,
+                  backgroundColor: entered ? c.elevated : c.surface,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -65,7 +65,7 @@ export function VerificationField({
                   style={{
                     color: entered ? c.foreground : c.muted,
                     fontFamily: tokens.font.heading,
-                    fontSize: 22,
+                    fontSize: 21,
                     lineHeight: 30,
                     fontVariant: ['tabular-nums'],
                   }}
@@ -114,10 +114,11 @@ export function ResendCode({
   const { colors: c, t } = useDesign();
   const [now, setNow] = useState(Date.now);
   const seconds = Math.max(0, Math.ceil((until - now) / 1000));
+  const time = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   const label = loading
     ? t('authSendingCode')
     : seconds
-      ? t('authResendIn').replace('{s}', String(seconds))
+      ? t('authResendIn').replace('{s}', time)
       : t('authResend');
   useEffect(() => {
     const initial = setTimeout(() => setNow(Date.now()), 0);

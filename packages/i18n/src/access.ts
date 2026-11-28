@@ -48,7 +48,7 @@ export const showcaseStrings = {
 
 const accessJourneyStrings = {
   'vi-VN': {
-    offlineTitle: 'Chưa kết nối được',
+    offlineTitle: 'Không thể kết nối với máy chủ',
     offlineBody: 'Kiểm tra kết nối rồi thử lại. Email và mã bạn đang nhập được giữ nguyên.',
     offlineRetry: 'Thử kết nối lại',
     restoreTitle: 'Hoàn tất đăng nhập',
