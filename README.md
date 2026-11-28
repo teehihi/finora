@@ -16,12 +16,15 @@
   <a href="#giao-diện">Giao diện</a> ·
   <a href="#luồng-dùng-thử">Luồng dùng thử</a> ·
   <a href="#chạy-trên-máy">Chạy trên máy</a> ·
-  <a href="#mã-nguồn-và-tài-liệu">Tài liệu kỹ thuật</a>
+  <a href="#mã-nguồn-và-tài-liệu">Tài liệu kỹ thuật</a> ·
+  <a href="#khai-báo-bài-dự-thi-momo">Khai báo dự thi</a>
 </p>
 
 ---
 
-FINORA là trợ thủ khoản vay dành cho người dùng Việt Nam. Bạn có thể đối chiếu điều kiện công bố, nhập điều khoản của mình để tính lịch trả, rồi lưu phương án hoặc theo dõi kỳ đến hạn. **FINORA không cấp tín dụng, không nhận hồ sơ xin vay và không quyết định duyệt vay.**
+FINORA là trợ thủ khoản vay dành cho người dùng Việt Nam. Trước khi vay, bạn có thể đối chiếu điều kiện được công bố và mô phỏng từng kỳ trả nợ. Khi đã vay, bạn có thể theo dõi nghĩa vụ đến hạn và xem chúng ảnh hưởng thế nào đến dòng tiền.
+
+**FINORA không cấp tín dụng, không nhận hồ sơ xin vay, không quyết định duyệt vay và không thực hiện thanh toán.**
 
 ## Giao diện
 
@@ -45,15 +48,15 @@ _Ảnh chụp từ bản Expo Web ở chiều rộng 390 px, dùng dữ liệu k
 1. **Tìm và đối chiếu.** Mở **Khám phá** để xem điều kiện công bố và nguồn gốc thông tin. Danh mục sản phẩm mẫu được tách riêng để thử mô phỏng.
 2. **Tính từng kỳ.** Chọn sản phẩm mẫu hoặc nhập điều khoản của bạn. Kiểm tra số tiền, lãi suất, kỳ hạn và ngày trả đầu tiên, rồi chọn **Tính lịch trả nợ**. Phí chưa biết không được coi là bằng 0.
 3. **Theo dõi khi đã có khoản vay.** Lưu bản mô phỏng vào **Khoản vay**. Bản lưu không tự tạo nghĩa vụ trả nợ. Khi cần, bạn có thể chủ động đưa khoản vay vào sổ theo dõi hoặc mở bản đồ dòng tiền 90 ngày.
-4. **Hỏi Fin hoặc rà soát giấy tờ.** Dùng Fin để giải thích bản tính. Khi đọc tài liệu, kiểm tra và xác nhận điều khoản trước khi dùng chúng để mô phỏng lại.
+4. **Hỏi Fin hoặc rà soát giấy tờ.** Dùng Fin để giải thích bản tính và thử thay đổi giả định. Khi đọc tài liệu, kiểm tra và xác nhận điều khoản trước khi dùng chúng để mô phỏng lại.
+
+Để thử một ca so sánh, mở **Fin** và nhập: “Vay 50 triệu tiêu dùng, lãi 12%/năm trả góp đều trong 12 và 24 tháng. Thu nhập giảm 20% thì sao?” Chọn một phương án để lưu nếu cần. Dùng [bộ dữ liệu kiểm thử tổng hợp](docs/evaluation/README.md) khi cần thử thêm tình huống.
 
 ## Chạy trên máy
 
-Cần Node.js 22.20 trở lên thuộc dòng 22.x, pnpm 10.32.1 (khai báo trong `packageManager`), Docker Desktop hoặc Docker Engine có Compose v2 hỗ trợ `up --wait`. Với Node có Corepack, có thể gọi `corepack pnpm` thay cho `pnpm`. Docker phải đang chạy. Ở lần đầu, trình quản lý gói và Docker cần Internet để tải dependency và image.
+Cần Node.js 22.20 trở lên thuộc dòng 22.x, pnpm 10.32.1 (khai báo trong `packageManager`), Docker Desktop hoặc Docker Engine có Compose v2 hỗ trợ `up --wait`. Với Node có Corepack, có thể gọi `corepack pnpm` thay cho `pnpm`. Docker phải đang chạy. Ở lần đầu, trình quản lý gói và Docker cần Internet để tải dependency và image. Giải nén mã nguồn hoặc [clone repo FINORA](https://github.com/teehihi/finora), rồi chạy ở thư mục gốc (nơi có `package.json`):
 
 ```sh
-git clone https://github.com/teehihi/finora.git
-cd finora
 pnpm install --frozen-lockfile
 pnpm run setup
 pnpm dev
@@ -61,7 +64,7 @@ pnpm dev
 
 **Dùng đúng `pnpm run setup`.** Cú pháp `pnpm setup` là lệnh tích hợp để cấu hình shell của pnpm. Script của Finora tạo các file môi trường còn thiếu, sinh secret ngẫu nhiên, chờ PostgreSQL healthy, khởi động Mailpit, sinh Prisma Client, áp dụng migration và upsert bốn sản phẩm. Chạy lại giữ dữ liệu và cấu hình hiện có. Nếu tự sao chép file mẫu, đặt `BETTER_AUTH_SECRET` thành secret ngẫu nhiên ít nhất 32 ký tự trước khi chạy API.
 
-Mở [Expo Web](http://localhost:8081), [tình trạng API](http://localhost:3000/health) hoặc [Swagger](http://localhost:3000/docs). Nhập email thử nghiệm (ví dụ `finora-demo@example.test`) rồi mở [Mailpit](http://127.0.0.1:8025) để lấy mã đăng nhập. Mailpit chỉ nhận thư cục bộ. Người dùng đã có mật khẩu vẫn có thể dùng phương thức cũ. [Hướng dẫn OTP, Google và liên kết tài khoản](docs/architecture/AUTHENTICATION.md).
+Mở [Expo Web](http://localhost:8081), [tình trạng API](http://localhost:3000/health) hoặc [Swagger](http://localhost:3000/docs). Nhập email thử nghiệm (ví dụ `finora-demo@example.test`) rồi mở [Mailpit](http://127.0.0.1:8025) để lấy mã đăng nhập. Mailpit chỉ nhận thư cục bộ. Tài khoản đã đặt mật khẩu có thể đăng nhập bằng mật khẩu. Nếu tài khoản đã bật 2FA, đăng nhập bằng mật khẩu, OTP email hoặc Google vẫn phải qua bước xác thực bổ sung. Passkey đã đăng ký xác minh trên thiết bị và đăng nhập trực tiếp khi môi trường được cấu hình. [OTP và Google](docs/architecture/AUTHENTICATION.md) · [2FA](docs/testing/TOTP-PREVIEW.md) · [Passkey](docs/testing/PASSKEY-PREVIEW.md).
 
 ### Cấu hình mạng
 
@@ -78,7 +81,7 @@ Khi chuyển Wi-Fi, kết nối lại máy và điện thoại cùng mạng tin 
 
 Các file `.env` có đúng mẫu do script cũ tạo được dọn một lần: bỏ địa chỉ LAN ở app, khôi phục Better Auth về loopback và xóa các origin LAN cũ dạng `http://<IP_RIÊNG>:8081`. Override trong môi trường hoặc `apps/app/.env.local` vẫn được giữ. Nếu bạn chủ ý đặt toàn bộ bộ giá trị giống mẫu LAN cũ, chạy với `FINORA_KEEP_LEGACY_LAN=1` để giữ nguyên. `BETTER_AUTH_URL` cho OAuth là endpoint canonical đã đăng ký, không được tự đổi theo Wi-Fi.
 
-Với preview/production, đặt `EXPO_PUBLIC_API_URL` thành URL HTTPS ổn định trước khi build; cấu hình `BETTER_AUTH_URL` và `WEB_ORIGINS` chính xác phía API. `pnpm --filter @finora/api start` chỉ dùng allowlist cấu hình, trừ khi chủ động đặt `FINORA_DEV_LAN=1` cho môi trường development. Chỉ mở cổng 3000/8081 trên mạng tin cậy. PostgreSQL tiếp tục bind loopback; nếu đổi cổng hoặc thông tin PostgreSQL, đồng bộ `DATABASE_URL` với Compose và role trong volume hiện có.
+Với preview/production, đặt `EXPO_PUBLIC_API_URL` thành origin HTTPS ổn định, không kèm hậu tố `/api`, trước khi build; cấu hình `BETTER_AUTH_URL` và `WEB_ORIGINS` chính xác phía API. `pnpm --filter @finora/api start` chỉ dùng allowlist cấu hình, trừ khi chủ động đặt `FINORA_DEV_LAN=1` cho môi trường development. Chỉ mở cổng 3000/8081 trên mạng tin cậy. PostgreSQL tiếp tục bind loopback; nếu đổi cổng hoặc thông tin PostgreSQL, đồng bộ `DATABASE_URL` với Compose và role trong volume hiện có.
 
 Native dùng Expo SecureStore và plugin Expo của Better Auth, web dùng cookie HTTP-only. Dock ở bố cục điện thoại dùng CYL Liquid Glass trên iOS tương thích. Nếu binary cũ thiếu bridge thì giữ dock fallback (Callstack Clear trên iOS tương thích); iOS cũ và Android dùng Expo Blur, web dùng bề mặt thường. [Tích hợp dock iOS](docs/architecture/CYL-Dock.md). Android dùng `BlurTargetView`; thiết bị dưới API 31 nhận nền bán trong suốt thay cho blur nặng.
 
@@ -120,4 +123,18 @@ Bản local dùng bốn sản phẩm tổng hợp và trợ lý chạy ở chế
 
 [<img src="docs/product-design/media/profile-avatar-preview.jpg" width="225" alt="Xem trước ảnh đại diện trước khi bấm Lưu ảnh">](docs/product-design/media/profile-avatar-preview.jpg)
 
-Ảnh do chính người dùng chọn và xác nhận, chỉ dùng để hiển thị trong hồ sơ của tài khoản đó. Demo dự thi nên dùng ảnh minh họa, không dùng ảnh cá nhân thật. Avatar đồng bộ theo tài khoản; môi trường triển khai dùng bucket R2 riêng tư nếu được cấu hình. [Màn hồ sơ và cấu hình lưu trữ](docs/product-design/FINORA-ACCOUNT-PROFILE.md#cấu-hình-lưu-trữ).
+Ảnh do chính người dùng chọn và xác nhận, chỉ dùng để hiển thị trong hồ sơ của tài khoản đó. Demo dự thi nên dùng ảnh minh họa, không dùng ảnh cá nhân thật. Avatar đồng bộ theo tài khoản; local lưu ở API, môi trường triển khai có thể dùng bucket AWS S3 hoặc Cloudflare R2 riêng tư. [Màn hồ sơ và cấu hình lưu trữ](docs/product-design/FINORA-ACCOUNT-PROFILE.md#cấu-hình-lưu-trữ).
+
+## Khai báo bài dự thi MoMo
+
+### Thư viện và tài sản
+
+- **Thư viện chính:** Expo, Expo Router, React Native, React Native Web và TanStack Query ở giao diện; NestJS, Better Auth và Prisma ở máy chủ; Zod cho kiểm tra dữ liệu và Decimal.js cho phép tính. Danh sách đầy đủ và phiên bản nằm trong [lockfile](pnpm-lock.yaml). Mỗi thư viện giữ giấy phép riêng; FINORA chưa công bố giấy phép mã nguồn cấp repo.
+- **Tài sản của bên thứ ba:** xem thông báo giấy phép Geist, Instrument Serif, Source Serif 4 và nguồn tài sản Google Sign-In trong [bảng giấy phép](docs/maintainers/LICENSING.md). Mô-đun dock iOS có [thông báo giấy phép CYL](apps/app/modules/finora-cyl-dock/ios/CYL-LICENSE.txt).
+- **Tài sản có sẵn:** trước khi đóng gói bản nộp, đội cần chốt nguồn gốc và quyền sử dụng của bộ nhận diện, [ảnh thuyền giấy](apps/app/assets/images/paper-boat.jpg) và mọi tài sản hoặc mã đã dùng lại. Với mỗi mục, ghi nguồn, đường dẫn trong FINORA và phạm vi quyền sử dụng. Danh sách trên không xác nhận các mục chưa rõ quyền.
+
+### Dữ liệu và công cụ AI
+
+- **Dữ liệu khoản vay:** [danh mục nguồn](docs/architecture/LOAN_CATALOG.md) ghi trang công bố của bên cho vay và các trường dùng để tham khảo, so sánh. Dữ liệu đó tách khỏi sản phẩm mẫu, tài khoản thử, hợp đồng tổng hợp và giả định mô phỏng. Không đưa giấy tờ hoặc dữ liệu cá nhân thật vào ZIP hay video.
+- **Công cụ phát triển:** OpenAI Codex được dùng để hỗ trợ phát triển. Đội cần bổ sung các công cụ khác thực sự đã dùng trước khi nộp.
+- **AI trong sản phẩm:** bản chạy local dùng Fin ở chế độ cục bộ mặc định. Mã hiện tại có [tích hợp OpenAI tùy chọn](docs/architecture/OPENAI_PROVIDER.md), bật ở API và yêu cầu đồng ý cho từng câu hỏi. Đội điền nhà cung cấp và mã mô hình thực tế của bản demo sau khi kiểm tra bản triển khai. Lịch trả nợ do bộ tính tài chính tạo, không lấy số tiền từ nội dung mô hình sinh ra.
