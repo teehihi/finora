@@ -56,10 +56,10 @@
 
 ### Web
 
-Keep the same header, form order, labels, and provider region. At wide sizes,
-use the dedicated Finora login artwork as a calm side illustration beside the
-form; never repeat its text or add another sign-in card. At narrow sizes, use
-the mobile composition and bottom-edge mascot.
+Keep the same header, form order, labels, and provider region. At every width,
+use a single-column sign-in group centered in the viewport. Do not show a side
+art panel or a bottom-edge mascot on the login view. The OTP view keeps its
+verification mascot.
 
 ## Interaction map
 
@@ -85,8 +85,8 @@ until the server reports it configured.
   trailing edge and show a back action on nested steps.
 - Use one shared input, button, inline-error, provider, backdrop, and mascot
   treatment across email, OTP, and password states.
-- Keep the bottom illustration away from controls and hide it while the keyboard
-  is open or space is constrained.
+- Keep decorative artwork off the login view so the form remains the visual
+  focus at every width.
 - OTP uses one accessible native input with six rounded visual cells, system
   autofill, paste, and an explicit verification action.
 

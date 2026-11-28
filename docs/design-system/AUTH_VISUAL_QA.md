@@ -116,3 +116,14 @@ the external Google account handoff were not exercised here.
   and back controls remain pinned at the top.
 - Rechecked the web app at 390 × 844 and 1440 × 900. The group center aligned
   with the viewport center on both sizes. Typecheck, lint and web export passed.
+
+## Pass 10 · Remove desktop login art · 28 November 2026
+
+- Removed the desktop side image, its component and the unused image asset.
+  Desktop and mobile now use the same centered, single-column login group;
+  OTP keeps its verification mascot.
+- Reviewed the live web app at 1440 × 900 and 390 × 844. The wide-screen form
+  is centered with no left image; the mobile login layout remains intact.
+  Native rendering and owner UAT remain pending.
+- Full lint, typecheck, test and web build passed. No native-device or auth
+  E2E run was needed for this layout-only change.

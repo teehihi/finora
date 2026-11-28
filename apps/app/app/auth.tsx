@@ -18,7 +18,6 @@ import {
 } from '../src/features/auth/identity';
 import { auth } from '../src/services/client';
 import { GoogleAction } from '../src/features/auth/GoogleAction';
-import { AuthArtwork } from '../src/features/auth/AuthArtwork';
 import { AuthInputField } from '../src/features/auth/AuthInputField';
 import finVerification from '../assets/brand/fin-verification.png';
 
@@ -285,30 +284,23 @@ export default function Auth() {
       <View
         style={{
           width: '100%',
-          maxWidth: wide ? 1100 : 470,
+          maxWidth: wide ? 520 : 470,
           alignSelf: 'center',
-          flexDirection: wide ? 'row' : 'column',
+          flexDirection: 'column',
           alignItems: 'stretch',
           marginTop: 0,
           marginBottom: 0,
-          ...(wide
-            ? {
-                flex: 1,
-                minHeight: 600,
-                gap: 28,
-              }
-            : { flex: 1, gap: 5 }),
+          flex: 1,
+          gap: 5,
         }}
       >
-        {wide ? <AuthArtwork wide /> : null}
         <View
           style={{
             flex: 1,
             minWidth: 0,
             justifyContent: 'center',
             gap: wide ? 20 : 16,
-            paddingHorizontal: wide ? 42 : 0,
-            paddingVertical: wide ? 34 : 12,
+            paddingVertical: 12,
           }}
         >
           <View style={{ gap: 8, alignItems: step === 'code' ? 'center' : 'stretch' }}>
