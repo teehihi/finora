@@ -12,6 +12,9 @@ model User {
   name          String
   email         String             @unique
   emailVerified Boolean            @default(false)
+  twoFactorEnabled Boolean         @default(false)
+  twoFactors    TwoFactor[]
+  passkeys      Passkey[]
   image         String?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
@@ -27,6 +30,36 @@ model User {
   documentAnalyses DocumentAnalysis[]
   intelligenceTurns IntelligenceTurn[]
   trackedRepayments TrackedRepayment[]
+}
+
+model TwoFactor {
+  id                      String    @id
+  userId                  String
+  secret                  String
+  backupCodes             String
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime?
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+}
+
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String
+  userId       String
+  credentialID String    @unique
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime?
+  aaguid       String?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Session {

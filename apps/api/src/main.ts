@@ -67,6 +67,10 @@ async function main() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   });
   const server = app.getHttpAdapter().getInstance() as express.Express;
+  server.get('/.well-known/apple-app-site-association', (_req, res) => {
+    if (!env.PASSKEY_APPLE_APP_ID) return res.sendStatus(404);
+    return res.json({ webcredentials: { apps: [env.PASSKEY_APPLE_APP_ID] } });
+  });
   server.use('/api', (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     const origin = req.get('origin');

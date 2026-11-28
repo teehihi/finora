@@ -1,5 +1,16 @@
 import type { ExpoConfig } from 'expo/config';
 import launch from './src/components/launch-palette.json';
+const passkeyDomain = process.env.EXPO_PUBLIC_PASSKEY_RP_ID?.trim();
+if (
+  passkeyDomain &&
+  !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(
+    passkeyDomain,
+  )
+)
+  throw new Error(
+    'EXPO_PUBLIC_PASSKEY_RP_ID must be the HTTPS passkey host, without scheme or port.',
+  );
+
 const config: ExpoConfig = {
   name: 'Finora',
   slug: 'finora',
@@ -11,6 +22,7 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: 'dev.finora.app',
     supportsTablet: true,
+    ...(passkeyDomain ? { associatedDomains: [`webcredentials:${passkeyDomain}`] } : {}),
     // The focused native-stack screen owns status bar contrast.
     infoPlist: { UIViewControllerBasedStatusBarAppearance: true },
   },
