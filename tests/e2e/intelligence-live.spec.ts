@@ -17,7 +17,7 @@ test('consented Claude turn persists and follow-up has a safe provider result', 
     password: randomUUID(),
   });
   expect(signedUp.ok(), await signedUp.text()).toBe(true);
-  expect(await (await context.request.get(api + '/status')).json()).toEqual({
+  expect(await (await context.request.get(api + '/status')).json()).toMatchObject({
     provider: 'anthropic',
   });
 

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   intelligenceBlocksSchema,
+  intelligenceRoutingSchema,
   intelligenceScenarioSchema,
   loanSchema,
   profileSchema,
@@ -47,14 +48,19 @@ const contextSchema = z
     extraExpense: amount.optional(),
     expenseRisePercent: z.number().min(0).max(1000).optional(),
     purpose: z.enum(['personal', 'education', 'home', 'vehicle', 'business']).optional(),
+    vehicleRepair: z.boolean().optional(),
     firstDue: loanSchema.shape.firstDue.optional(),
   })
   .strict();
 type Context = z.infer<typeof contextSchema>;
-const analysisRecord = z.object({ version: z.literal(2), blocks: intelligenceBlocksSchema });
+const analysisRecord = z.object({
+  version: z.literal(2),
+  blocks: intelligenceBlocksSchema,
+  routing: intelligenceRoutingSchema.optional(),
+});
 const envelope = analysisRecord.extend({ context: contextSchema.optional() });
 
-type PreviousTurn = { blocks: unknown; prompt: string; simulationId: string | null };
+export type PreviousTurn = { blocks: unknown; prompt: string; simulationId: string | null };
 
 export function analysisBlocks(value: unknown): IntelligenceBlock[] {
   const parsed = analysisRecord.safeParse(value);
@@ -62,8 +68,49 @@ export function analysisBlocks(value: unknown): IntelligenceBlock[] {
   return intelligenceBlocksSchema.parse(value);
 }
 
-export function persistedAnalysis(blocks: IntelligenceBlock[], context?: Context) {
-  return envelope.parse({ version: 2, blocks, ...(context ? { context } : {}) });
+export function persistedAnalysis(
+  blocks: IntelligenceBlock[],
+  context?: Context,
+  routing?: z.infer<typeof intelligenceRoutingSchema>,
+) {
+  return envelope.parse({ version: 2, blocks, context, routing });
+}
+
+export const storedRouting = (blocks: unknown) => analysisRecord.safeParse(blocks).data?.routing;
+
+export function latestContext(history: PreviousTurn[], simulationId?: string) {
+  return history
+    .filter((turn) => (turn.simulationId ?? undefined) === simulationId)
+    .map(contextOf)
+    .find(Boolean);
+}
+
+export function carryConversationBudget(
+  context?: Context,
+  previous?: Context,
+): Context | undefined {
+  if (!context) return previous;
+  if (!previous) return context;
+  const fields = [
+    'income',
+    'incomeStability',
+    'expenses',
+    'essentialExpenses',
+    'debt',
+    'savings',
+    'currentSavings',
+    'minimumReserve',
+    'reserveMonths',
+    'preferredPayment',
+  ] as const;
+  const budget = Object.fromEntries(fields.map((key) => [key, context[key] ?? previous[key]]));
+  const budgetStatus = { ...previous.amountStatus };
+  delete budgetStatus.principal;
+  return {
+    ...context,
+    ...budget,
+    amountStatus: { ...budgetStatus, ...context.amountStatus },
+  };
 }
 
 function contextOf(turn: PreviousTurn): Context | undefined {
@@ -121,16 +168,16 @@ export function continueIntent(
   attached?: LoanInput,
   simulationId?: string,
 ) {
-  const previous = history
-    .filter((turn) => (turn.simulationId ?? undefined) === simulationId)
-    .map(contextOf)
-    .find(Boolean);
+  const previous = latestContext(history, simulationId);
   const normalized = normalizeVn(prompt);
   const asksComparison =
     /\b(?:khoan nao|phuong an nao|ky han nao|which term|which option)\b/.test(normalized) &&
     /\b(?:chi phi|tien lai|tong tien|tra it|cost|interest|cheaper)\b/.test(normalized);
   const explicitFollow =
     asksComparison ||
+    /\b(?:tong hop|tom tat|summari[sz]e|kha nang chi tra|kha nang tra no|co the tra|repayment capacity|can i afford)\b/u.test(
+      normalized,
+    ) ||
     /\b(neu|thi sao|what if|instead|giam them|tang them|follow[- ]?up|tong hop ho so|kha nang chi tra)\b/.test(
       normalized,
     ) ||
@@ -167,6 +214,10 @@ export function continueIntent(
       (current.principal === undefined &&
         current.purpose === undefined &&
         ((changesTerms && !definitionQuestion) || completesBudget)) ||
+      (current.principal !== undefined &&
+        current.principal === previous.principal &&
+        (!current.purpose || current.purpose === previous.purpose) &&
+        /\b(?:tinh lich tra|repayment schedule)\b/u.test(normalized)) ||
       (current.principal !== undefined &&
         previous.principal === undefined &&
         (!current.purpose || current.purpose === previous.purpose) &&
@@ -210,6 +261,7 @@ export function continueIntent(
           ? prior.fee
           : attached?.fee,
     purpose: current.purpose ?? prior?.purpose,
+    vehicleRepair: current.purpose ? current.vehicleRepair : prior?.vehicleRepair,
   };
   if (current.principalDelta !== undefined) {
     const before = prior?.principal ?? attached?.principal;

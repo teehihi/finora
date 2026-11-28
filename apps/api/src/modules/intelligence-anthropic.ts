@@ -275,9 +275,13 @@ export class AnthropicIntelligenceProvider {
             input_schema: parameters,
           }))
         : undefined,
-      tool_choice: toolDeclarations.length
-        ? { type: 'auto', disable_parallel_tool_use: true }
-        : undefined,
+      tool_choice: input.requiredTool
+        ? { type: 'tool', name: input.requiredTool, disable_parallel_tool_use: true }
+        : toolDeclarations.length
+          ? input.noToolCalls
+            ? { type: 'none' }
+            : { type: 'auto', disable_parallel_tool_use: true }
+          : undefined,
       stream: false,
     });
     if (Buffer.byteLength(body) > MAX_INPUT_BYTES)

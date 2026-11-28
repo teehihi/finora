@@ -26,6 +26,19 @@ export const savedStressAnalysisSchema = stressBasis
   .strict();
 export type SavedStressAnalysis = z.infer<typeof savedStressAnalysisSchema>;
 
+export const intelligenceProviderSchema = z.enum(['mock', 'anthropic', 'openai']);
+export const intelligenceRoutingSchema = z.strictObject({
+  requestedProvider: intelligenceProviderSchema,
+  effectiveProvider: intelligenceProviderSchema,
+  model: z.string().min(1),
+  consent: z.boolean(),
+  fallbackReason: z
+    .enum(['unconfigured', 'provider_error', 'invalid_response', 'timeout'])
+    .nullable(),
+});
+export type IntelligenceProviderChoice = z.infer<typeof intelligenceProviderSchema>;
+export type IntelligenceRouting = z.infer<typeof intelligenceRoutingSchema>;
+
 export const intelligenceRequestSchema = z
   .object({
     prompt: z.string().trim().min(1).max(1200),
@@ -33,6 +46,8 @@ export const intelligenceRequestSchema = z
     requestId: z.uuid(),
     simulationId: z.uuid().optional(),
     documentId: z.uuid().optional(),
+    conversationId: z.uuid().optional(),
+    requestedProvider: intelligenceProviderSchema.optional(),
     externalConsent: z.boolean().optional(),
   })
   .strict();
@@ -189,6 +204,8 @@ export const intelligenceTurnSchema = z
     createdAt: z.iso.datetime({ offset: true }),
     blocks: intelligenceBlocksSchema,
     simulationId: z.uuid().nullable(),
+    conversationId: z.uuid().nullable().optional(),
+    routing: intelligenceRoutingSchema.optional(),
   })
   .strict();
 export const intelligenceHistorySchema = z.array(intelligenceTurnSchema).max(50);
@@ -197,6 +214,7 @@ export const intelligenceEventSchema = z.discriminatedUnion('type', [
     .object({
       type: z.literal('meta'),
       provider: z.enum(['mock', 'fallback', 'openai', 'anthropic']),
+      routing: intelligenceRoutingSchema.optional(),
     })
     .strict(),
   z

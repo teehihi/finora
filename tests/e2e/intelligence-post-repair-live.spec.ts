@@ -161,7 +161,7 @@ test('live six-turn Vietnamese consultation retains its private financial contex
     .toBe(true);
   const uiPrompt = 'Giải thích tỷ lệ nợ trên thu nhập.';
   await page.getByRole('textbox', { name: 'Bạn đang cân nhắc khoản vay nào?' }).fill(uiPrompt);
-  await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+  await page.getByRole('button', { name: 'Gửi tới Claude', exact: true }).click();
   const uiTurn = page.getByText(uiPrompt, { exact: true });
   await expect(uiTurn).toBeVisible();
   await expect

@@ -27,6 +27,9 @@ const store = (prompt: string, context?: ReturnType<typeof captureContext>) => (
 });
 
 describe('conversation-local borrowing assumptions', () => {
+  it('recognizes a correction that starts with the change verb', () => {
+    expect(interpret('Đổi thu nhập thành 14 triệu mỗi tháng.').income).toBe(14_000_000);
+  });
   it('retains the actual five-turn Vietnamese consultation and summarizes known facts', () => {
     const turns = [
       'Tôi muốn vay 20 triệu để sửa xe.',

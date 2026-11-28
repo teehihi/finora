@@ -115,6 +115,7 @@ export type Intent = {
   payoffAfter?: number;
   payoffFeeRate?: number;
   purpose?: IntentPurpose;
+  vehicleRepair?: boolean;
   isBorrowing: boolean;
   blocked: boolean;
   early: boolean;
@@ -300,7 +301,7 @@ export function interpret(prompt: string): Intent {
     inputIssues.push('months');
   const incomeDetail = moneyAfterDetail(
     s,
-    'luong(?: cua toi)?(?: moi thang| hang thang)?|thu nhap(?: cua toi)?(?: moi thang| hang thang)?|monthly income|income',
+    '(?:(?:doi|sua|cap nhat) (?:thu nhap|luong)(?: cua toi)? thanh)|luong(?: cua toi)?(?: moi thang| hang thang)?|thu nhap(?: cua toi)?(?: moi thang| hang thang)?|monthly income|income',
   );
   const expenseDetail = moneyAfterDetail(
     s,
@@ -392,6 +393,8 @@ export function interpret(prompt: string): Intent {
     payoffAfter,
     payoffFeeRate: payoffFeeRate !== undefined && payoffFeeRate <= 100 ? payoffFeeRate : undefined,
     purpose,
+    vehicleRepair:
+      purpose === 'vehicle' ? /\bsua xe\b|\b(?:car|vehicle|motorbike) repair\b/.test(s) : undefined,
     isBorrowing:
       /vay|borrow|loan|lai|interest|repay|tra no|khoan tra|tra them|chi phi|cash flow/.test(s) ||
       !!purpose,
@@ -407,6 +410,7 @@ export function redactExternalPrompt(value: string) {
     .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, '[email]')
     .replace(/https?:\/\/\S+/gi, '[link]')
     .replace(/\b(?:\+?\d[ ()-]*){9,}\b/g, '[personal number]')
+    .replace(/\p{N}+(?:[.,]\p{N}+)*/gu, '[value]')
     .slice(0, 1000);
 }
 export function buildProfile(intent: Intent, persisted: Profile | null) {

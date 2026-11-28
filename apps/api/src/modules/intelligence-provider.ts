@@ -46,6 +46,8 @@ export interface IntelligenceProviderInput {
   instructions?: string;
   messages: readonly IntelligenceProviderMessage[];
   tools?: readonly IntelligenceProviderTool[];
+  requiredTool?: string;
+  noToolCalls?: boolean;
   signal?: AbortSignal;
 }
 
@@ -161,7 +163,13 @@ function json(value: unknown) {
   }
 }
 
-export function encodeInput({ instructions, messages, tools = [] }: IntelligenceProviderInput) {
+export function encodeInput({
+  instructions,
+  messages,
+  tools = [],
+  requiredTool,
+  noToolCalls,
+}: IntelligenceProviderInput) {
   if (
     messages.length === 0 ||
     messages.length > MAX_MESSAGES ||
@@ -189,6 +197,8 @@ export function encodeInput({ instructions, messages, tools = [] }: Intelligence
       strict: tool.strict ?? false,
     };
   });
+  if (requiredTool && (noToolCalls || !names.has(requiredTool)))
+    throw new IntelligenceProviderError('invalid_input');
 
   type InputItem =
     | { role: 'user' | 'assistant'; content: string }
@@ -423,7 +433,13 @@ export class OpenAIIntelligenceProvider {
       instructions,
       input: items,
       tools: toolDeclarations.length ? toolDeclarations : undefined,
-      tool_choice: toolDeclarations.length ? 'auto' : undefined,
+      tool_choice: input.requiredTool
+        ? { type: 'function', name: input.requiredTool }
+        : toolDeclarations.length
+          ? input.noToolCalls
+            ? 'none'
+            : 'auto'
+          : undefined,
       parallel_tool_calls: toolDeclarations.length ? false : undefined,
       reasoning: /^gpt-5\.4-(?:mini|nano)(?:-|$)/u.test(this.#model)
         ? { effort: 'none' }

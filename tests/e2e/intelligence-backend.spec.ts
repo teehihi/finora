@@ -40,7 +40,7 @@ test('Intelligence runs owned Vietnamese analysis, typed comparison and private 
         .map((line) => JSON.parse(line.slice(6)));
     };
     const events = await stream();
-    expect(events.find((event) => event.type === 'meta')).toEqual({
+    expect(events.find((event) => event.type === 'meta')).toMatchObject({
       type: 'meta',
       provider: 'mock',
     });
@@ -130,7 +130,7 @@ test('stress-tests a stated budget before a loan is specified without rewriting 
         .split('\n')
         .filter((line) => line.startsWith('data: '))
         .map((line) => JSON.parse(line.slice(6)));
-      expect(packets.find((packet) => packet.type === 'meta')).toEqual({
+      expect(packets.find((packet) => packet.type === 'meta')).toMatchObject({
         type: 'meta',
         provider: 'mock',
       });

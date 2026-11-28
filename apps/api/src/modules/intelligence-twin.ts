@@ -1,5 +1,4 @@
 import {
-  intelligenceBlocksSchema,
   loanSchema,
   type IntelligenceBlock,
   type LoanInput,
@@ -10,6 +9,7 @@ import {
 } from '@finora/contracts';
 import { compareDigitalTwin } from '@finora/financial-engine';
 import { moneyAfter, normalizeVn, type Intent } from './intelligence-rules.js';
+import { analysisBlocks } from './intelligence-context.js';
 
 const amount = (n: number | undefined | null) =>
   n === undefined || n === null ? null : { amount: n, source: 'user_estimate' as const };
@@ -45,10 +45,9 @@ export function financialTwinFromIntent(input: {
   notes: string[];
 } {
   const { intent, profile, loan, simulationId, history } = input;
-  const prior = history.flatMap((row) => {
-    const parsed = intelligenceBlocksSchema.safeParse(row.blocks);
-    return parsed.success ? parsed.data.filter((b) => b.kind === 'digital_twin') : [];
-  })[0];
+  const prior = history.flatMap((row) =>
+    analysisBlocks(row.blocks).filter((block) => block.kind === 'digital_twin'),
+  )[0];
   const priorState = prior?.state;
   const state: TwinState = {
     monthlyIncome: amount(intent.income) ?? priorState?.monthlyIncome ?? amount(profile?.income),

@@ -182,20 +182,22 @@ model UploadedDocument {
 }
 
 model IntelligenceTurn {
-  id           String   @id @default(uuid())
-  userId       String
-  requestId    String
-  prompt       String
-  answer       String
-  locale       String
-  provider     String
-  simulationId String?
-  blocks       Json
-  createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(uuid())
+  userId         String
+  requestId      String
+  prompt         String
+  answer         String
+  locale         String
+  provider       String
+  simulationId   String?
+  conversationId String?
+  blocks         Json
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, requestId])
   @@index([userId, createdAt])
+  @@index([userId, conversationId, createdAt])
 }
 
 model DocumentAnalysis {

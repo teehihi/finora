@@ -13,6 +13,7 @@ import { SourceSerif4_500Medium } from '@expo-google-fonts/source-serif-4/500Med
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Animated,
@@ -41,11 +42,13 @@ import {
   ShieldCheck,
   Square,
 } from 'lucide-react-native';
-import type {
-  IntelligenceBlock,
-  IntelligenceEvent,
-  IntelligenceRequest,
-  IntelligenceTurn,
+import {
+  intelligenceProviderSchema,
+  type IntelligenceBlock,
+  type IntelligenceEvent,
+  type IntelligenceProviderChoice,
+  type IntelligenceRequest,
+  type IntelligenceTurn,
 } from '@finora/contracts';
 import { dark, tokens } from '@finora/design-tokens';
 import { date } from '@finora/i18n';
@@ -115,17 +118,25 @@ type Draft = {
 
 export default function Intelligence() {
   const session = auth.useSession();
-  const { simulationId, documentId, draftPrompt } = useLocalSearchParams<{
+  const {
+    simulationId,
+    documentId,
+    draftPrompt,
+    conversationId: conversationParam,
+  } = useLocalSearchParams<{
     simulationId?: string;
     documentId?: string;
     draftPrompt?: string;
+    conversationId?: string;
   }>();
+  const conversationId = chooseSimulationId(conversationParam);
   const uid = session.data?.user.id;
   const scope = chooseSimulationId(simulationId);
   return uid ? (
     <Desk
-      key={uid + ':' + (scope ?? '') + ':' + (documentId ?? '')}
+      key={uid + ':' + (conversationId ?? '') + ':' + (scope ?? '') + ':' + (documentId ?? '')}
       uid={uid}
+      conversationId={conversationId}
       simulationId={scope}
       documentId={documentId}
       initialPrompt={chooseDraftPrompt(draftPrompt)}
@@ -135,11 +146,13 @@ export default function Intelligence() {
 
 function Desk({
   uid,
+  conversationId,
   simulationId,
   documentId,
   initialPrompt,
 }: {
   uid: string;
+  conversationId?: string;
   simulationId?: string;
   documentId?: string;
   initialPrompt: string;
@@ -152,7 +165,6 @@ function Desk({
   const phone = width < tokens.breakpoints.rail;
   const dock = useWorkspaceDockInset();
   const insets = useSafeAreaInsets();
-  const [externalConsent, setConsent] = useState(false);
   const [privacy, openPrivacy] = useState(false);
   const [toolSheet, openTools] = useState(false);
   const [prompt, setPrompt] = useFinPromptDraft(simulationId ?? documentId, initialPrompt);
@@ -268,16 +280,28 @@ function Desk({
     [canReturnToPeer, edgeOffset, focus, navigateSwipe, previousPeer, reduceMotion],
   );
   const queryClient = useQueryClient();
-  const historyKey = ['intelligence-history', uid] as const;
+  const historyKey = ['intelligence-history', uid, conversationId] as const;
+  const providerKey = ['intelligence-preference', uid, conversationId] as const;
+  const preferenceStorageKey = 'finora:provider:' + uid + ':' + (conversationId ?? 'default');
   const status = useQuery({
     queryKey: ['intelligence-provider', uid],
     queryFn: ({ signal }) => loadIntelligenceStatus(signal),
     retry: false,
   });
-  const allowConsent = status.data === 'openai' || status.data === 'anthropic';
+  const available = status.data?.available ?? [];
+  const allowConsent = available.length > 0;
+  const preference = useQuery({
+    queryKey: providerKey,
+    queryFn: async () => {
+      const stored = await AsyncStorage.getItem(preferenceStorageKey).catch(() => null);
+      return intelligenceProviderSchema.safeParse(stored).data ?? null;
+    },
+    enabled: Boolean(uid),
+    staleTime: Infinity,
+  });
   const history = useQuery({
     queryKey: historyKey,
-    queryFn: ({ signal }) => loadIntelligenceHistory(signal),
+    queryFn: ({ signal }) => loadIntelligenceHistory(signal, conversationId),
     retry: false,
   });
   const saved = useQuery({
@@ -290,6 +314,30 @@ function Desk({
   const scopeUnavailable = Boolean(simulationId && (saved.isPending || saved.isError));
   const historyRows = history.data ?? [];
   const last = historyRows.at(-1);
+  const selected = preference.data ?? last?.routing?.requestedProvider ?? 'mock';
+  const externalConsent = selected !== 'mock' && available.includes(selected);
+  const providerLabel = selected === 'anthropic' ? 'Claude' : 'OpenAI';
+  const sendLabel = externalConsent
+    ? t('intelligenceSendExternal') + ' ' + providerLabel
+    : t('send');
+
+  function selectProvider(choice: IntelligenceProviderChoice) {
+    if (!uid) return;
+    if (choice === 'mock') active.current?.abort();
+    void queryClient.cancelQueries({ queryKey: providerKey, exact: true });
+    queryClient.setQueryData(providerKey, choice);
+    void AsyncStorage.setItem(preferenceStorageKey, choice).catch(() => undefined);
+  }
+
+  function setConsent(enabled: boolean) {
+    selectProvider(
+      enabled
+        ? (available.find((provider) => provider === status.data?.provider) ??
+            available[0] ??
+            'mock')
+        : 'mock',
+    );
+  }
   const current =
     draft?.stage === 'done' &&
     last?.answer === draft.answer &&
@@ -345,16 +393,21 @@ function Desk({
           locale,
           simulationId: scoped?.id,
           documentId,
-          externalConsent: allowConsent && externalConsent,
+          conversationId,
+          requestedProvider: selected,
+          externalConsent,
         };
-    // Do not re-send a previously opted-in request after turning off permission.
-    if (retry?.externalConsent && (!allowConsent || !externalConsent)) {
-      request.externalConsent = false;
+    // A retry after changing the selection is a new request with new consent.
+    if (
+      retry &&
+      (retry.externalConsent !== externalConsent || retry.requestedProvider !== selected)
+    ) {
+      request.externalConsent = externalConsent;
+      request.requestedProvider = selected;
       request.requestId = requestId();
     }
     const control = new AbortController();
     active.current = control;
-    setConsent(false);
     const currentRequest = () => active.current === control;
     let reply: Draft = { request, answer: '', blocks: [], stage: 'sending' };
     if (!retry) {
@@ -428,7 +481,8 @@ function Desk({
     setClearError(false);
     setClearing(true);
     try {
-      await clearIntelligenceHistory(new AbortController().signal);
+      await clearIntelligenceHistory(new AbortController().signal, conversationId);
+      selectProvider('mock');
       await queryClient.cancelQueries({ queryKey: historyKey, exact: true });
       queryClient.setQueryData(historyKey, []);
       initial.current = false;
@@ -613,7 +667,7 @@ function Desk({
   );
   const sendButton = (
     <FinBarButton
-      label={t(stream ? 'stop' : 'send')}
+      label={stream ? t('stop') : sendLabel}
       disabled={sendUnavailable}
       onPress={() => (stream ? active.current?.abort() : void submit())}
       backgroundColor={sendUnavailable ? (c === dark ? c.secondary : '#D7EDDF') : c.primary}
@@ -673,7 +727,9 @@ function Desk({
         </View>
         {allowConsent && externalConsent ? (
           <View style={{ marginLeft: 'auto' }}>
-            <ModeMark label={t('intelligenceExternalReady')} external />
+            <Action label={t('intelligencePrivacy')} onPress={() => openPrivacy(true)}>
+              <ModeMark label={t('intelligenceExternalReady') + ' · ' + providerLabel} external />
+            </Action>
           </View>
         ) : allowConsent ? (
           <Action
@@ -884,7 +940,10 @@ function Desk({
                           : 'intelligenceSendError',
                       )}
                     </Text>
-                    <Action label={t('retry')} onPress={() => void submit(current.request)}>
+                    <Action
+                      label={externalConsent ? sendLabel : t('retry')}
+                      onPress={() => void submit(current.request)}
+                    >
                       <Text small bold style={{ color: c.primary }}>
                         {t('retry')}
                       </Text>
@@ -991,7 +1050,7 @@ function Desk({
             </View>
             {allowConsent && externalConsent ? (
               <Text small muted>
-                {t('intelligenceConsentOn')}
+                {sendLabel + ' · ' + t('intelligenceConsentOn')}
               </Text>
             ) : null}
           </View>
@@ -1031,6 +1090,17 @@ function Desk({
         {allowConsent ? (
           <Switch label={t('intelligenceConsent')} value={externalConsent} onChange={setConsent} />
         ) : null}
+        {externalConsent && available.length > 1
+          ? available.map((choice) => (
+              <Button
+                key={choice}
+                label={choice === 'anthropic' ? 'Claude' : 'OpenAI'}
+                variant="outline"
+                disabled={selected === choice}
+                onPress={() => selectProvider(choice)}
+              />
+            ))
+          : null}
         <Text small muted>
           {t('intelligenceCaution')}
         </Text>

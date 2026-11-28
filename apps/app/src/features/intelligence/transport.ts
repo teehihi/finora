@@ -4,8 +4,10 @@ import { fetch as expoFetch } from 'expo/fetch';
 import {
   intelligenceEventSchema,
   intelligenceHistorySchema,
+  intelligenceProviderSchema,
   intelligenceRequestSchema,
   type IntelligenceEvent,
+  type IntelligenceProviderChoice,
   type IntelligenceRequest,
 } from '@finora/contracts';
 import { auth, base } from '../../services/client';
@@ -19,9 +21,13 @@ async function init(signal: AbortSignal) {
   return { signal, credentials: 'include' as const, headers };
 }
 
-export async function loadIntelligenceHistory(signal: AbortSignal) {
+function historyUrl(conversationId?: string) {
+  return `${base}/api/intelligence/history${conversationId ? '?conversationId=' + encodeURIComponent(conversationId) : ''}`;
+}
+
+export async function loadIntelligenceHistory(signal: AbortSignal, conversationId?: string) {
   return withReadDeadline(async (readSignal) => {
-    const response = await transport(`${base}/api/intelligence/history`, await init(readSignal));
+    const response = await transport(historyUrl(conversationId), await init(readSignal));
     if (!response.ok) throw new Error('History unavailable');
     return intelligenceHistorySchema.parse(await response.json());
   }, signal);
@@ -96,7 +102,17 @@ export async function loadIntelligenceStatus(signal: AbortSignal) {
       throw new Error('Invalid intelligence status');
     if (body.provider !== 'mock' && body.provider !== 'openai' && body.provider !== 'anthropic')
       throw new Error('Invalid intelligence provider');
-    return body.provider;
+    const available: Exclude<IntelligenceProviderChoice, 'mock'>[] =
+      'available' in body && Array.isArray(body.available)
+        ? body.available.flatMap((item) => {
+            const parsed = intelligenceProviderSchema.safeParse(item);
+            return parsed.success && parsed.data !== 'mock' ? [parsed.data] : [];
+          })
+        : body.provider === 'mock'
+          ? []
+          : [body.provider];
+    const provider: IntelligenceProviderChoice = body.provider;
+    return { provider, available };
   }, signal);
 }
 
@@ -119,8 +135,8 @@ export async function saveIntelligenceScenario(
   return id;
 }
 
-export async function clearIntelligenceHistory(signal: AbortSignal) {
-  const response = await transport(`${base}/api/intelligence/history`, {
+export async function clearIntelligenceHistory(signal: AbortSignal, conversationId?: string) {
+  const response = await transport(historyUrl(conversationId), {
     ...(await init(signal)),
     method: 'DELETE',
   });

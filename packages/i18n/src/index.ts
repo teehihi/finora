@@ -533,11 +533,12 @@ const copy = {
   intelligenceStarterShock: ['Nếu thu nhập giảm?', 'What if my income falls?'],
   intelligenceStarterCompare: ['So sánh các điều khoản', 'Compare lending terms'],
   intelligenceStarterSaved: ['Kiểm tra mô phỏng đã lưu', 'Review my saved simulation'],
-  intelligenceExternalReady: ['Cho phép AI bên ngoài', 'External AI allowed'],
+  intelligenceExternalReady: ['Đã chọn AI bên ngoài', 'External AI selected'],
+  intelligenceSendExternal: ['Gửi tới', 'Send to'],
   intelligenceFirstDue: ['Ngày trả kỳ đầu', 'First due date'],
   intelligenceConsentOn: [
-    'Cho phép xử lý câu hỏi này bên ngoài.',
-    'External processing is allowed for this question.',
+    'Bấm gửi để cho phép xử lý riêng câu hỏi này.',
+    'Press send to allow external processing for this question.',
   ],
   intelligenceFrom: ['Từ', 'From'],
   intelligenceUpTo: ['Đến', 'Up to'],
@@ -588,8 +589,8 @@ const copy = {
   intelligenceChooseExternal: ['Dùng AI bên ngoài cho câu này', 'Use external AI for this request'],
   intelligenceChooseExternalShort: ['Chọn AI bên ngoài', 'Choose external AI'],
   intelligenceDataHint: [
-    'Chỉ khi bật và có cấu hình, câu hỏi hiện tại đã được lọc mới gửi đến nhà cung cấp AI. Hồ sơ, lịch sử và tài liệu không được gửi. Không nhập số CCCD hay tài khoản.',
-    'If enabled and configured, only the filtered current question goes to the AI provider. Your profile, history, and documents are not sent. Do not enter ID or account numbers.',
+    'Finora ghi nhớ nhà cung cấp đã chọn. Mỗi lần bấm “Gửi tới” nhà cung cấp là bạn cho phép xử lý câu hỏi đó. Hồ sơ, lịch sử và tài liệu được giữ trong Finora.',
+    'Finora remembers your selected provider. Each press of “Send to” allows external processing for that question. Your profile, history and documents stay in Finora.',
   ],
   intelligencePrivacy: ['Dữ liệu và chế độ xử lý', 'Data and processing mode'],
   intelligenceWorking: [
