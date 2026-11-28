@@ -13,8 +13,17 @@ export function AuthInputField({
   icon: Icon,
   error,
   secure = false,
+  onKeyboardFocus,
+  onKeyboardBlur,
   ...inputProps
-}: NativeInputProps & { label: string; icon: LucideIcon; error?: string; secure?: boolean }) {
+}: NativeInputProps & {
+  label: string;
+  icon: LucideIcon;
+  error?: string;
+  secure?: boolean;
+  onKeyboardFocus?: () => void;
+  onKeyboardBlur?: () => void;
+}) {
   const { colors: c, t } = useDesign();
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -46,8 +55,14 @@ export function AuthInputField({
           placeholderTextColor={c.muted}
           underlineColorAndroid="transparent"
           secureTextEntry={secure && !passwordVisible}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={() => {
+            setFocused(true);
+            onKeyboardFocus?.();
+          }}
+          onBlur={() => {
+            setFocused(false);
+            onKeyboardBlur?.();
+          }}
           style={{
             flex: 1,
             minWidth: 0,
