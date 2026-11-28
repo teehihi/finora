@@ -1,6 +1,7 @@
 export { cashflowCopy } from './cashflow';
 export { matchingText, type MatchingCopyKey } from './loan-matching';
 export { digitalTwinText, type DigitalTwinCopyKey } from './digital-twin';
+export { repaymentProactive } from './repayment-proactive';
 
 export type Locale = 'vi-VN' | 'en-US';
 const copy = {

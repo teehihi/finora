@@ -39,6 +39,7 @@ import { SessionGuard, type OwnedRequest } from './auth.js';
 import { matchPublicLoans, searchPublicLoans } from './catalog-intelligence.js';
 import { financialTools } from './tools.js';
 import { getUpcomingRepayments } from './repayment-intelligence.js';
+import { repaymentMonitor, type SavedPreparationSummary } from './repayment-monitor.js';
 import {
   approvedPurposes,
   buildProfile,
@@ -184,6 +185,12 @@ const toolRegistry = [
     name: 'getUpcomingRepayments',
     description:
       'Read the signed-in user’s manually tracked repayment due totals. Never mark a payment.',
+    schema: noInput,
+  },
+  {
+    name: 'monitorRepayments',
+    description:
+      'Read the signed-in user’s due schedule and a separately confirmed preparation plan. Explain only server-calculated risks; never edit records or suggest borrowing.',
     schema: noInput,
   },
   {
@@ -646,11 +653,38 @@ async function resultFor(
   }
   if (
     route.selected.has('getUpcomingRepayments') ||
-    /ky (thanh toan|tra no) sap toi|no den han|khoan (thanh toan|tra no) sap toi|upcoming repayments|upcoming payments/i.test(
+    route.selected.has('monitorRepayments') ||
+    /ky (thanh toan|tra no) sap toi|no den han|khoan (thanh toan|tra no) sap toi|upcoming repayments|upcoming payments|chuan bi.*tra no|thieu tien.*tra|prepare.*payment|repayment shortfall/i.test(
       normalizeVn(input.prompt),
     )
   ) {
     const tracked = await getUpcomingRepayments(userId);
+    const focus = tracked.overdue[0] ?? tracked.upcoming[0];
+    let savedPlan: SavedPreparationSummary | null = null;
+    if (focus) {
+      const row = await db.trackedRepayment.findFirst({
+        where: { id: focus.loanId, userId },
+        select: { preparation: true },
+      });
+      const stored = row?.preparation as {
+        period?: number;
+        summary?: { additionalNeeded?: number; firstShortfall?: string | null };
+        updatedAt?: string;
+      } | null;
+      if (
+        stored?.period === focus.period &&
+        Number.isSafeInteger(stored.summary?.additionalNeeded) &&
+        typeof stored.updatedAt === 'string'
+      )
+        savedPlan = {
+          loanId: focus.loanId,
+          period: focus.period,
+          additionalNeeded: stored.summary!.additionalNeeded!,
+          firstShortfall: stored.summary?.firstShortfall ?? null,
+          asOf: stored.updatedAt.slice(0, 10),
+        };
+    }
+    out.push({ kind: 'repayment_monitor', ...repaymentMonitor(tracked, savedPlan) });
     notice(
       tracked.upcoming.length
         ? say(

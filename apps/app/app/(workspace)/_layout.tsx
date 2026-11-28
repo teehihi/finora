@@ -108,6 +108,8 @@ export default function Workspace() {
           (path === '/intelligence' || path === '/documents' || path.startsWith('/documents/'))) ||
         (key === 'loans' &&
           (path === '/repayments' ||
+            path === '/notifications' ||
+            path.startsWith('/prepare/') ||
             path === '/cashflow' ||
             path.startsWith('/saved/') ||
             path.startsWith('/twin/'))),

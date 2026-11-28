@@ -15,7 +15,13 @@ import {
 import type { IntelligenceBlock, IntelligenceScenario } from '@finora/contracts';
 import { Action, Button, Dialog, Heading, Text, useDesign } from '@finora/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { date, digitalTwinText, documentStrings, intelligenceDecision } from '@finora/i18n';
+import {
+  date,
+  digitalTwinText,
+  documentStrings,
+  intelligenceDecision,
+  repaymentProactive,
+} from '@finora/i18n';
 import { tokens } from '@finora/design-tokens';
 import { SignatureIcon } from '../../components/signature';
 import { api, auth } from '../../services/client';
@@ -143,9 +149,10 @@ export function AnalysisBlocks({
     digital_twin: 3,
     matches: 4,
     document_review: 5,
-    missing: 6,
-    notice: 7,
-    offers: 8,
+    repayment_monitor: 6,
+    missing: 7,
+    notice: 8,
+    offers: 9,
   } as const;
   const sorted = blocks
     .map((block, index) => ({ block, index }))
@@ -546,6 +553,67 @@ function Block({
   };
 
   switch (value.kind) {
+    case 'repayment_monitor': {
+      const s = repaymentProactive[locale];
+      return (
+        <Receipt
+          label={s.notifications}
+          title={s.prepare}
+          figure={value.next ? money(value.next.payment) : undefined}
+        >
+          {value.next ? (
+            <Text>
+              {value.next.title} · {date(value.next.date, locale)}
+            </Text>
+          ) : (
+            <Text>{s.empty}</Text>
+          )}
+          {value.additionalNeeded !== null ? (
+            <Text bold style={{ color: value.additionalNeeded > 0 ? c.warning : c.primary }}>
+              {s.need}: {money(value.additionalNeeded)}
+            </Text>
+          ) : null}
+          {value.shortfallDate ? (
+            <Text small style={{ color: c.warning }}>
+              {s.firstShortfall}: {date(value.shortfallDate, locale)}
+            </Text>
+          ) : null}
+          {value.alerts.includes('multiple_due_close') ? (
+            <Text small>
+              {locale === 'vi-VN'
+                ? 'Nhiều kỳ trả gần nhau trong lịch.'
+                : 'Several scheduled obligations fall close together.'}
+            </Text>
+          ) : null}
+          {value.missing.length ? (
+            <Text small muted>
+              {s.missing}: {value.missing.map((key) => s[key as keyof typeof s] ?? key).join(', ')}
+            </Text>
+          ) : null}
+          {value.planAsOf ? (
+            <Text small muted>
+              {s.assumptions} · {date(value.planAsOf, locale)}
+            </Text>
+          ) : (
+            <Text small muted>
+              {s.assumptions}
+            </Text>
+          )}
+          {value.next ? (
+            <Button
+              variant="outline"
+              label={s.prepare}
+              onPress={() =>
+                router.push({
+                  pathname: '/prepare/[id]',
+                  params: { id: value.next!.loanId, period: String(value.next!.period) },
+                })
+              }
+            />
+          ) : null}
+        </Receipt>
+      );
+    }
     case 'digital_twin': {
       const twin = (key: Parameters<typeof digitalTwinText>[0]) => digitalTwinText(key, locale);
       const signed = (n: number | null) =>

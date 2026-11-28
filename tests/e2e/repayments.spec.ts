@@ -217,3 +217,46 @@ test('saving a simulation does not create an obligation; tracking and payment bo
   await page.getByRole('tab', { name: 'Đang trả' }).click();
   await expect(page.getByRole('button', { name: 'Khoản thứ hai', exact: true })).toBeVisible();
 });
+
+test('a planned loan is created in the saved-simulation UI and activated only after confirmation', async ({
+  context,
+  page,
+}) => {
+  expect((await createLegacyAccount(context.request, identity())).ok()).toBe(true);
+  const today = (await (await context.request.get(base + '/repayments')).json()).today as string;
+  const saved = await context.request.post(base + '/simulations', {
+    data: {
+      requestId: randomUUID(),
+      productId: 'personal-flex',
+      input: {
+        principal: 10_000_000,
+        months: 12,
+        annualRate: 12,
+        fee: null,
+        method: 'annuity',
+        firstDue: today,
+      },
+    },
+  });
+  expect(saved.ok()).toBe(true);
+  await page.goto('/saved/' + (await saved.json()).id);
+  await page.getByRole('button', { name: 'Lập kế hoạch khoản vay' }).click();
+  await expect(
+    page.getByText('Khoản dự định không tạo nghĩa vụ thực tế hoặc lời nhắc đến hạn.'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Lưu khoản dự định' }).click();
+  await expect(page).toHaveURL(/\/repayments$/);
+  const planned = await (await context.request.get(base + '/repayments')).json();
+  expect(planned.loans[0].state).toBe('planned');
+  expect(planned.upcoming).toHaveLength(0);
+  expect((await (await context.request.get(base + '/notifications')).json()).items).toHaveLength(0);
+  await page.getByRole('button', { name: 'Xác nhận khoản vay thực tế' }).click();
+  await page
+    .getByRole('dialog', { name: 'Xác nhận khoản vay thực tế' })
+    .getByRole('button', { name: 'Xác nhận khoản vay thực tế' })
+    .click();
+  await expect(page.getByText('Khoản đang theo dõi', { exact: true })).toBeVisible();
+  const active = await (await context.request.get(base + '/repayments')).json();
+  expect(active.loans[0].state).toBe('active');
+  expect(active.upcoming).toHaveLength(1);
+});

@@ -14,6 +14,10 @@ const schema = z
     SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
     SMTP_FROM: z.email().default('finora@example.test'),
     SMTP_MODE: z.enum(['local', 'starttls', 'tls']).default('local'),
+    FINORA_REMINDER_EMAIL_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
     SMTP_USER: z.string().trim().optional(),
     SMTP_PASSWORD: z.string().optional(),
     GOOGLE_CLIENT_ID: z.string().trim().optional(),

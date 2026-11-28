@@ -99,6 +99,24 @@ export const intelligenceBlockSchema = z.discriminatedUnion('kind', [
   intelligenceScenarioSchema,
   z.object({ kind: z.literal('matches'), result: loanMatchResultSchema }).strict(),
   z.strictObject({
+    kind: z.literal('repayment_monitor'),
+    next: z
+      .strictObject({
+        loanId: z.uuid(),
+        title: z.string().min(1).max(80),
+        payment: outputMoney,
+        date: z.iso.date(),
+        period: z.number().int().min(1).max(360),
+      })
+      .nullable(),
+    overdueCount: z.number().int().min(0).max(360),
+    additionalNeeded: outputMoney.nullable(),
+    shortfallDate: z.iso.date().nullable(),
+    planAsOf: z.iso.date().nullable(),
+    alerts: z.array(z.enum(['overdue', 'multiple_due_close', 'projected_shortfall'])).max(3),
+    missing: z.array(z.string().min(1).max(40)).max(6),
+  }),
+  z.strictObject({
     kind: z.literal('digital_twin'),
     state: twinStateSchema,
     scenario: twinScenarioSchema,

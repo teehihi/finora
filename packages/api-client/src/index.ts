@@ -19,6 +19,13 @@ import type {
   RepaymentPaymentUpdate,
   TrackedRepayment,
   TrackRepaymentInput,
+  RepaymentRecordInput,
+  RepaymentStateUpdate,
+  RepaymentPreparationInput,
+  RepaymentPreparation,
+  NotificationPreference,
+  NotificationCenter,
+  PaymentAuditEvent,
   TwinComparisonRequest,
   TwinComparison,
 } from '@finora/contracts';
@@ -96,6 +103,32 @@ export function createApi(
         'PUT',
         input,
       ),
+    recordRepayment: (id: string, period: number, input: RepaymentRecordInput) =>
+      request<{ recordedAmount: number; paid: boolean; repeated: boolean }>(
+        'repayments/' + encodeURIComponent(id) + '/payments/' + period + '/record',
+        'PUT',
+        input,
+      ),
+    repaymentHistory: (id: string, period: number) =>
+      request<PaymentAuditEvent[]>(
+        'repayments/' + encodeURIComponent(id) + '/payments/' + period + '/history',
+      ),
+    repaymentState: (id: string, input: RepaymentStateUpdate) =>
+      request<TrackedRepayment>('repayments/' + encodeURIComponent(id) + '/state', 'PUT', input),
+    repaymentPreparation: (id: string, period: number, input: RepaymentPreparationInput) =>
+      request<RepaymentPreparation>(
+        'repayments/' + encodeURIComponent(id) + '/preparation/' + period,
+        'PUT',
+        input,
+      ),
+    notifications: () => request<NotificationCenter>('notifications'),
+    notificationPreferences: () => request<NotificationPreference>('notifications/preferences'),
+    notificationCapabilities: () =>
+      request<{ email: boolean; push: boolean }>('notifications/capabilities'),
+    saveNotificationPreferences: (input: NotificationPreference) =>
+      request<NotificationPreference>('notifications/preferences', 'PUT', input),
+    readNotification: (id: string) =>
+      request<{ read: true }>('notifications/' + encodeURIComponent(id) + '/read', 'PUT'),
     clearHistory: () => request<{ removed: number }>('assistant/history', 'DELETE'),
     history: () => request<ChatTurn[]>('assistant/history'),
     async stream(input: ChatRequest, signal: AbortSignal, onDelta: (text: string) => void) {

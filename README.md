@@ -116,6 +116,8 @@ Từ một phương án vay đã lưu, chọn **Xem dòng tiền tương lai** �
 
 **Đọc đề nghị vay** hỗ trợ PDF có văn bản, PDF quét và ảnh bằng OCR Việt/Anh cục bộ. Người dùng xem trích dẫn theo trang, sửa và xác nhận điều khoản trước khi tính mô phỏng. [Kiến trúc xử lý tài liệu](docs/architecture/DOCUMENT_INTELLIGENCE.md) · [Báo cáo Phase 4](docs/PHASE4_DOCUMENT_INTELLIGENCE_REPORT.md).
 
+**Theo dõi trả nợ** phân biệt mô phỏng đã lưu, khoản dự định và khoản vay người dùng xác nhận. Sổ trả nợ hỗ trợ ghi nhận một phần, sửa có lịch sử, lập kế hoạch chuẩn bị theo dòng tiền và lời nhắc trong ứng dụng. Email chung chỉ gửi khi được cấu hình, email đã xác minh và người dùng bật tùy chọn. [Kiến trúc trả nợ](docs/architecture/REPAYMENT_TRACKING.md) · [Báo cáo Phase 5](docs/PHASE5_PROACTIVE_REPAYMENT_REPORT.md).
+
 - **Kỹ thuật:** [Kiến trúc](docs/architecture/ARCHITECTURE.md) · [Cơ sở dữ liệu](docs/architecture/DATABASE.md) · [Công thức](docs/architecture/CALCULATIONS.md) · [Kết quả kiểm tra](docs/VERIFICATION.md)
 - **Sản phẩm và thiết kế:** [Phạm vi MVP](docs/product/MVP_SCOPE.md) · [Thương hiệu](docs/design-system/BRAND_GUIDELINES.md) · [Bộ ảnh giao diện](docs/product-design/FINORA-UI-COHESION.md) · [Consumer Fintech 4.0](docs/design-system/FINORA_V4.md)
 - **Đóng góp:** [Quy trình PR](CONTRIBUTING.md) · [GitHub Actions](https://github.com/teehihi/finora/actions/workflows/ci.yml) · [Hướng dẫn maintainer](docs/maintainers/GITHUB.md) · [Báo lỗi bảo mật](SECURITY.md) · [Giấy phép và tài sản](docs/maintainers/LICENSING.md)

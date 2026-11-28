@@ -194,11 +194,17 @@ export class PlanningController {
     @Req() req: OwnedRequest,
     @Body(new Validate(profileSchema)) input: Profile,
   ) {
-    await db.financialProfile.upsert({
-      where: { userId: req.userId },
-      create: { userId: req.userId, ...input },
-      update: input,
-    });
+    await db.$transaction([
+      db.financialProfile.upsert({
+        where: { userId: req.userId },
+        create: { userId: req.userId, ...input },
+        update: input,
+      }),
+      db.trackedRepayment.updateMany({
+        where: { userId: req.userId },
+        data: { preparation: Prisma.DbNull },
+      }),
+    ]);
     return input;
   }
   @Put('preferences') async preferences(
