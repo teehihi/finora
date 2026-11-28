@@ -15,7 +15,7 @@ import {
 import type { IntelligenceBlock, IntelligenceScenario } from '@finora/contracts';
 import { Action, Button, Dialog, Heading, Text, useDesign } from '@finora/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { date, digitalTwinText, intelligenceDecision } from '@finora/i18n';
+import { date, digitalTwinText, documentStrings, intelligenceDecision } from '@finora/i18n';
 import { tokens } from '@finora/design-tokens';
 import { SignatureIcon } from '../../components/signature';
 import { api, auth } from '../../services/client';
@@ -605,6 +605,11 @@ function Block({
       return (
         <Receipt label={t('intelligenceDocuments')} title={t('intelligenceDocumentCard')}>
           <Text>{t('intelligenceDocumentFound') + ': ' + value.foundCount}</Text>
+          {value.riskKinds?.map((kind) => (
+            <Text key={kind} small>
+              {documentStrings[locale].riskKinds[kind]}
+            </Text>
+          ))}
           <Text small muted>
             {t('intelligenceDocumentReviewHint')}
           </Text>

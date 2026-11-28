@@ -7,6 +7,7 @@ import { fetch as expoFetch } from 'expo/fetch';
 import {
   maxDocumentBytes,
   type DocumentMime,
+  type DocumentFieldName,
   type DocumentReview,
   type DocumentReviewInput,
   type DocumentSummary,
@@ -51,6 +52,13 @@ export const docApi = {
   list: (signal?: AbortSignal) => request<DocumentSummary[]>('', 'GET', {}, undefined, signal),
   get: (id: string, signal?: AbortSignal) =>
     request<DocumentReview>(segments(id), 'GET', {}, undefined, signal),
+  confirmTerm: (id: string, field: DocumentFieldName, rawValue: string) =>
+    request<DocumentReview>(
+      segments(id) + '/terms/' + encodeURIComponent(field),
+      'PUT',
+      { 'Content-Type': 'application/json' },
+      JSON.stringify({ rawValue }),
+    ),
   remove: (id: string) => request<{ deleted: true }>(segments(id), 'DELETE'),
   upload: async (body: BodyInit, mime: DocumentMime, synthetic = false) => {
     try {
@@ -76,6 +84,8 @@ export const docApi = {
 };
 export const privateDocumentFileUrl = (id: string) =>
   base + '/api/document-analysis' + segments(id) + '/file';
+export const privateDocumentPageUrl = (id: string, page: number) =>
+  base + '/api/document-analysis' + segments(id) + '/pages/' + page;
 
 // Fetch only after the owner opens the preview. The bytes stay in memory, are never
 // added to the query cache, and the account-scoped server route authorizes each fetch.
@@ -83,21 +93,26 @@ export async function loadPrivateImage(
   id: string,
   mime: 'image/jpeg' | 'image/png',
   signal: AbortSignal,
+  page?: number,
 ) {
   const web = Platform.OS === 'web';
   const get = web ? fetch : expoFetch;
   const bytes = await withReadDeadline(async (readSignal) => {
-    const response = await get(privateDocumentFileUrl(id), {
-      signal: readSignal,
-      method: 'GET',
-      credentials: web ? 'include' : 'omit',
-      headers: web ? {} : { cookie: auth.getCookie() },
-      ...(web ? { cache: 'no-store' as const } : {}),
-    });
+    const response = await get(
+      page ? privateDocumentPageUrl(id, page) : privateDocumentFileUrl(id),
+      {
+        signal: readSignal,
+        method: 'GET',
+        credentials: web ? 'include' : 'omit',
+        headers: web ? {} : { cookie: auth.getCookie() },
+        ...(web ? { cache: 'no-store' as const } : {}),
+      },
+    );
     if (!response.ok) throw new DocumentApiError(response.status);
     return new Uint8Array(await response.arrayBuffer());
   }, signal);
-  if (bytes.byteLength > maxDocumentBytes) throw new DocumentApiError(413);
+  if (bytes.byteLength > (page ? 8 * 1024 * 1024 : maxDocumentBytes))
+    throw new DocumentApiError(413);
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   const chunks: string[] = [];
   let part = '';
@@ -116,7 +131,17 @@ export async function loadPrivateImage(
     }
   }
   chunks.push(part);
-  return 'data:' + mime + ';base64,' + chunks.join('');
+  return {
+    uri: 'data:' + mime + ';base64,' + chunks.join(''),
+    width:
+      mime === 'image/png' && bytes.length >= 24
+        ? new DataView(bytes.buffer, bytes.byteOffset + 16, 8).getUint32(0, false)
+        : null,
+    height:
+      mime === 'image/png' && bytes.length >= 24
+        ? new DataView(bytes.buffer, bytes.byteOffset + 16, 8).getUint32(4, false)
+        : null,
+  };
 }
 
 export type PickedPrivateDocument = { body: BodyInit; mime: DocumentMime };

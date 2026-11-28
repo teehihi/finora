@@ -442,12 +442,42 @@ async function resultFor(
       const field = fields[key];
       return field && typeof field === 'object' && 'state' in field && field.state === 'found';
     }).length;
+    const riskKinds =
+      document.extraction &&
+      typeof document.extraction === 'object' &&
+      'risks' in document.extraction &&
+      Array.isArray(document.extraction.risks)
+        ? [
+            ...new Set(
+              document.extraction.risks.flatMap((risk) =>
+                risk && typeof risk === 'object' && 'kind' in risk && typeof risk.kind === 'string'
+                  ? [risk.kind]
+                  : [],
+              ),
+            ),
+          ].slice(0, 25)
+        : [];
     out.push({
       kind: 'document_review',
       documentId: document.id,
-      mode: z.enum(['pdf-text', 'local-ocr', 'manual']).parse(document.mode),
+      mode: z.enum(['pdf-text', 'pdf-ocr', 'local-ocr', 'manual']).parse(document.mode),
       foundCount,
       unresolvedCount: documentFieldNames.length - foundCount,
+      riskKinds: z
+        .array(
+          z.enum([
+            'mandatory_fee',
+            'insurance_deduction',
+            'nominal_effective_gap',
+            'ambiguous_interest',
+            'early_repayment_penalty',
+            'late_payment_obligation',
+            'missing_term',
+            'conflicting_term',
+            'non_monthly_frequency',
+          ]),
+        )
+        .parse(riskKinds),
     });
     notice(
       say(

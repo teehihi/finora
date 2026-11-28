@@ -1,6 +1,7 @@
 import { createLegacyAccount } from './legacy-fixture';
 import { expect, test } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { syntheticLoanOfferPdf } from '../../apps/app/src/features/documents/fixture';
 
 test('private PDF yields evidence, permits reviewed values, saves and deletes independently', async ({
@@ -80,10 +81,15 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
   expect(evidence.fields.insuranceFee.value).toBe(null);
   expect((await request.get(endpoint)).status()).toBe(404);
   expect((await request.get(endpoint + '/file')).status()).toBe(404);
+  expect((await request.get(endpoint + '/pages/1')).status()).toBe(404);
   expect((await request.delete(endpoint, { headers })).status()).toBe(404);
   const download = await page.request.get(endpoint + '/file');
   expect(download.headers()['content-disposition']).toContain('attachment;');
   expect(download.headers()['cache-control']).toBe('no-store');
+  const renderedPage = await page.request.get(endpoint + '/pages/1');
+  expect(renderedPage.ok()).toBeTruthy();
+  expect(renderedPage.headers()['content-type']).toContain('image/png');
+  expect(renderedPage.headers()['cache-control']).toContain('no-store');
 
   const foreign = await request.post(endpoint + '/preview', {
     headers,
@@ -103,6 +109,45 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
   if (!(await page.getByText(/Trang 1:.*Principal/).isVisible()))
     await page.getByRole('button', { name: 'Xem giá trị và trích dẫn' }).click();
   await expect(page.getByText(/Trang 1:.*Principal/)).toBeVisible();
+  const insuranceRow = page.getByText('Phí bảo hiểm', { exact: true }).locator('../..');
+  await insuranceRow.getByRole('button', { name: 'Sửa và xác nhận điều khoản' }).click();
+  await insuranceRow.getByRole('textbox', { name: 'Phí bảo hiểm' }).fill('120000');
+  await insuranceRow.getByRole('button', { name: 'Lưu điều khoản đã đối chiếu' }).click();
+  await expect(
+    insuranceRow.getByText('Không hiểu giá trị hoặc đơn vị. Kiểm tra rồi thử lại.'),
+  ).toBeVisible();
+  await insuranceRow.getByRole('textbox', { name: 'Phí bảo hiểm' }).fill('120.000 VND');
+  await insuranceRow.getByRole('button', { name: 'Lưu điều khoản đã đối chiếu' }).click();
+  await expect(insuranceRow.getByText(/Bạn đã xác nhận.*120.000 VND/)).toBeVisible();
+  await insuranceRow.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('document-corrected-term.png') });
+  const confirmed = await (await page.request.get(endpoint)).json();
+  expect(confirmed.fields.insuranceFee.value).toBeNull();
+  expect(confirmed.confirmedTerms.insuranceFee).toMatchObject({ value: 120_000, unit: 'VND' });
+  expect(
+    (
+      await request.put(endpoint + '/terms/insuranceFee', {
+        headers,
+        data: { rawValue: '0 VND' },
+      })
+    ).status(),
+  ).toBe(404);
+  await page.reload();
+  await page.getByRole('button', { name: 'Xem giá trị và trích dẫn' }).click();
+  await expect(page.getByText(/Bạn đã xác nhận.*120.000 VND/)).toBeVisible();
+  await page.getByRole('button', { name: 'So với sản phẩm đã công bố' }).click();
+  await page.getByRole('radio', { name: /Home Credit Việt Nam/ }).click();
+  await expect(page.getByText('Chưa đủ dữ liệu để đối chiếu').first()).toBeVisible();
+  await page.screenshot({ path: info.outputPath('document-comparison-desktop.png') });
+  await page.getByRole('button', { name: 'Xem trang PDF' }).click();
+  await expect(page.getByRole('dialog', { name: 'Trang PDF riêng tư' })).toBeVisible();
+  await expect(page.getByLabel('Trang PDF gốc')).toBeVisible();
+  expect((await page.getByLabel('Trang PDF gốc').boundingBox())?.height).toBeGreaterThan(400);
+  await page.screenshot({ path: info.outputPath('document-pdf-page-desktop.png') });
+  await page
+    .getByRole('dialog', { name: 'Trang PDF riêng tư' })
+    .getByRole('button', { name: /Đóng|Close/ })
+    .click();
   await expect(page.getByLabel('Tiền gốc (VND)')).toHaveValue('30000000');
   await page.getByLabel('Tiền gốc (VND)').fill('26,000.000');
   await page.getByRole('button', { name: 'Xác nhận và tính lại' }).click();
@@ -178,6 +223,7 @@ test('private PDF yields evidence, permits reviewed values, saves and deletes in
   await expect(page).toHaveURL(/\/documents$/);
   expect((await page.request.get(endpoint)).status()).toBe(404);
   expect((await page.request.get(endpoint + '/file')).status()).toBe(404);
+  expect((await page.request.get(endpoint + '/pages/1')).status()).toBe(404);
   await page.goto('/documents/' + id);
   await expect(page.getByText('Tài liệu không còn khả dụng với phiên hiện tại.')).toBeVisible();
   await page.goto(savedUrl);
@@ -224,4 +270,55 @@ test('an unreadable private image can be previewed and recovered with manual ter
   ).toBeVisible();
   expect((await (await page.request.get(api + '/simulations')).json()).length).toBe(0);
   expect((await (await page.request.get(api + '/repayments')).json()).loans).toHaveLength(0);
+});
+
+test('Vietnamese scanned image links OCR evidence to its original', async ({ page }, info) => {
+  test.skip(!process.env.DOCUMENT_OCR_LANGS, 'Local OCR languages are not configured');
+  expect(
+    (
+      await createLegacyAccount(page.request, {
+        email: `document-ocr-${randomUUID()}@example.test`,
+        name: 'Synthetic OCR review',
+        password: randomUUID(),
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.goto('/documents');
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Chọn PDF hoặc ảnh' }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: 'synthetic-vietnamese-scan.png',
+    mimeType: 'image/png',
+    buffer: readFileSync('apps/api/test/fixtures/vi-scan.png'),
+  });
+  await expect(page.getByRole('heading', { name: 'Rà soát đề nghị vay' })).toBeVisible();
+  const id = new URL(page.url()).pathname.split('/').at(-1);
+  const review = await (
+    await page.request.get(`http://localhost:3000/api/document-analysis/${id}`)
+  ).json();
+  expect(review.mode).toBe('local-ocr');
+  expect(review.fields.principal.value).toBe(30_000_000);
+  expect(review.fields.principal.sources[0].bbox.width).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Xem giá trị và trích dẫn' }).click();
+  await page.getByRole('button', { name: 'Xem trang gốc 1' }).first().click();
+  await expect(page.getByRole('dialog', { name: 'Ảnh gốc riêng tư' })).toBeVisible();
+  await expect(page.getByLabel('Ảnh đề nghị vay bạn đã tải lên')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: info.outputPath('document-ocr-evidence-mobile.png') });
+  await page
+    .getByRole('dialog', { name: 'Ảnh gốc riêng tư' })
+    .getByRole('button', { name: /Đóng|Close/ })
+    .click();
+  const preference = await page.request.put('http://localhost:3000/api/preferences', {
+    headers: { Origin: 'http://localhost:8081' },
+    data: { locale: 'vi-VN', appearance: 'dark' },
+  });
+  expect(preference.ok()).toBeTruthy();
+  await page.reload();
+  await page.getByRole('button', { name: 'Xem giá trị và trích dẫn' }).click();
+  await page.getByRole('button', { name: 'Xem trang gốc 1' }).first().click();
+  await expect(page.getByLabel('Ảnh đề nghị vay bạn đã tải lên')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('document-ocr-evidence-mobile-dark.png') });
 });

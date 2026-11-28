@@ -3,7 +3,11 @@ import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { parse } from 'dotenv';
 function run(program, args) {
-  const r = spawnSync(program, args, { stdio: 'inherit' });
+  const usePnpmEntrypoint = program === 'pnpm' && process.platform === 'win32';
+  const executable = usePnpmEntrypoint ? process.execPath : program;
+  const commandArgs = usePnpmEntrypoint ? [process.env.npm_execpath, ...args] : args;
+  const r = spawnSync(executable, commandArgs, { stdio: 'inherit' });
+  if (r.error) throw r.error;
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 const [major, minor] = process.versions.node.split('.').map(Number);

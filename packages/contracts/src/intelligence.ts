@@ -136,9 +136,25 @@ export const intelligenceBlockSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('document_review'),
       documentId: z.uuid(),
-      mode: z.enum(['pdf-text', 'local-ocr', 'manual']),
-      foundCount: z.number().int().min(0).max(14),
-      unresolvedCount: z.number().int().min(0).max(14),
+      mode: z.enum(['pdf-text', 'pdf-ocr', 'local-ocr', 'manual']),
+      foundCount: z.number().int().min(0).max(25),
+      unresolvedCount: z.number().int().min(0).max(25),
+      riskKinds: z
+        .array(
+          z.enum([
+            'mandatory_fee',
+            'insurance_deduction',
+            'nominal_effective_gap',
+            'ambiguous_interest',
+            'early_repayment_penalty',
+            'late_payment_obligation',
+            'missing_term',
+            'conflicting_term',
+            'non_monthly_frequency',
+          ]),
+        )
+        .max(25)
+        .optional(),
     })
     .strict(),
   z.object({ kind: z.literal('missing'), fields: z.array(id).max(9), message: text }).strict(),

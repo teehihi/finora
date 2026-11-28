@@ -90,9 +90,13 @@ export const maxDocumentBytes = 5 * 1024 * 1024;
 export const documentFieldNames = [
   'lender',
   'principal',
+  'disbursementAmount',
   'months',
   'annualRate',
+  'effectiveApr',
+  'interestRateType',
   'method',
+  'paymentFrequency',
   'firstDue',
   'monthlyRepayment',
   'totalRepayment',
@@ -101,14 +105,50 @@ export const documentFieldNames = [
   'insuranceFee',
   'latePenalty',
   'earlyRepayment',
+  'earlyRepaymentFee',
+  'otherObligations',
   'importantClauses',
 ] as const;
 export type DocumentFieldName = (typeof documentFieldNames)[number];
-export type DocumentExtractionMode = 'pdf-text' | 'local-ocr' | 'manual';
+export type DocumentExtractionMode = 'pdf-text' | 'pdf-ocr' | 'local-ocr' | 'manual';
+export type DocumentEvidenceBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  imageWidth: number;
+  imageHeight: number;
+};
+export type DocumentEvidence = {
+  page: number;
+  excerpt: string;
+  bbox?: DocumentEvidenceBox;
+};
 export type DocumentField = {
   state: 'found' | 'missing' | 'conflicting' | 'unsupported';
   value: string | number | null;
-  sources: { page: number; excerpt: string }[];
+  sources: DocumentEvidence[];
+  rawValue?: string | null;
+  unit?: 'VND' | 'months' | 'percent_per_year' | 'percent' | 'date' | 'frequency' | 'text' | null;
+  confidence?: 'high' | 'review' | 'none';
+  extraction?: 'direct_text' | 'ocr' | 'none';
+  confirmationRequired?: boolean;
+};
+export type DocumentRiskKind =
+  | 'mandatory_fee'
+  | 'insurance_deduction'
+  | 'nominal_effective_gap'
+  | 'ambiguous_interest'
+  | 'early_repayment_penalty'
+  | 'late_payment_obligation'
+  | 'missing_term'
+  | 'conflicting_term'
+  | 'non_monthly_frequency';
+export type DocumentRisk = {
+  kind: DocumentRiskKind;
+  field: DocumentFieldName;
+  severity: 'review' | 'attention';
+  evidence: DocumentEvidence[];
 };
 export interface DocumentSummary {
   id: string;
@@ -120,8 +160,20 @@ export interface DocumentSummary {
 }
 export interface DocumentReview extends DocumentSummary {
   fields: Record<DocumentFieldName, DocumentField>;
-  reason?: 'text-unavailable' | 'ocr-unavailable' | 'reader-unavailable';
+  confirmedTerms?: Partial<Record<DocumentFieldName, DocumentConfirmedTerm>>;
+  risks?: DocumentRisk[];
+  pagesAnalyzed?: number;
+  truncated?: boolean;
+  reason?: 'text-unavailable' | 'ocr-unavailable' | 'reader-unavailable' | 'processing-timeout';
 }
+export type DocumentConfirmedTerm = {
+  value: string | number;
+  rawValue: string;
+  unit: NonNullable<DocumentField['unit']>;
+};
+export const documentTermCorrectionSchema = z
+  .object({ rawValue: z.string().trim().min(1).max(220) })
+  .strict();
 export const reviewedDocumentSource = 'finora:confirmed-private-document';
 export const documentReviewSchema = z
   .object({
