@@ -572,8 +572,11 @@ const copy = {
   ],
   intelligenceLocalDefault: ['Mặc định: mô phỏng cục bộ', 'Default: local simulation'],
   intelligenceLocal: ['Mô phỏng cục bộ', 'Local simulation'],
+  intelligenceFallback: ['AI lỗi · dùng cục bộ', 'AI failed · local fallback'],
   intelligenceRemote: ['AI bên ngoài', 'External AI'],
   intelligenceConsent: ['Cho phép xử lý bên ngoài', 'Allow external processing'],
+  intelligenceChooseExternal: ['Dùng AI bên ngoài cho câu này', 'Use external AI for this request'],
+  intelligenceChooseExternalShort: ['Chọn AI bên ngoài', 'Choose external AI'],
   intelligenceDataHint: [
     'Chỉ khi bật và có cấu hình, câu hỏi hiện tại đã được lọc mới gửi đến nhà cung cấp AI. Hồ sơ, lịch sử và tài liệu không được gửi. Không nhập số CCCD hay tài khoản.',
     'If enabled and configured, only the filtered current question goes to the AI provider. Your profile, history, and documents are not sent. Do not enter ID or account numbers.',

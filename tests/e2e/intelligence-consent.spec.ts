@@ -20,7 +20,7 @@ test('Claude availability exposes per-message external consent in the privacy pa
     }),
   );
   await page.goto('/assistant');
-  await page.getByRole('button', { name: 'Dữ liệu và chế độ xử lý' }).click();
+  await page.getByRole('button', { name: 'Dùng AI bên ngoài cho câu này' }).click();
   const consent = page.getByRole('switch', { name: 'Cho phép xử lý bên ngoài' });
   await expect(consent).toBeVisible();
   await expect(consent).not.toBeChecked();
@@ -33,7 +33,7 @@ test('Claude availability exposes per-message external consent in the privacy pa
     route.fulfill({
       status: 200,
       contentType: 'text/event-stream',
-      body: 'data: {"type":"meta","provider":"anthropic"}\n\ndata: {"type":"done"}\n\n',
+      body: 'data: {"type":"meta","provider":"fallback"}\n\ndata: {"type":"delta","text":"Kết quả dùng bộ phân tích cục bộ."}\n\ndata: {"type":"done"}\n\n',
     }),
   );
   await page
@@ -42,4 +42,5 @@ test('Claude availability exposes per-message external consent in the privacy pa
   const sent = page.waitForRequest('**/api/intelligence/stream');
   await page.getByRole('button', { name: 'Gửi' }).click();
   expect((await sent).postDataJSON().externalConsent).toBe(true);
+  await expect(page.getByText('AI lỗi · dùng cục bộ')).toBeVisible();
 });

@@ -185,7 +185,7 @@ export const intelligenceTurnSchema = z
     id: z.uuid(),
     prompt: z.string().max(1200),
     answer: z.string().max(7000),
-    provider: z.enum(['mock', 'openai', 'anthropic']),
+    provider: z.enum(['mock', 'fallback', 'openai', 'anthropic']),
     createdAt: z.iso.datetime({ offset: true }),
     blocks: intelligenceBlocksSchema,
     simulationId: z.uuid().nullable(),
@@ -193,7 +193,12 @@ export const intelligenceTurnSchema = z
   .strict();
 export const intelligenceHistorySchema = z.array(intelligenceTurnSchema).max(50);
 export const intelligenceEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('meta'), provider: z.enum(['mock', 'openai', 'anthropic']) }).strict(),
+  z
+    .object({
+      type: z.literal('meta'),
+      provider: z.enum(['mock', 'fallback', 'openai', 'anthropic']),
+    })
+    .strict(),
   z
     .object({
       type: z.literal('progress'),

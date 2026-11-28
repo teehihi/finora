@@ -89,14 +89,23 @@ Existing `/intelligence` links open the same workspace, including a saved simula
 reference. Previous text-only chats remain available under **Sources and tools → Classic
 chat history**; their separate history is not silently imported or deleted.
 
-When a borrowing request lacks nominal interest or a repayment method, Fin retains
-the explicit assumptions in the account's analysis history and asks for the
-missing terms. A clarification can complete the same scenario; a follow-up such as
+For an initial borrowing request, Fin first asks for missing budget facts (at most
+two at a time). It delays nominal rate and repayment-method questions until the
+user asks to calculate or compare a specific schedule. Public catalog cards are
+shown on an explicit product search or after the basic budget is complete; loan
+matching requires a complete income, expense and existing-debt profile. A clarification
+can complete the same scenario; a follow-up such as
 “Nếu thu nhập giảm 20% thì sao?” keeps both compared durations and applies the
 change to the income the user actually supplied, or to the authorized financial
 profile when no income was supplied. The profile is not updated implicitly.
 A separate borrowing request (new amount/purpose without an explicit continuation)
-does not inherit the preceding loan's assumptions.
+does not inherit the preceding loan's assumptions. The consultation keeps stated
+income, living costs, debt payments, savings, minimum reserve, preferred payment,
+term and income stability in the owner-scoped conversation. Approximate monetary
+values remain marked as such; a user-stated number is not independently verified.
+The local response acknowledges new facts and can summarize retained facts. With
+per-request consent and a configured external provider, the header opens the
+privacy control; a provider failure is labeled as a local fallback.
 
 The comparison uses the same principal, nominal rate, method and fee assumption.
 Unknown fees stay unknown. The highlighted cash-flow value subtracts the highest

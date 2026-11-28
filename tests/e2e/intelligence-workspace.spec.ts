@@ -69,7 +69,9 @@ test('analyze verified assumptions, explicitly save, and revisit the repayment s
     .toBe(true);
   if (captures)
     await page.screenshot({ path: info.outputPath('intelligence-tool-progress-390.png') });
-  await expect(page.getByText(/mình còn cần: lãi suất năm, cách tính lãi/)).toBeVisible();
+  await expect(
+    page.getByText(/Bạn cho mình biết lãi suất năm và cách tính lãi được không/),
+  ).toBeVisible();
   await composer.fill('Lãi suất 12%/năm, trả góp đều. Chưa biết phí.');
   await page.getByRole('button', { name: 'Gửi', exact: true }).click();
   const affordability = page.getByRole('heading', { name: 'Khả năng trả nợ ước tính' }).last();

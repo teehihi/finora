@@ -27,6 +27,42 @@ const store = (prompt: string, context?: ReturnType<typeof captureContext>) => (
 });
 
 describe('conversation-local borrowing assumptions', () => {
+  it('retains the actual five-turn Vietnamese consultation and summarizes known facts', () => {
+    const turns = [
+      'Tôi muốn vay 20 triệu để sửa xe.',
+      'Thu nhập của tôi là 12 triệu mỗi tháng.',
+      'Chi phí sinh hoạt khoảng 7 triệu, đang trả một khoản nợ khác 500 nghìn mỗi tháng.',
+      'Tôi muốn vay trong 12 tháng và trả tối đa 2 triệu mỗi tháng.',
+      'Tôi có 10 triệu tiết kiệm và muốn giữ lại ít nhất 5 triệu làm quỹ dự phòng.',
+    ];
+    const history: ReturnType<typeof store>[] = [];
+    for (const prompt of turns) {
+      const next = parse(prompt, history);
+      history.unshift(store(prompt, captureContext(next.intent)));
+    }
+    const summary = parse(
+      'Hãy tổng hợp hồ sơ tài chính và phân tích khả năng chi trả của tôi.',
+      history,
+    );
+    expect(summary.intent).toMatchObject({
+      principal: 20_000_000,
+      purpose: 'vehicle',
+      income: 12_000_000,
+      expenses: 7_000_000,
+      essentialExpenses: 7_000_000,
+      debt: 500_000,
+      months: 12,
+      preferredPayment: 2_000_000,
+      currentSavings: 10_000_000,
+      minimumReserve: 5_000_000,
+    });
+    expect(summary.intent.amountStatus).toMatchObject({
+      expenses: 'approximate',
+      debt: 'stated',
+      currentSavings: 'stated',
+    });
+    expect(buildProfile(summary.intent, null).missing).toEqual([]);
+  });
   it('keeps loan terms separate from reserve months in a three-turn consultation', () => {
     const firstPrompt = 'Tôi muốn vay 50 triệu mua xe, so sánh kỳ hạn 12 tháng và 24 tháng.';
     const secondPrompt =

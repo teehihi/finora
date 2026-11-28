@@ -11,13 +11,29 @@ import { interpret, normalizeVn, snapshotOf, type Intent } from './intelligence-
 
 const amount = z.number().int().nonnegative().max(1_000_000_000_000);
 const term = z.number().int().min(1).max(360);
+const amountStatus = z
+  .object({
+    income: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    expenses: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    debt: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    principal: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    savings: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    currentSavings: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    minimumReserve: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    preferredPayment: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+  })
+  .strict();
 const contextSchema = z
   .object({
     income: profileSchema.shape.income.optional(),
     incomeStability: z.enum(['stable', 'variable']).optional(),
     expenses: profileSchema.shape.expenses.optional(),
+    essentialExpenses: amount.optional(),
     debt: profileSchema.shape.debt.optional(),
     savings: amount.optional(),
+    currentSavings: amount.optional(),
+    minimumReserve: amount.optional(),
+    amountStatus: amountStatus.optional(),
     reserveMonths: z.number().int().min(0).max(60).optional(),
     preferredPayment: amount.optional(),
     principal: loanSchema.shape.principal.optional(),
@@ -115,7 +131,9 @@ export function continueIntent(
     /\b(?:chi phi|tien lai|tong tien|tra it|cost|interest|cheaper)\b/.test(normalized);
   const explicitFollow =
     asksComparison ||
-    /\b(neu|thi sao|what if|instead|giam them|tang them|follow[- ]?up)\b/.test(normalized) ||
+    /\b(neu|thi sao|what if|instead|giam them|tang them|follow[- ]?up|tong hop ho so|kha nang chi tra)\b/.test(
+      normalized,
+    ) ||
     current.incomeCut !== undefined ||
     current.extraExpense !== undefined ||
     current.expenseRisePercent !== undefined ||
@@ -130,9 +148,18 @@ export function continueIntent(
     current.annualRate !== undefined ||
     current.method !== undefined ||
     current.fee !== undefined;
-  const completesBudget = [current.income, current.expenses, current.debt].some(
-    (value) => value !== undefined,
-  );
+  const completesBudget = [
+    current.income,
+    current.expenses,
+    current.essentialExpenses,
+    current.debt,
+    current.savings,
+    current.currentSavings,
+    current.minimumReserve,
+    current.reserveMonths,
+    current.preferredPayment,
+    current.incomeStability,
+  ].some((value) => value !== undefined);
   const continues = Boolean(
     previous &&
     (explicitFollow ||
@@ -148,13 +175,18 @@ export function continueIntent(
   const priorStress = current.resetStress ? undefined : prior;
   const updatesExpenseStress =
     current.extraExpense !== undefined || current.expenseRisePercent !== undefined;
+  const mergedStatus = { ...prior?.amountStatus, ...current.amountStatus };
   const intent: Intent = {
     ...current,
     income: current.income ?? prior?.income,
     incomeStability: current.incomeStability ?? prior?.incomeStability,
     expenses: current.expenses ?? prior?.expenses,
+    essentialExpenses: current.essentialExpenses ?? prior?.essentialExpenses,
     debt: current.debt ?? prior?.debt,
     savings: current.savings ?? prior?.savings,
+    currentSavings: current.currentSavings ?? prior?.currentSavings,
+    minimumReserve: current.minimumReserve ?? prior?.minimumReserve,
+    amountStatus: Object.keys(mergedStatus).length ? mergedStatus : undefined,
     reserveMonths: current.reserveMonths ?? prior?.reserveMonths,
     preferredPayment: current.preferredPayment ?? prior?.preferredPayment,
     incomeCut: current.incomeCut ?? priorStress?.incomeCut,

@@ -1,4 +1,4 @@
-import { intelligenceBlocksSchema } from '@finora/contracts';
+import { intelligenceBlocksSchema, intelligenceEventSchema } from '@finora/contracts';
 import {
   buildProfile,
   interpret,
@@ -11,11 +11,17 @@ import {
   consultationGaps,
   repaymentPreferenceGap,
   needsExternalTools,
+  nextConversationFields,
 } from '../src/modules/intelligence-rules.js';
 import { financialTools } from '../src/modules/tools.js';
 
 const firstDue = '2027-01-01';
 describe('private deterministic intelligence', () => {
+  it('distinguishes a failed live provider from a deliberately local turn', () => {
+    expect(intelligenceEventSchema.safeParse({ type: 'meta', provider: 'fallback' }).success).toBe(
+      true,
+    );
+  });
   it('recognizes labeled evaluation phrasing and blocks instructions to expose secrets or mark every payment', () => {
     expect(interpret('Tôi muốn tìm khoản vay tiêu dùng 50 triệu trong 24 tháng.')).toMatchObject({
       principal: 50_000_000,
@@ -87,6 +93,72 @@ describe('private deterministic intelligence', () => {
       purpose: 'vehicle',
     });
   });
+  it('understands ordinary Vietnamese budget statements without treating omitted values as zero', () => {
+    expect(interpret('Thu nhập của tôi là 12 triệu mỗi tháng.').income).toBe(12_000_000);
+    expect(
+      interpret(
+        'Chi phí sinh hoạt khoảng 7 triệu, đang trả một khoản nợ khác 500 nghìn mỗi tháng.',
+      ),
+    ).toMatchObject({ expenses: 7_000_000, essentialExpenses: 7_000_000, debt: 500_000 });
+    expect(
+      interpret('Tôi có 10 triệu tiết kiệm và muốn giữ lại ít nhất 5 triệu làm quỹ dự phòng.'),
+    ).toMatchObject({ currentSavings: 10_000_000, minimumReserve: 5_000_000 });
+    expect(interpret('Tôi muốn vay 20 triệu để sửa xe.')).toMatchObject({
+      principal: 20_000_000,
+      purpose: 'vehicle',
+    });
+    expect(interpret('Chi phí sinh hoạt 7 củ và trả nợ 2tr/tháng.')).toMatchObject({
+      expenses: 7_000_000,
+      debt: 2_000_000,
+    });
+    expect(interpret('Chi phí thiết yếu 1,5 triệu.').expenses).toBe(1_500_000);
+    expect(interpret('Không có nợ hiện tại.').debt).toBe(0);
+    expect(interpret('Thu nhập của tôi chưa rõ.').income).toBeUndefined();
+    expect(
+      interpret('Chi phí sinh hoạt khoảng 7 triệu, đang trả nợ 500 nghìn.').amountStatus,
+    ).toMatchObject({
+      expenses: 'approximate',
+      debt: 'stated',
+    });
+    expect(
+      interpret('Tôi xác nhận thu nhập chính xác là 12 triệu mỗi tháng.').amountStatus,
+    ).toMatchObject({
+      income: 'confirmed',
+    });
+    expect(
+      interpret('Thu nhập chính xác 12 triệu, chi phí khoảng 7 triệu.').amountStatus,
+    ).toMatchObject({
+      income: 'confirmed',
+      expenses: 'approximate',
+    });
+    expect(interpret('Thu nhập chính xác 12 triệu, chi phí 7 triệu.').amountStatus).toMatchObject({
+      income: 'confirmed',
+      expenses: 'stated',
+    });
+  });
+  it('asks for at most two next facts and delays rate questions until a schedule is requested', () => {
+    expect(
+      nextConversationFields(
+        interpret('Vay 20 triệu sửa xe.'),
+        ['income', 'expenses', 'debt'],
+        false,
+      ),
+    ).toEqual(['income', 'expenses']);
+    expect(
+      nextConversationFields(interpret('Thu nhập 12 triệu.'), ['expenses', 'debt'], false),
+    ).toEqual(['expenses', 'debt']);
+    expect(
+      nextConversationFields(
+        interpret('Vay 20 triệu trong 12 tháng, trả tối đa 2 triệu.'),
+        [],
+        false,
+      ),
+    ).toEqual(['currentSavings', 'minimumReserve']);
+    expect(
+      nextConversationFields(interpret('Vay 20 triệu trong 12 tháng, tính lịch trả.'), [], true),
+    ).toEqual(['annualRate', 'method']);
+    expect(nextConversationFields(interpret('Không có nợ hiện tại.'), [], false)).toEqual([]);
+  });
   it('keeps unsupplied debt and fee unknown, and avoids guessing bare money units', () => {
     const i = interpret('Lương 17 triệu, muốn vay 50 để tiêu dùng.');
     const p = buildProfile(i, null);
@@ -94,6 +166,14 @@ describe('private deterministic intelligence', () => {
     expect(p.missing).toEqual(['expenses', 'debt']);
     expect(i.principal).toBeUndefined();
     expect(i.fee).toBeUndefined();
+  });
+  it('distinguishes an explicitly reported zero income from an unknown income', () => {
+    const zero = buildProfile(interpret('Thu nhập 0, chi phí sinh hoạt 0, không có nợ.'), null);
+    expect(zero.profile).toBeNull();
+    expect(zero.missing).toEqual([]);
+    expect(buildProfile(interpret('Chi phí sinh hoạt 0, không có nợ.'), null).missing).toEqual([
+      'income',
+    ]);
   });
   it('uses an owned profile only as a fallback and keeps outputs schema checked', () => {
     const p = buildProfile(interpret('Thu nhập 20.000.000, tìm khoản vay'), {

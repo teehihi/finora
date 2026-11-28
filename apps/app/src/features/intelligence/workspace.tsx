@@ -675,6 +675,16 @@ function Desk({
           <View style={{ marginLeft: 'auto' }}>
             <ModeMark label={t('intelligenceExternalReady')} external />
           </View>
+        ) : allowConsent ? (
+          <Action
+            label={t('intelligenceChooseExternal')}
+            onPress={() => openPrivacy(true)}
+            style={{ marginLeft: 'auto', minHeight: 44, justifyContent: 'center' }}
+          >
+            <Text small bold style={{ color: c.primary }}>
+              {t('intelligenceChooseExternalShort')}
+            </Text>
+          </Action>
         ) : null}
         {!wide && !phone ? toolsButton : null}
       </View>
@@ -803,7 +813,10 @@ function Desk({
               </Action>
             ) : null}
             {historyRows.map((row, index) => (
-              <View key={row.id} style={{ gap: 9 }}>
+              <View
+                key={row.id}
+                style={{ gap: 9, width: '100%', maxWidth: 1000, alignSelf: 'center' }}
+              >
                 {index === 0 ||
                 date(row.createdAt, locale) !== date(historyRows[index - 1].createdAt, locale) ? (
                   <Text small muted>
@@ -829,7 +842,7 @@ function Desk({
             ))}
             {current ? (
               <View
-                style={{ gap: 10 }}
+                style={{ gap: 10, width: '100%', maxWidth: 1000, alignSelf: 'center' }}
                 onLayout={({ nativeEvent }) => {
                   turnTop.current = nativeEvent.layout.y;
                 }}
@@ -1080,12 +1093,13 @@ function Turn({
   followUp?: (value: string) => void;
 }) {
   const { t, colors: c } = useDesign();
+  const { width } = useWindowDimensions();
   return (
-    <View style={{ gap: 13 }}>
+    <View style={{ gap: 13, minWidth: 0 }}>
       <View
         style={{
           alignSelf: 'flex-end',
-          maxWidth: '92%',
+          maxWidth: Math.min(620, Math.max(0, width - 40)),
           backgroundColor: c.secondary,
           borderRadius: tokens.radius.card,
           borderBottomRightRadius: 4,
@@ -1108,16 +1122,21 @@ function Turn({
                 label={
                   provider === 'mock'
                     ? t('intelligenceLocal')
-                    : t('intelligenceRemote') +
-                      (provider === 'anthropic' ? ' · Claude' : ' · OpenAI')
+                    : provider === 'fallback'
+                      ? t('intelligenceFallback')
+                      : t('intelligenceRemote') +
+                        (provider === 'anthropic' ? ' · Claude' : ' · OpenAI')
                 }
-                external={provider !== 'mock'}
+                external={provider === 'openai' || provider === 'anthropic'}
               />
             ) : null}
           </View>
           {answer ? (
             <View
               style={{
+                alignSelf: 'flex-start',
+                width: '100%',
+                maxWidth: 760,
                 backgroundColor: c.surface,
                 borderRadius: 18,
                 borderTopLeftRadius: 5,
@@ -1129,7 +1148,9 @@ function Turn({
             </View>
           ) : null}
           {blocks.length ? (
-            <AnalysisBlocks blocks={blocks} turnId={turnId} followUp={followUp} />
+            <View style={{ width: '100%', maxWidth: 960 }}>
+              <AnalysisBlocks blocks={blocks} turnId={turnId} followUp={followUp} />
+            </View>
           ) : null}
         </View>
       ) : null}

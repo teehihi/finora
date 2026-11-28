@@ -43,9 +43,9 @@ import { repaymentMonitor, type SavedPreparationSummary } from './repayment-moni
 import {
   approvedPurposes,
   buildProfile,
-  consultationGaps,
   interpret,
   needsExternalTools,
+  nextConversationFields,
   normalizeVn,
   redactExternalPrompt,
   repaymentPreferenceGap,
@@ -56,6 +56,7 @@ import {
   toScenario,
   type InputIssue,
   type Intent,
+  type ConversationField,
 } from './intelligence-rules.js';
 import {
   analysisBlocks,
@@ -228,7 +229,7 @@ async function classify(input: IntelligenceRequest, intent: Intent, signal: Abor
   const failed = () => {
     selected.clear();
     return {
-      provider: 'mock' as const,
+      provider: 'fallback' as const,
       selected,
       fallback: true,
       narrative: null,
@@ -341,6 +342,7 @@ async function classify(input: IntelligenceRequest, intent: Intent, signal: Abor
         model: env.AI_PROVIDER === 'anthropic' ? env.ANTHROPIC_MODEL : env.OPENAI_MODEL,
         ms: Date.now() - start,
         category: error instanceof IntelligenceProviderError ? error.code : 'provider',
+        httpStatus: error instanceof IntelligenceProviderError ? error.status : undefined,
         stage: failureStage,
         toolSelections: count,
       },
@@ -563,6 +565,13 @@ async function resultFor(
     }
   }
   const profile = buildProfile(intent, knownProfile);
+  if (intent.income === 0)
+    notice(
+      say(
+        'Bạn đã nêu thu nhập bằng 0. Mình giữ đúng giá trị này; hiện không thể tính tỷ lệ nợ trên thu nhập hoặc mức trả nợ vừa sức.',
+        'You reported zero income. I kept that value; a debt-to-income ratio or affordable payment cannot be calculated from it.',
+      ),
+    );
   const shouldAssess =
     intent.isBorrowing ||
     !!owned ||
@@ -597,9 +606,14 @@ async function resultFor(
       ),
     );
   }
+  const requestedCatalog =
+    route.selected.has('searchLoanProducts') ||
+    /\b(?:tim khoan vay|tra dieu kien|xem san pham vay|loan products?|search loans?|browse loans?)\b/u.test(
+      normalizeVn(input.prompt),
+    );
   if (
     !wantsProfileUpdate &&
-    ((!continues && current.isBorrowing) || route.selected.has('searchLoanProducts'))
+    (requestedCatalog || (!continues && current.principal !== undefined && profile.profile))
   ) {
     progress('catalog');
     out.push(offers(intent, input.locale));
@@ -619,7 +633,8 @@ async function resultFor(
     !wantsProfileUpdate &&
     wantsMatching &&
     intent.principal !== undefined &&
-    intent.months !== undefined
+    intent.months !== undefined &&
+    profile.profile !== null
   ) {
     const category =
       intent.purpose === 'vehicle'
@@ -897,6 +912,8 @@ async function resultFor(
     expenses: ['chi phí thiết yếu', 'essential expenses'],
     debt: ['tiền trả nợ hiện tại', 'existing payments'],
     savings: ['tiết kiệm dự phòng', 'emergency savings'],
+    currentSavings: ['tiết kiệm hiện có', 'current savings'],
+    minimumReserve: ['mức quỹ dự phòng muốn giữ', 'minimum emergency reserve'],
     reserveMonths: ['số tháng dự phòng mong muốn', 'required reserve months'],
     preferredPayment: ['mức trả hàng tháng mong muốn', 'preferred monthly payment'],
     principal: ['số tiền vay', 'loan amount'],
@@ -929,35 +946,150 @@ async function resultFor(
         invalid.map((key) => fixes[key][vi ? 0 : 1]).join('; ') +
         '.',
     });
-  const keys = new Set<string>(shouldAssess ? profile.missing : []);
-  if (
-    shouldAssess &&
-    first &&
-    !first.success &&
-    !intent.early &&
-    (intent.principal !== undefined ||
-      scoped ||
-      (current.isBorrowing && current.months !== undefined) ||
-      current.principalDelta !== undefined ||
-      route.selected.has('simulateLoan'))
-  ) {
-    const missing = first.error.issues.map((i) => String(i.path[0])).filter((k) => k in labels);
-    missing.forEach((k) => keys.add(k));
-  }
-  if (intent.isBorrowing && intent.principal !== undefined)
-    consultationGaps(intent).forEach((key) => keys.add(key));
-  const fields = [...keys].slice(0, 9);
+  const wantsSchedule =
+    route.selected.has('simulateLoan') ||
+    /\b(?:tinh lich|tinh ky tra|mo phong tra|lich tra no|ky dau|ky cuoi|so sanh ky han|so sanh \d+ (?:va|voi|hay) \d+ thang|calculate|repayment schedule|compare terms?)\b/u.test(
+      normalizeVn(input.prompt),
+    ) ||
+    (current.secondMonths !== undefined && current.principal !== undefined);
+  const isSummaryRequest =
+    /\b(?:tong hop ho so|tom tat ho so|summarize my profile|summarise my profile)\b/u.test(
+      normalizeVn(input.prompt),
+    );
+  const fields: ConversationField[] =
+    shouldAssess && !wantsProfileUpdate && !isSummaryRequest && !invalid.length
+      ? nextConversationFields(intent, profile.missing, wantsSchedule)
+      : [];
   if (fields.length)
     out.push({
       kind: 'missing',
       fields,
       message:
-        say('Để tính sát hơn, mình còn cần: ', 'For a closer estimate, I still need: ') +
-        fields.map((k) => labels[k]?.[vi ? 0 : 1]).join(', ') +
-        '.',
+        say('Bạn cho mình biết ', 'Could you share ') +
+        fields.map((key) => labels[key][vi ? 0 : 1]).join(vi ? ' và ' : ' and ') +
+        say(' được không?', '?'),
     });
   const matchingBlock = out.find((block) => block.kind === 'matches');
   const twinBlock = out.find((block) => block.kind === 'digital_twin');
+  const stated: string[] = [];
+  if (current.principal !== undefined)
+    stated.push(
+      say(
+        `khoản vay ${num(current.principal, input.locale)} ₫`,
+        `a ${num(current.principal, input.locale)} VND loan`,
+      ),
+    );
+  if (current.income !== undefined)
+    stated.push(
+      say(
+        `thu nhập ${num(current.income, input.locale)} ₫/tháng`,
+        `monthly income of ${num(current.income, input.locale)} VND`,
+      ),
+    );
+  if (current.expenses !== undefined)
+    stated.push(
+      say(
+        `chi phí ${num(current.expenses, input.locale)} ₫/tháng`,
+        `monthly expenses of ${num(current.expenses, input.locale)} VND`,
+      ),
+    );
+  if (current.debt !== undefined)
+    stated.push(
+      say(
+        `khoản trả nợ hiện tại ${num(current.debt, input.locale)} ₫/tháng`,
+        `existing debt payments of ${num(current.debt, input.locale)} VND per month`,
+      ),
+    );
+  if (current.months !== undefined && current.secondMonths === undefined)
+    stated.push(say(`kỳ hạn ${current.months} tháng`, `a ${current.months}-month term`));
+  if (current.preferredPayment !== undefined)
+    stated.push(
+      say(
+        `mức trả mong muốn tối đa ${num(current.preferredPayment, input.locale)} ₫/tháng`,
+        `a preferred payment of at most ${num(current.preferredPayment, input.locale)} VND per month`,
+      ),
+    );
+  if (current.currentSavings !== undefined)
+    stated.push(
+      say(
+        `tiết kiệm hiện có ${num(current.currentSavings, input.locale)} ₫`,
+        `current savings of ${num(current.currentSavings, input.locale)} VND`,
+      ),
+    );
+  if (current.minimumReserve !== undefined)
+    stated.push(
+      say(
+        `quỹ dự phòng muốn giữ ${num(current.minimumReserve, input.locale)} ₫`,
+        `a minimum reserve of ${num(current.minimumReserve, input.locale)} VND`,
+      ),
+    );
+  const acknowledgment = stated.length
+    ? say('Mình ghi nhận ', 'I noted ') + stated.slice(0, 3).join(', ') + '.'
+    : null;
+  const summaryFacts: string[] = [];
+  if (intent.income !== undefined)
+    summaryFacts.push(
+      say(
+        `thu nhập ${num(intent.income, input.locale)} ₫/tháng`,
+        `income ${num(intent.income, input.locale)} VND/month`,
+      ),
+    );
+  if (intent.expenses !== undefined)
+    summaryFacts.push(
+      say(
+        `chi phí ${intent.amountStatus?.expenses === 'approximate' ? 'khoảng ' : ''}${num(intent.expenses, input.locale)} ₫/tháng`,
+        `expenses ${intent.amountStatus?.expenses === 'approximate' ? 'about ' : ''}${num(intent.expenses, input.locale)} VND/month`,
+      ),
+    );
+  if (intent.debt !== undefined)
+    summaryFacts.push(
+      say(
+        `nợ đang trả ${num(intent.debt, input.locale)} ₫/tháng`,
+        `existing payments ${num(intent.debt, input.locale)} VND/month`,
+      ),
+    );
+  if (intent.currentSavings !== undefined)
+    summaryFacts.push(
+      say(
+        `tiết kiệm hiện có ${num(intent.currentSavings, input.locale)} ₫`,
+        `current savings ${num(intent.currentSavings, input.locale)} VND`,
+      ),
+    );
+  if (intent.minimumReserve !== undefined)
+    summaryFacts.push(
+      say(
+        `muốn giữ quỹ dự phòng ${num(intent.minimumReserve, input.locale)} ₫`,
+        `minimum reserve ${num(intent.minimumReserve, input.locale)} VND`,
+      ),
+    );
+  if (intent.principal !== undefined)
+    summaryFacts.push(
+      say(
+        `đang cân nhắc vay ${num(intent.principal, input.locale)} ₫`,
+        `considering a ${num(intent.principal, input.locale)} VND loan`,
+      ),
+    );
+  if (intent.months !== undefined)
+    summaryFacts.push(say(`kỳ hạn ${intent.months} tháng`, `term ${intent.months} months`));
+  if (intent.preferredPayment !== undefined)
+    summaryFacts.push(
+      say(
+        `muốn trả tối đa ${num(intent.preferredPayment, input.locale)} ₫/tháng`,
+        `preferred payment at most ${num(intent.preferredPayment, input.locale)} VND/month`,
+      ),
+    );
+  const summaryAnswer = summaryFacts.length
+    ? say('Bạn đã nêu: ', 'You shared: ') +
+      summaryFacts.join('; ') +
+      '. ' +
+      say(
+        'Phần ngân sách bên dưới chỉ dựa trên các số này và chưa gồm kỳ trả vay mới.',
+        'The budget below uses only these figures and excludes a new loan payment.',
+      )
+    : say(
+        'Mình chưa có đủ số liệu ngân sách để tổng hợp.',
+        'I do not yet have enough budget information to summarize.',
+      );
   const localAnswer = twinBlock
     ? say(
         'Mình đã tính dòng tiền từng tháng theo lịch vay và các giả định bạn nêu. Xem phần so sánh bên dưới, đặc biệt kỳ âm tiền và khoản phí chưa biết.',
@@ -989,10 +1121,16 @@ async function resultFor(
                 'I calculated a schedule using the inputs below. Review the highest installment, principal and interest, unknown fees and monthly cash remaining separately.',
               )
           : shouldAssess
-            ? say(
-                'Mình tách phần ngân sách, các lựa chọn công bố và dữ liệu còn thiếu ở dưới. Finora không xét duyệt khoản vay.',
-                'I separated budget, published options and missing information below. Finora does not approve loans.',
-              )
+            ? isSummaryRequest
+              ? summaryAnswer
+              : (acknowledgment ??
+                  say('Mình đang giữ các thông tin bạn đã nêu.', 'I kept the facts you shared.')) +
+                (profile.profile
+                  ? say(
+                      ' Phần ngân sách bên dưới dùng các số liệu đó.',
+                      ' The budget below uses those figures.',
+                    )
+                  : '')
             : say(
                 'Bạn có thể hỏi về ngân sách trả nợ, so sánh kỳ hạn hoặc kiểm tra điều khoản. Lãi trên dư nợ giảm dần được tính từ số gốc còn lại; tổng chi phí còn phụ thuộc vào phí.',
                 'Ask about repayment capacity, term comparisons, or contract terms. Reducing-balance interest uses the outstanding principal; total cost also depends on fees.',
@@ -1002,6 +1140,15 @@ async function resultFor(
   const coreCount = out.filter(({ kind }) => kind !== 'notice').length;
   let remainingNotices = Math.max(0, 12 - coreCount);
   const bounded = out.filter(({ kind }) => kind !== 'notice' || remainingNotices-- > 0);
+  if (env.NODE_ENV === 'development')
+    logger.info(
+      {
+        provider: route.provider,
+        selectedReadOnlyTools: [...route.selected],
+        resultKinds: bounded.map(({ kind }) => kind),
+      },
+      'intelligence tool trace',
+    );
   // The external model never receives the private matching result, so it cannot
   // author a grounded product comparison. Keep this explanation deterministic.
   const answer =
