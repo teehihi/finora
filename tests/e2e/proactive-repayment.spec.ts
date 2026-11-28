@@ -354,6 +354,12 @@ test('verified opt-in sends a generic reminder through Mailpit', async ({
   await page.getByLabel('Mã xác minh 6 số').fill(code);
   await page.getByRole('button', { name: 'Xác minh và tiếp tục' }).click();
   await expect(page.getByText('Email đã xác minh', { exact: true })).toBeVisible();
+  const capabilities = await (
+    await context.request.get(base + '/notifications/capabilities')
+  ).json();
+  expect(capabilities.email, 'API server must run with FINORA_REMINDER_EMAIL_ENABLED=true').toBe(
+    true,
+  );
   const today = (await (await context.request.get(base + '/repayments')).json()).today as string;
   const saved = await context.request.post(base + '/simulations', {
     data: {

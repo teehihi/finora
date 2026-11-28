@@ -37,6 +37,7 @@ test('phase 6 synthetic local and consented live API evaluation', async () => {
   const modes =
     process.env.FINORA_LIVE_AI_TEST === '1' ? (['local', 'live'] as const) : (['local'] as const);
   const rows: Record<string, unknown>[] = [];
+  const models: Record<string, string> = {};
   for (const mode of modes) {
     const client = await request.newContext({
       baseURL: 'http://localhost:3000',
@@ -49,6 +50,20 @@ test('phase 6 synthetic local and consented live API evaluation', async () => {
         password: randomUUID(),
       });
       expect(account.ok(), await account.text()).toBe(true);
+      const status = (await (await client.get('/api/intelligence/status')).json()) as {
+        provider: string;
+      };
+      expect(['mock', 'openai', 'anthropic']).toContain(status.provider);
+      if (mode === 'live') {
+        expect(status.provider).not.toBe('mock');
+        const health = (await (await client.get('/api/intelligence/health')).json()) as {
+          model: string;
+        };
+        expect(health.model).toMatch(/\S/u);
+        models[mode] = health.model;
+      } else {
+        models[mode] = 'local';
+      }
       for (const item of cases) {
         const started = performance.now();
         const response = await client.post('/api/intelligence/stream', {
@@ -81,6 +96,9 @@ test('phase 6 synthetic local and consented live API evaluation', async () => {
         const schemaValid = parsed.every((event) => event.success);
         const events = parsed.flatMap((event) => (event.success ? [event.data] : []));
         const provider = events.find((event) => event.type === 'meta');
+        const observedProvider = provider?.type === 'meta' ? provider.provider : null;
+        const providerCorrect =
+          observedProvider === (mode === 'live' && item.id !== 'X04' ? status.provider : 'mock');
         const structured = events.find((event) => event.type === 'structured');
         const blocks = structured?.type === 'structured' ? structured.blocks : [];
         const expectedKind = blocks.some((block) => block.kind === item.kind);
@@ -105,15 +123,17 @@ test('phase 6 synthetic local and consented live API evaluation', async () => {
           id: item.id,
           split: item.split,
           mode,
-          provider: provider?.type === 'meta' ? provider.provider : null,
+          provider: observedProvider,
           latencyMs,
           schemaValid,
           expectedKind,
+          providerCorrect,
           engineExact: scenarioChecks.every(Boolean),
           terminal: events.at(-1)?.type === 'done',
           passed:
             schemaValid &&
             expectedKind &&
+            providerCorrect &&
             scenarioChecks.every(Boolean) &&
             events.at(-1)?.type === 'done',
         });
@@ -124,7 +144,7 @@ test('phase 6 synthetic local and consented live API evaluation', async () => {
   }
   const report = {
     date: new Date().toISOString(),
-    model: process.env.FINORA_EVAL_MODEL ?? 'server configured; see provider field',
+    models,
     source: 'synthetic Vietnamese evaluation subset; one run per case and mode',
     rows,
   };
@@ -132,5 +152,7 @@ test('phase 6 synthetic local and consented live API evaluation', async () => {
   mkdirSync(resolve('.data/evaluation'), { recursive: true });
   writeFileSync(path, JSON.stringify(report, null, 2) + '\n');
   expect(rows.length).toBe(cases.length * modes.length);
-  expect(rows.every((row) => row.schemaValid === true && row.terminal === true)).toBe(true);
+  expect(rows.filter((row) => row.passed !== true).map((row) => `${row.mode}:${row.id}`)).toEqual(
+    [],
+  );
 });

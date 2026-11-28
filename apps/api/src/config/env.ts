@@ -106,6 +106,11 @@ const schema = z
       if (config.SMTP_USER) issue('SMTP_USER', 'Use TLS for authenticated SMTP.');
     }
     if (config.NODE_ENV === 'production') {
+      const databasePassword = new URL(config.DATABASE_URL).password;
+      if (databasePassword.length < 16 || databasePassword.startsWith('replace-with-'))
+        issue('DATABASE_URL', 'Production database credentials must be set to a long secret.');
+      if (config.BETTER_AUTH_SECRET.startsWith('replace-with-'))
+        issue('BETTER_AUTH_SECRET', 'Replace the example authentication secret.');
       if (config.TRUST_PROXY_HOPS !== 1)
         issue('TRUST_PROXY_HOPS', 'Production requires one trusted HTTPS reverse proxy hop.');
       if (!config.BETTER_AUTH_URL.startsWith('https://'))

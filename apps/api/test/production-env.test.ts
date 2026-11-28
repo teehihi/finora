@@ -1,11 +1,13 @@
+import { randomBytes } from 'node:crypto';
+
 const base = {
   NODE_ENV: 'production',
   HOST: '0.0.0.0',
   TRUST_PROXY_HOPS: '1',
   PORT: '3000',
-  DATABASE_URL: 'postgresql://finora:synthetic@db.internal:5432/finora',
+  DATABASE_URL: `postgresql://finora:${randomBytes(24).toString('hex')}@db.internal:5432/finora`,
   BETTER_AUTH_URL: 'https://api.finora.example.test',
-  BETTER_AUTH_SECRET: 'synthetic-secret-longer-than-32-characters',
+  BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
   WEB_ORIGINS: 'https://finora.example.test',
   SMTP_HOST: 'smtp.example.test',
   SMTP_PORT: '587',
@@ -84,5 +86,20 @@ describe('production API configuration', () => {
         ANTHROPIC_BASE_URL: 'http://localhost:8000',
       }),
     ).rejects.toThrow('ANTHROPIC_BASE_URL');
+  });
+
+  it('rejects the committed production example credentials', async () => {
+    await expect(
+      load({ BETTER_AUTH_SECRET: 'replace-with-at-least-32-random-characters' }),
+    ).rejects.toThrow('BETTER_AUTH_SECRET');
+    await expect(
+      load({
+        DATABASE_URL:
+          'postgresql://finora:replace-with-long-random-password@db.internal:5432/finora',
+      }),
+    ).rejects.toThrow('DATABASE_URL');
+    await expect(
+      load({ DATABASE_URL: 'postgresql://finora:short@db.internal:5432/finora' }),
+    ).rejects.toThrow('DATABASE_URL');
   });
 });
