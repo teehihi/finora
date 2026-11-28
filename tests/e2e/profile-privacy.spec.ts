@@ -31,6 +31,8 @@ test('profile privacy can delete one explicitly selected history without deletin
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/profile');
+  await page.getByRole('button', { name: 'Quyền riêng tư', exact: true }).click();
+  await expect(page).toHaveURL(/\/profile\/privacy$/);
   await page.getByRole('button', { name: 'Xóa lịch sử Finora AI' }).click();
   await expect(page.getByText(/Chỉ xóa lịch sử đã chọn/)).toBeVisible();
   await page.getByRole('button', { name: 'Hủy', exact: true }).click();

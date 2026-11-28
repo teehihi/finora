@@ -2,6 +2,8 @@ export { cashflowCopy } from './cashflow';
 export { matchingText, type MatchingCopyKey } from './loan-matching';
 export { digitalTwinText, type DigitalTwinCopyKey } from './digital-twin';
 export { repaymentProactive } from './repayment-proactive';
+export { profileMenuCopy } from './profile-menu';
+export { personalProfileCopy } from './personal-profile';
 
 export type Locale = 'vi-VN' | 'en-US';
 const copy = {
@@ -278,23 +280,29 @@ const copy = {
   authEditorialSchedule: ['Xếp lịch trả từng kỳ', 'Plan each payment'],
   authWelcome: ['Đăng nhập', 'Sign in'],
   authWelcomeBody: [
-    'Đăng nhập hoặc tạo tài khoản bằng email. Finora sẽ gửi mã xác minh cho bạn.',
-    'Sign in or create an account with your email. Finora will send you a verification code.',
+    'Nhập email để tiếp tục cùng Finora.',
+    'Enter your email to continue with Finora.',
   ],
-  authContinueEmail: ['Tiếp tục bằng email', 'Continue with email'],
+  authContinueEmail: ['Tiếp tục', 'Continue'],
+  authEmailPlaceholder: ['ban@email.com', 'you@email.com'],
+  authBrandSlogan: ['Vay thông minh. Trả chủ động.', 'Borrow smart. Repay with confidence.'],
+  authPasswordTitle: ['Đăng nhập bằng mật khẩu', 'Sign in with password'],
   authChecking: ['Đang kiểm tra phiên đăng nhập…', 'Checking your session…'],
-  authCodeTitle: ['Kiểm tra email', 'Check your email'],
-  authCodeSentTo: ['Mã xác minh được gửi đến', 'Verification code sent to'],
-  authCodeIntro: [
-    'Nếu email nhận được thư, dùng mã 6 số để tiếp tục. Mã có hiệu lực trong 5 phút.',
-    'Use the 6-digit code if it arrives in your inbox. It is valid for 5 minutes.',
-  ],
+  authCodeTitle: ['Xác minh email', 'Verify your email'],
+  authCodeIntro: ['Nhập mã xác minh được gửi đến', 'Enter the verification code sent to'],
+  authCodeExpiresIn: ['Mã có hiệu lực trong 5 phút.', 'The code is valid for 5 minutes.'],
+  authEmailWrong: ['Email không đúng?', 'Wrong email?'],
   authCodeLabel: ['Mã xác minh 6 số', '6-digit verification code'],
-  authCodeConfirm: ['Xác minh và tiếp tục', 'Verify and continue'],
+  authCodeConfirm: ['Xác minh', 'Verify'],
+  authCodeNoEmail: ['Chưa nhận được mã?', 'Didn’t receive a code?'],
   authCodeNeedSix: ['Nhập đủ 6 chữ số.', 'Enter all 6 digits.'],
+  authCodeExpired: [
+    'Mã đã hết hạn. Hãy yêu cầu mã mới.',
+    'This code has expired. Request a new one.',
+  ],
   authCodeInvalid: [
-    'Mã không đúng hoặc đã hết hạn. Kiểm tra lại hoặc yêu cầu mã mới.',
-    'That code is incorrect or expired. Check it or request a new one.',
+    'Mã chưa đúng. Kiểm tra lại hoặc yêu cầu mã mới.',
+    'That code is incorrect. Check it or request a new one.',
   ],
   authCodeAttempts: [
     'Bạn đã thử quá nhiều lần. Hãy yêu cầu mã mới.',
@@ -327,15 +335,17 @@ const copy = {
   authResend: ['Gửi lại mã', 'Resend code'],
   authSendingCode: ['Đang gửi mã…', 'Sending code…'],
   authOtpStep: ['ĐĂNG NHẬP  /  BƯỚC 02', 'SIGN IN  /  STEP 02'],
-  authResendIn: ['Gửi lại sau {s} giây', 'Resend in {s}s'],
+  authResendIn: ['Gửi lại mã sau {s}', 'Resend code in {s}'],
   authCodeResent: ['Đã yêu cầu gửi lại mã.', 'A new code was requested.'],
-  authEditEmail: ['Sửa email', 'Edit email'],
-  authUsePassword: ['Dùng mật khẩu hiện có', 'Use my existing password'],
+  authEditEmail: ['Đổi email', 'Change email'],
+  authUsePassword: ['Đăng nhập bằng mật khẩu', 'Sign in with password'],
   authPasswordIntro: [
     'Dành cho tài khoản đã có mật khẩu Finora.',
     'For accounts with an existing Finora password.',
   ],
-  authUseCode: ['Quay lại đăng nhập bằng mã', 'Use an email code instead'],
+  authUseCode: ['Đăng nhập bằng mã xác minh', 'Sign in with an email code'],
+  authShowPassword: ['Hiện mật khẩu', 'Show password'],
+  authHidePassword: ['Ẩn mật khẩu', 'Hide password'],
   authEmailInvalid: ['Nhập địa chỉ email hợp lệ.', 'Enter a valid email address.'],
   authPasswordRequired: ['Nhập mật khẩu của bạn.', 'Enter your password.'],
   authGoogleContinue: ['Tiếp tục với Google', 'Continue with Google'],

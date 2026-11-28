@@ -1,5 +1,5 @@
 const workspacePath =
-  /^\/(?:home|search|explore|assistant|intelligence|documents|repayments|cashflow|loans|profile|(?:saved|simulate|documents)\/[A-Za-z0-9_-]{1,80})$/;
+  /^\/(?:home|search|explore|assistant|intelligence|documents|repayments|cashflow|loans|profile(?:\/(?:personal|finance|preferences|privacy|health|help|about))?|(?:saved|simulate|documents)\/[A-Za-z0-9_-]{1,80})$/;
 
 // Preserve only presentation modes. Never copy draft text, simulator handoffs,
 // or other user data into /auth or OAuth callback URLs.

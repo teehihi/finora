@@ -190,3 +190,5 @@ export const documentReviewSchema = z
   .strict();
 export const documentSaveSchema = documentReviewSchema.extend({ requestId: z.uuid() });
 export type DocumentReviewInput = z.infer<typeof documentReviewSchema>;
+
+export * from './avatar.js';

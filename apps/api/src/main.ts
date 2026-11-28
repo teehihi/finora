@@ -19,6 +19,8 @@ import { RepaymentIntelligenceController } from './modules/repayment-intelligenc
 import { NotificationController } from './modules/notifications.js';
 import { sweepNotifications } from './modules/notification-service.js';
 import { DocumentsController, LocalStorageProvider, STORAGE } from './infrastructure/storage.js';
+import { avatarMimes, maxAvatarBytes } from '@finora/contracts';
+import { AccountAvatarController } from './modules/account-avatar.js';
 import { SafeErrors, requestLog, logger } from './common/http.js';
 
 @Controller('health')
@@ -37,6 +39,7 @@ class HealthModule {}
 @Module({
   controllers: [
     PlanningController,
+    AccountAvatarController,
     AssistantController,
     DocumentsController,
     IntelligenceController,
@@ -68,6 +71,10 @@ async function main() {
   });
   const server = app.getHttpAdapter().getInstance() as express.Express;
   server.set('trust proxy', env.TRUST_PROXY_HOPS);
+  server.get('/.well-known/apple-app-site-association', (_req, res) => {
+    if (!env.PASSKEY_APPLE_APP_ID) return res.sendStatus(404);
+    return res.json({ webcredentials: { apps: [env.PASSKEY_APPLE_APP_ID] } });
+  });
   server.use('/api', (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     const origin = req.get('origin');
@@ -120,6 +127,19 @@ async function main() {
       inflate: false,
     }),
   );
+  const parseAvatar = express.raw({
+    type: [...avatarMimes],
+    limit: maxAvatarBytes,
+    inflate: false,
+  });
+  server.use('/api/account/avatar', (req, res, next) => {
+    if (req.method !== 'PUT') return next();
+    if (!req.is([...avatarMimes])) return res.sendStatus(415);
+    void auth.api
+      .getSession({ headers: fromNodeHeaders(req.headers) })
+      .then((found) => (found ? parseAvatar(req, res, next) : res.sendStatus(401)))
+      .catch(next);
+  });
   server.use(
     (
       err: Error & { status?: number },

@@ -12,12 +12,16 @@ model User {
   name                   String
   email                  String                  @unique
   emailVerified          Boolean                 @default(false)
+  twoFactorEnabled       Boolean                 @default(false)
+  twoFactors             TwoFactor[]
+  passkeys               Passkey[]
   image                  String?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   sessions               Session[]
   accounts               Account[]
   profile                FinancialProfile?
+  avatar                 AccountAvatar?
   locale                 String                  @default("vi-VN")
   appearance             String                  @default("light")
   simulations            LoanSimulation[]
@@ -28,6 +32,36 @@ model User {
   trackedRepayments      TrackedRepayment[]
   notificationPreference NotificationPreference?
   repaymentNotifications RepaymentNotification[]
+}
+
+model TwoFactor {
+  id                      String    @id
+  userId                  String
+  secret                  String
+  backupCodes             String
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime?
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+}
+
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String
+  userId       String
+  credentialID String    @unique
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime?
+  aaguid       String?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Session {
@@ -261,4 +295,10 @@ model RepaymentNotification {
   @@index([userId, createdAt])
   @@index([emailStatus, nextRetryAt])
   @@index([status, scheduledFor])
+}
+
+model AccountAvatar {
+  userId    String @id
+  objectKey String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

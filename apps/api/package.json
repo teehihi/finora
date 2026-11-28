@@ -7,12 +7,15 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "node ../../scripts/expo-lan.mjs api-dev",
-    "test": "node --test scripts/dev-network-auth.test.mjs && jest --runInBand",
+    "test": "node --test scripts/dev-network-auth.test.mjs && pnpm run test:auth:totp && jest --runInBand",
     "start": "node ../../scripts/expo-lan.mjs api-start",
-    "test:auth:local": "node scripts/verify-auth-local.mjs"
+    "test:auth:local": "node scripts/verify-auth-local.mjs",
+    "test:auth:totp": "node --import tsx --test scripts/two-factor-oauth.test.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1178.0",
     "@better-auth/expo": "1.7.7",
+    "@better-auth/passkey": "1.7.7",
     "@finora/contracts": "workspace:*",
     "@finora/database": "workspace:*",
     "@finora/financial-engine": "workspace:*",
@@ -21,6 +24,7 @@
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-express": "^11.1.0",
     "@nestjs/swagger": "^11.2.0",
+    "aws4fetch": "1.0.20",
     "better-auth": "1.7.7",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
@@ -30,6 +34,7 @@
     "pino": "^9.14.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
+    "sharp": "0.35.5",
     "zod": "^4.1.12"
   },
   "devDependencies": {

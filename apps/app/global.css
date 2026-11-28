@@ -6,3 +6,10 @@
 [data-testid='finora-service-search-input']:focus {
   outline: none;
 }
+
+@media (min-width: 1024px) {
+  [data-testid='finora-auth-input-group'] input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+}

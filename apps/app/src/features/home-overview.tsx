@@ -202,7 +202,7 @@ export function HomeCapacity({
                   </Action>
                   <Action
                     label={t('editProfile')}
-                    onPress={() => router.navigate('/profile')}
+                    onPress={() => router.push('/profile/finance')}
                     style={{ paddingHorizontal: 8 }}
                   >
                     <Text small bold style={{ color: c.primary }}>
@@ -226,7 +226,7 @@ export function HomeCapacity({
                   <Button
                     label={t(data.profile ? 'editProfile' : 'addProfile')}
                     variant="outline"
-                    onPress={() => router.navigate('/profile')}
+                    onPress={() => router.push('/profile/finance')}
                   />
                 </View>
               </>

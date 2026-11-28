@@ -3,9 +3,10 @@ import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { fetch as expoFetch } from 'expo/fetch';
 import { createAuthClient } from 'better-auth/react';
-import { emailOTPClient } from 'better-auth/client/plugins';
+import { emailOTPClient, twoFactorClient } from 'better-auth/client/plugins';
 import { expoClient } from '@better-auth/expo/client';
 import { createApi } from '@finora/api-client';
+import { finoraPasskeyClient } from './passkey-client';
 import { resolveApiBase } from './api-base';
 
 const sourceCode = __DEV__ && Platform.OS !== 'web' ? NativeModules.SourceCode : undefined;
@@ -28,6 +29,8 @@ export const auth = createAuthClient({
       disableCache: true,
     }),
     emailOTPClient(),
+    twoFactorClient(),
+    finoraPasskeyClient(),
   ],
   fetchOptions: {
     credentials: Platform.OS === 'web' ? 'include' : 'omit',

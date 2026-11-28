@@ -33,7 +33,23 @@ export function useIdentityOptions() {
         typeof body.google !== 'boolean'
       )
         throw new Error('Invalid auth methods response');
-      return { emailOtp: body.emailOtp, google: body.google };
+      const passkey = 'passkey' in body ? body.passkey : null;
+      return {
+        emailOtp: body.emailOtp,
+        google: body.google,
+        passkey:
+          passkey &&
+          typeof passkey === 'object' &&
+          'rpId' in passkey &&
+          typeof passkey.rpId === 'string' &&
+          'origins' in passkey &&
+          Array.isArray(passkey.origins) &&
+          passkey.origins.every((origin: unknown) => typeof origin === 'string') &&
+          'ios' in passkey &&
+          typeof passkey.ios === 'boolean'
+            ? { rpId: passkey.rpId, origins: passkey.origins as string[], ios: passkey.ios }
+            : null,
+      };
     },
   });
 }
@@ -52,12 +68,8 @@ export const normaliseCode = (text: string) => text.replace(/[^0-9]/g, '').slice
 export function codeFailure(error: { code?: string; status?: number }) {
   if (error.code === 'TOO_MANY_ATTEMPTS') return 'authCodeAttempts' as const;
   if (error.status === 429) return 'authRateLimited' as const;
-  if (
-    error.status === 400 ||
-    error.status === 401 ||
-    error.code === 'INVALID_OTP' ||
-    error.code === 'OTP_EXPIRED'
-  )
+  if (error.code === 'OTP_EXPIRED') return 'authCodeExpired' as const;
+  if (error.status === 400 || error.status === 401 || error.code === 'INVALID_OTP')
     return 'authCodeInvalid' as const;
   return 'authGenericError' as const;
 }

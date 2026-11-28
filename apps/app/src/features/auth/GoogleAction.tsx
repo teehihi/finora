@@ -35,6 +35,7 @@ export function GoogleAction({
       style={{
         minHeight: 48,
         backgroundColor: '#FFFFFF',
+        opacity: disabled && !busy ? 0.64 : 1,
         borderWidth: 1,
         borderColor: '#747775',
         borderRadius: 8,

@@ -51,15 +51,15 @@ test('email OTP creates a session using the real local Mailpit message', async (
   await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
   await expect(page.getByLabel('Mật khẩu', { exact: true })).toHaveCount(0);
   await page.getByLabel('Email', { exact: true }).fill(email);
-  await page.getByRole('button', { name: 'Tiếp tục bằng email' }).click();
-  await expect(page.getByRole('heading', { name: 'Kiểm tra email' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Gửi lại sau/ })).toBeDisabled();
+  await page.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Xác minh email' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Gửi lại mã sau/ })).toBeDisabled();
 
   // Returning from the email editor with the same address must not invalidate the code.
-  await page.getByRole('button', { name: 'Sửa email' }).click();
+  await page.getByRole('button', { name: 'Đổi email' }).click();
   await expect(page.getByLabel('Email', { exact: true })).toHaveValue(email);
-  await page.getByRole('button', { name: 'Tiếp tục bằng email' }).click();
-  await expect(page.getByRole('heading', { name: 'Kiểm tra email' })).toBeVisible();
+  await page.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Xác minh email' })).toBeVisible();
   expect(sends).toBe(1);
 
   await expect.poll(() => receivedCode(request, email)).toMatch(/^\d{6}$/);
@@ -68,11 +68,11 @@ test('email OTP creates a session using the real local Mailpit message', async (
 
   const field = page.getByLabel('Mã xác minh 6 số');
   await field.fill(code === '000000' ? '000001' : '000000');
-  await page.getByRole('button', { name: 'Xác minh và tiếp tục' }).click();
-  await expect(page.getByRole('alert')).toContainText('Mã không đúng hoặc đã hết hạn');
+  await page.getByRole('button', { name: 'Xác minh', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Mã chưa đúng');
   await field.fill(code.slice(0, 3) + ' ' + code.slice(3));
   await expect(field).toHaveValue(code);
-  await page.getByRole('button', { name: 'Xác minh và tiếp tục' }).click();
+  await page.getByRole('button', { name: 'Xác minh', exact: true }).click();
   await expect(page).toHaveURL(/\/home$/);
   await page.reload();
   await expect(page).toHaveURL(/\/home$/);
@@ -90,28 +90,32 @@ test('an authenticated legacy user verifies their own email without losing passw
   expect(created.ok()).toBe(true);
 
   async function signIn() {
-    await page.getByRole('button', { name: 'Dùng mật khẩu hiện có' }).click();
+    await page.getByRole('button', { name: 'Đăng nhập bằng mật khẩu' }).click();
     await page.getByLabel('Email', { exact: true }).fill(email);
     await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   }
 
   await page.goto('/profile');
-  await expect(page).toHaveURL(/\/profile$/);
+  await page.getByRole('button', { name: 'Hồ sơ cá nhân', exact: true }).click();
+  await expect(page).toHaveURL(/\/profile\/personal$/);
   await expect(page.getByText('Email chưa xác minh', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Xác minh email này' }).click();
   await expect.poll(() => receivedCode(request, email)).toMatch(/^\d{6}$/);
   const code = await receivedCode(request, email);
   if (!code) throw new Error('Mailpit never returned a profile verification code');
   await page.getByLabel('Mã xác minh 6 số').fill(code);
-  await page.getByRole('button', { name: 'Xác minh và tiếp tục' }).click();
+  await page.getByRole('button', { name: 'Xác minh', exact: true }).click();
   await expect(page.getByText('Email đã xác minh', { exact: true })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click();
+  await expect(page).toHaveURL(/\/profile$/);
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
   await expect(page).toHaveURL(/\/auth$/);
   await signIn();
   await expect(page).toHaveURL(/\/home$/);
   await page.getByRole('tab', { name: 'Hồ sơ' }).click();
+  await page.getByRole('button', { name: 'Hồ sơ cá nhân', exact: true }).click();
   await expect(page.getByText('Email đã xác minh', { exact: true })).toBeVisible();
 });
 
@@ -126,12 +130,12 @@ test('email OTP returns to the sample comparison requested before sign-in', asyn
     return url.pathname === '/auth' && url.searchParams.get('returnTo') === destination;
   });
   await page.getByLabel('Email', { exact: true }).fill(email);
-  await page.getByRole('button', { name: 'Tiếp tục bằng email' }).click();
+  await page.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
   await expect.poll(() => receivedCode(request, email)).toMatch(/^\d{6}$/);
   const code = await receivedCode(request, email);
   if (!code) throw new Error('Mailpit never returned a verification code');
   await page.getByLabel('Mã xác minh 6 số').fill(code);
-  await page.getByRole('button', { name: 'Xác minh và tiếp tục' }).click();
+  await page.getByRole('button', { name: 'Xác minh', exact: true }).click();
   await expect(page).toHaveURL((url) => url.pathname + url.search === destination);
   await expect(
     page.getByText('Chọn hai sản phẩm để tính với cùng số tiền và kỳ hạn.'),
@@ -151,7 +155,7 @@ test('password sign-in returns to the saved simulations tab requested before sig
   await expect(page).toHaveURL((url) => {
     return url.pathname === '/auth' && url.searchParams.get('returnTo') === destination;
   });
-  await page.getByRole('button', { name: 'Dùng mật khẩu hiện có' }).click();
+  await page.getByRole('button', { name: 'Đăng nhập bằng mật khẩu' }).click();
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
@@ -191,7 +195,7 @@ test('public tour compares an illustrative repayment without a session or API ca
   await expect(page).toHaveURL(/\/auth$/);
 });
 
-test('a provider outage can be retried without losing the entered email or inventing Google sign-in', async ({
+test('a provider outage can be retried and keeps an unconfigured Google slot disabled', async ({
   page,
 }) => {
   let offline = true;
@@ -212,7 +216,8 @@ test('a provider outage can be retried without losing the entered email or inven
   await retry.click();
   await expect(retry).toBeHidden();
   await expect(email).toHaveValue('recovery@example.test');
-  await expect(page.getByRole('button', { name: 'Tiếp tục với Google' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tiếp tục với Google' })).toBeDisabled();
+  await expect(page.getByText('Google sẽ khả dụng sau khi được cấu hình.')).toBeVisible();
 });
 
 test('an accepted code is not submitted twice when restoring the session needs a retry', async ({
@@ -251,11 +256,11 @@ test('an accepted code is not submitted twice when restoring the session needs a
   });
   await page.goto('/auth');
   await page.getByLabel('Email', { exact: true }).fill(user.email);
-  await page.getByRole('button', { name: 'Tiếp tục bằng email' }).click();
+  await page.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
   await page.getByLabel('Mã xác minh 6 số').fill('234567');
-  await page.getByRole('button', { name: 'Xác minh và tiếp tục' }).click();
+  await page.getByRole('button', { name: 'Xác minh', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Hoàn tất đăng nhập' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Xác minh và tiếp tục' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xác minh', exact: true })).toHaveCount(0);
   restore = true;
   await page.getByRole('button', { name: 'Kiểm tra lại phiên' }).click();
   await expect(page).toHaveURL(/\/home$/);

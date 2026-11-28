@@ -27,6 +27,9 @@ const schema = z
     APPLE_CLIENT_ID: z.string().trim().optional(),
     APPLE_CLIENT_SECRET: z.string().trim().optional(),
     APPLE_APP_BUNDLE_IDENTIFIER: z.string().trim().optional(),
+    PASSKEY_RP_ID: z.string().trim().optional(),
+    PASSKEY_ORIGINS: z.string().trim().optional(),
+    PASSKEY_APPLE_APP_ID: z.string().trim().optional(),
     WEB_ORIGINS: z
       .string()
       .min(1)
@@ -92,10 +95,73 @@ const schema = z
     FINORA_MATCH_STRESS_PERCENT: z.coerce.number().int().min(0).max(80).default(20),
     STORAGE_PROVIDER: z.literal('local'),
     LOCAL_STORAGE_PATH: z.string().min(1),
+    AVATAR_STORAGE_PROVIDER: z.enum(['local', 'r2', 's3']).default('local'),
+    R2_ACCOUNT_ID: z.string().trim().optional(),
+    R2_AVATAR_BUCKET: z.string().trim().optional(),
+    R2_ACCESS_KEY_ID: z.string().trim().optional(),
+    R2_SECRET_ACCESS_KEY: z.string().trim().optional(),
+    S3_REGION: z.string().trim().optional(),
+    S3_AVATAR_BUCKET: z.string().trim().optional(),
   })
   .superRefine((config, ctx) => {
     function issue(path: string, message: string) {
       ctx.addIssue({ code: 'custom', path: [path], message });
+    }
+    const { PASSKEY_RP_ID: rpId, PASSKEY_ORIGINS: origins, PASSKEY_APPLE_APP_ID: appId } = config;
+    if (rpId || origins || appId) {
+      const validHost =
+        rpId === 'localhost' ||
+        (!!rpId &&
+          rpId.length <= 253 &&
+          /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(
+            rpId,
+          ));
+      if (!validHost)
+        issue('PASSKEY_RP_ID', 'Set an exact relying-party host without scheme or port.');
+      const allowed = origins?.split(',').map((value) => value.trim()) ?? [];
+      if (
+        !allowed.length ||
+        !allowed.every((value) => {
+          try {
+            const url = new URL(value);
+            return (
+              url.origin === value &&
+              (url.hostname === rpId || url.hostname.endsWith('.' + rpId)) &&
+              (url.protocol === 'https:' ||
+                (url.protocol === 'http:' && url.hostname === 'localhost'))
+            );
+          } catch {
+            return false;
+          }
+        })
+      )
+        issue(
+          'PASSKEY_ORIGINS',
+          'Set exact HTTPS origins below the RP ID (HTTP is localhost-only).',
+        );
+      if (
+        appId &&
+        (!/^[A-Z0-9]{10}\.dev\.finora\.app$/.test(appId) ||
+          !allowed.includes('https://' + rpId) ||
+          !config.BETTER_AUTH_URL.startsWith('https://'))
+      )
+        issue(
+          'PASSKEY_APPLE_APP_ID',
+          'Native iOS needs the signed app ID, an HTTPS API and the HTTPS RP origin.',
+        );
+    }
+    if (config.AVATAR_STORAGE_PROVIDER === 'r2') {
+      if (!/^[a-f0-9]{32}$/.test(config.R2_ACCOUNT_ID ?? ''))
+        issue('R2_ACCOUNT_ID', 'Set a Cloudflare account ID.');
+      if (!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(config.R2_AVATAR_BUCKET ?? ''))
+        issue('R2_AVATAR_BUCKET', 'Set the private R2 bucket name.');
+      if (!config.R2_ACCESS_KEY_ID || !config.R2_SECRET_ACCESS_KEY)
+        issue('R2_ACCESS_KEY_ID', 'Set both server-only R2 credentials.');
+    }
+    if (config.AVATAR_STORAGE_PROVIDER === 's3') {
+      if (!config.S3_REGION) issue('S3_REGION', 'Set the AWS region for the avatar bucket.');
+      if (!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(config.S3_AVATAR_BUCKET ?? ''))
+        issue('S3_AVATAR_BUCKET', 'Set the private S3 bucket name.');
     }
     if (!!config.SMTP_USER !== !!config.SMTP_PASSWORD) {
       issue('SMTP_USER', 'Set both SMTP credentials or neither.');

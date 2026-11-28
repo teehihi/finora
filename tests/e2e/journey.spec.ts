@@ -35,6 +35,7 @@ test('Vietnamese borrowing journey, persisted login and responsive navigation', 
   await expect(page.getByText('Chưa có bản mô phỏng')).toBeVisible();
   await page.screenshot({ path: info.outputPath('home-empty.png') });
   await page.getByRole('tab', { name: 'Hồ sơ', exact: true }).click();
+  await page.getByRole('button', { name: 'Hồ sơ tài chính', exact: true }).click();
   await page.getByLabel('Thu nhập hằng tháng').fill('20000000');
   await page.getByLabel('Chi phí sinh hoạt').fill('9000000');
   await page.getByLabel('Tiền trả nợ hiện tại').fill('1500000');
