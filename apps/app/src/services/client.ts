@@ -40,8 +40,8 @@ export const auth = createAuthClient({
       }),
   },
 });
-const headers = (): Record<string, string> =>
-  Platform.OS === 'web' ? {} : { cookie: auth.getCookie() };
+const headers = async (): Promise<Record<string, string>> =>
+  Platform.OS === 'web' ? {} : { cookie: await auth.getCookie() };
 export const api = createApi(
   base,
   headers,

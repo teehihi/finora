@@ -11,7 +11,7 @@ import {
   type MatchReason,
   type PublicLoanProduct,
 } from '@finora/contracts';
-import { affordability, simulate } from './index.js';
+import { affordability, simulate } from './index';
 
 export const DEFAULT_MATCH_POLICY: MatchPolicy = {
   weights: {

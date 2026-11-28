@@ -109,7 +109,7 @@ export function interpret(prompt: string): Intent {
   const inputIssues: InputIssue[] = [];
   const quotedRates = [
     ...s.matchAll(
-      /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:danh nghia|nominal)?\s*(?:la|of|doi thanh|doi sang|sang|change to|set to|:|=)?\s*(-?\d+(?:[.,]\d+)?)\s*%\s*(?:\/\s*|moi\s*)?(thang|month|nam|year)?/g,
+      /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:danh nghia|nominal)?\s*(?:la|of|doi thanh|doi sang|sang|change to|set to|:|=)?\s*(-?\d+(?:[.,]\d+)?)\s*%\s*(?:\/\s*|moi\s*|mot\s*)?(thang|month|nam|year)?/g,
     ),
   ];
   const m = quotedRates[0];
@@ -294,7 +294,7 @@ export function interpret(prompt: string): Intent {
         ? undefined
         : moneyAfter(
             s,
-            'vay(?: khoang| them)?|khoan vay|so tien vay|tim khoan|borrow(?:ing)?|loan amount|principal',
+            'vay(?: khoang| them)?|khoan vay|so tien vay|tim khoan vay(?: tieu dung| ca nhan)?|tim khoan|borrow(?:ing)?|loan amount|principal',
           ),
     annualRate: percent !== undefined && percent <= 100 ? Number(percent.toFixed(4)) : undefined,
     monthlyQuoted: /month|thang/.test(m?.[2] ?? ''),
@@ -326,7 +326,7 @@ export function interpret(prompt: string): Intent {
       /vay|borrow|loan|lai|interest|repay|tra no|khoan tra|tra them|chi phi|cash flow/.test(s) ||
       !!purpose,
     blocked:
-      /(?:ignore|disregard|override|bo qua|ghi de).{0,28}(?:instruction|chi dan|huong dan|quy tac|rule|system|kiem soat)|(?:system prompt|api key|secret key|khoa bi mat|arbitrary sql)|(?:du lieu|data|ho so).{0,24}(?:nguoi khac|tai khoan khac|other user|another account)|(?:execute|chay|thuc thi).{0,18}(?:sql|shell|terminal|script)|\b(?:duyet chac chan|chac chan duoc duyet|guarantee approval|guaranteed approval)\b/.test(
+      /(?:ignore|disregard|override|bo qua|ghi de).{0,28}(?:instruction|chi dan|huong dan|quy tac|rule|system|kiem soat|bi mat)|(?:system prompt|api key|secret key|khoa bi mat|bi mat he thong|arbitrary sql)|(?:du lieu|data|ho so).{0,24}(?:nguoi khac|tai khoan khac|other user|another account)|(?:execute|chay|thuc thi).{0,18}(?:sql|shell|terminal|script)|(?:danh dau|mark).{0,25}(?:moi ky|all payments).{0,20}(?:da tra|paid)|\b(?:duyet chac chan|chac chan duoc duyet|guarantee approval|guaranteed approval)\b/.test(
         s,
       ),
     early,

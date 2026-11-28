@@ -1,12 +1,14 @@
 import 'dotenv/config';
+import { isAbsolute } from 'node:path';
 import { createWebOrigins } from './dev-network.js';
 import { z } from 'zod';
 import { matchWeightsSchema } from '@finora/contracts';
 const schema = z
   .object({
-    NODE_ENV: z.enum(['development', 'test']),
+    NODE_ENV: z.enum(['development', 'test', 'production']),
     PORT: z.coerce.number().int().min(1).max(65535),
     HOST: z.string().min(1),
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(1).default(0),
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
     BETTER_AUTH_URL: z.url({ protocol: /^https?$/ }),
     BETTER_AUTH_SECRET: z.string().min(32),
@@ -102,6 +104,24 @@ const schema = z
       if (!['localhost', '127.0.0.1', '::1'].includes(config.SMTP_HOST))
         issue('SMTP_HOST', 'Plaintext local SMTP is restricted to loopback.');
       if (config.SMTP_USER) issue('SMTP_USER', 'Use TLS for authenticated SMTP.');
+    }
+    if (config.NODE_ENV === 'production') {
+      if (config.TRUST_PROXY_HOPS !== 1)
+        issue('TRUST_PROXY_HOPS', 'Production requires one trusted HTTPS reverse proxy hop.');
+      if (!config.BETTER_AUTH_URL.startsWith('https://'))
+        issue('BETTER_AUTH_URL', 'Production authentication requires HTTPS.');
+      if (config.WEB_ORIGINS.some((origin) => !origin.startsWith('https://')))
+        issue('WEB_ORIGINS', 'Production browser origins require HTTPS.');
+      if (config.SMTP_MODE === 'local') issue('SMTP_MODE', 'Production email requires TLS.');
+      if (!isAbsolute(config.LOCAL_STORAGE_PATH))
+        issue(
+          'LOCAL_STORAGE_PATH',
+          'Production document storage requires an absolute persistent path.',
+        );
+      if (config.AI_PROVIDER === 'openai' && !config.OPENAI_BASE_URL.startsWith('https://'))
+        issue('OPENAI_BASE_URL', 'Production external AI requires HTTPS.');
+      if (config.AI_PROVIDER === 'anthropic' && !config.ANTHROPIC_BASE_URL.startsWith('https://'))
+        issue('ANTHROPIC_BASE_URL', 'Production external AI requires HTTPS.');
     }
     if (
       !!config.GOOGLE_CLIENT_ID !== !!config.GOOGLE_CLIENT_SECRET ||

@@ -74,6 +74,30 @@ describe('monthly VND ledger', () => {
 });
 
 describe('financial cap, fee, and calendar audit', () => {
+  it('cross-checks representative methods against independently written monthly formulas', () => {
+    const principal = 12_000_000;
+    const months = 12;
+    const annualRate = 12;
+    const periodicRate = annualRate / 1_200;
+    const flat = simulate({ ...base, principal, months, annualRate, method: 'flat', fee: 0 });
+    const equal = simulate({
+      ...base,
+      principal,
+      months,
+      annualRate,
+      method: 'equalPrincipal',
+      fee: 0,
+    });
+    const annuity = simulate({ ...base, principal, months, annualRate, method: 'annuity', fee: 0 });
+    expect(flat.schedule[0].payment).toBe(principal / months + principal * periodicRate);
+    expect(equal.schedule[0].payment).toBe(principal / months + principal * periodicRate);
+    expect(equal.schedule.at(-1)?.payment).toBe(
+      principal / months + (principal / months) * periodicRate,
+    );
+    expect(annuity.schedule[0].payment).toBe(
+      Math.round((principal * periodicRate) / (1 - (1 + periodicRate) ** -months)),
+    );
+  });
   it.each(['flat', 'annuity', 'equalPrincipal'] as Method[])(
     'does not spread one-time fees into the payment schedule for %s',
     (method) => {

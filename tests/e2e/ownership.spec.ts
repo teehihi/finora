@@ -57,6 +57,9 @@ test('server calculations, replay and private fixture ownership', async () => {
     const { id } = await fixture.json();
     expect(await (await a.get('/api/documents/' + id)).text()).toBe('Finora synthetic fixture');
     expect((await b.get('/api/documents/' + id)).status()).toBe(404);
+    expect((await b.delete('/api/documents/' + id)).status()).toBe(404);
+    expect((await a.delete('/api/documents/' + id)).status()).toBe(200);
+    expect((await a.get('/api/documents/' + id)).status()).toBe(404);
     expect((await a.post('/api/documents', { data: { bytes: 'bad' } })).status()).toBe(415);
     expect(
       (

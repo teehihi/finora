@@ -7,6 +7,7 @@ import {
   UnsupportedMediaTypeException,
   BadRequestException,
   Controller,
+  Delete,
   Post,
   Get,
   UseGuards,
@@ -23,6 +24,7 @@ import { SessionGuard, type OwnedRequest } from '../modules/auth.js';
 export interface StorageProvider {
   put(owner: string, file: Buffer): Promise<string>;
   read(owner: string, id: string): Promise<Buffer>;
+  remove(owner: string, id: string): Promise<void>;
 }
 export const STORAGE = Symbol('StorageProvider');
 @Injectable()
@@ -53,6 +55,19 @@ export class LocalStorageProvider implements StorageProvider {
     if (!row) throw new NotFoundException();
     return readFile(join(this.root, row.id));
   }
+  async remove(owner: string, id: string) {
+    const row = await db.uploadedDocument.findFirst({
+      where: { id, userId: owner },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException();
+    try {
+      await unlink(join(this.root, row.id));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    await db.uploadedDocument.deleteMany({ where: { id, userId: owner } });
+  }
 }
 @Controller('api/documents')
 @UseGuards(SessionGuard)
@@ -72,5 +87,12 @@ export class DocumentsController {
       .type('text/plain')
       .set('Content-Disposition', 'attachment; filename="fixture.txt"')
       .send(await this.storage.read(req.userId, id));
+  }
+  @Delete(':id') async remove(
+    @Req() req: OwnedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    await this.storage.remove(req.userId, id);
+    return { deleted: true };
   }
 }

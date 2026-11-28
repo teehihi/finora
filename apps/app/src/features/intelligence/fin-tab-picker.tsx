@@ -27,8 +27,8 @@ export const FIN_BAR_TARGET = 44;
 const FIN_MENU_WIDTH = 184;
 const FIN_MENU_HEIGHT = 187;
 const FIN_MENU_TAIL = 14;
-// Same coordinate as the center of the grid's 44-point target.
-const FIN_MENU_ANCHOR = 1 + FIN_BAR_PADDING + FIN_BAR_TARGET / 2;
+// The composer adds six points of horizontal inset around its 44-point target.
+const FIN_MENU_ANCHOR = 1 + FIN_BAR_PADDING + 6 + FIN_BAR_TARGET / 2;
 const supportNativeGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
 
 function useFinMaterial() {

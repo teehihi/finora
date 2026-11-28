@@ -366,7 +366,7 @@ export default function Workspace() {
         }}
         style={{
           flex: 1,
-          backgroundColor: rail || inSearch ? c.surface : c.background,
+          backgroundColor: rail && !inSearch ? c.surface : c.background,
         }}
       >
         <KeyboardAvoidingView
@@ -377,7 +377,7 @@ export default function Workspace() {
             ref={blurTarget}
             style={{
               flex: 1,
-              backgroundColor: inSearch ? c.surface : c.background,
+              backgroundColor: c.background,
               flexDirection: rail ? 'row' : 'column',
             }}
           >

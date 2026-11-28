@@ -35,7 +35,7 @@ async function request<T>(
       method,
       credentials: web ? 'include' : 'omit',
       ...(web ? { cache: 'no-store' as const } : {}),
-      headers: web ? headers : { ...headers, cookie: auth.getCookie() },
+      headers: web ? headers : { ...headers, cookie: await auth.getCookie() },
     });
     if (!response.ok) throw new DocumentApiError(response.status);
     return (await response.json()) as T;
@@ -104,7 +104,7 @@ export async function loadPrivateImage(
         signal: readSignal,
         method: 'GET',
         credentials: web ? 'include' : 'omit',
-        headers: web ? {} : { cookie: auth.getCookie() },
+        headers: web ? {} : { cookie: await auth.getCookie() },
         ...(web ? { cache: 'no-store' as const } : {}),
       },
     );

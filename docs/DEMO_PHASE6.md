@@ -1,0 +1,15 @@
+# Three-minute synthetic demo
+
+Use only a fresh local QA account and the idempotently seeded four **simulated** products. Run `pnpm run setup`, `pnpm build`, then `pnpm dev`; open `http://localhost:8081` and Mailpit for a QA sign-in code. Keep Fin in local mode unless a configured live provider is explicitly consented to for that single synthetic prompt. The visible provider label distinguishes the modes. Do not use a real contract or borrower profile.
+
+| Time      | Action and talking point                                                                                                                                                                                                                                  |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0:00–0:25 | Sign in and open Fin. Ask: “Tôi muốn vay 50 triệu mua xe trong 24 tháng.” Fin requests missing budget details and labels any catalog row as simulated.                                                                                                    |
+| 0:25–0:55 | Enter synthetic income 15,000,000 VND, essential spending 8,000,000 VND, other debt 1,000,000 VND, stable income and reserve 20,000,000 VND. Show matching explanation and hard affordability status. These are demo assumptions, not lender eligibility. |
+| 0:55–1:20 | Simulate 50,000,000 VND over 24 months at a **user-assumed** 12% annual rate with annuity method and unknown fees. Show schedule and that all-in cost stays unknown. Save only after confirmation.                                                        |
+| 1:20–1:45 | Open the Digital Twin and reduce income by 20% for three months. Compare baseline and stress cash flow and the first shortfall, if any. Explain it is a scenario, not a forecast.                                                                         |
+| 1:45–2:15 | Upload a synthetic native PDF or Vietnamese scan from the committed document evaluation fixtures. Show page evidence, uncertain/missing terms and user confirmation before calculating. Never describe OCR text as verified contract policy.              |
+| 2:15–2:45 | Move the saved plan to planned or user-confirmed active state, show upcoming payment preparation and an in-app reminder. A simulated plan is not automatically an actual obligation; no lender payment has occurred.                                      |
+| 2:45–3:00 | Show sources, consent mode and limits: Finora does not grant credit, published terms may change, unknown fees remain unknown, and the demo uses synthetic data.                                                                                           |
+
+For a reproducible technical check after the presentation, run `pnpm exec playwright test tests/e2e/phase6-evaluation.spec.ts --reporter=line`. The E2E suite creates its own QA accounts; it does not reset the database or touch user volumes.

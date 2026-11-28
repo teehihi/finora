@@ -67,6 +67,7 @@ async function main() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   });
   const server = app.getHttpAdapter().getInstance() as express.Express;
+  server.set('trust proxy', env.TRUST_PROXY_HOPS);
   server.use('/api', (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     const origin = req.get('origin');

@@ -13,14 +13,15 @@ import { chooseSimulationId } from './model';
 
 const transport = Platform.OS === 'web' ? fetch : (expoFetch as typeof fetch);
 
-function init(signal: AbortSignal) {
-  const headers: Record<string, string> = Platform.OS === 'web' ? {} : { cookie: auth.getCookie() };
+async function init(signal: AbortSignal) {
+  const headers: Record<string, string> =
+    Platform.OS === 'web' ? {} : { cookie: await auth.getCookie() };
   return { signal, credentials: 'include' as const, headers };
 }
 
 export async function loadIntelligenceHistory(signal: AbortSignal) {
   return withReadDeadline(async (readSignal) => {
-    const response = await transport(`${base}/api/intelligence/history`, init(readSignal));
+    const response = await transport(`${base}/api/intelligence/history`, await init(readSignal));
     if (!response.ok) throw new Error('History unavailable');
     return intelligenceHistorySchema.parse(await response.json());
   }, signal);
@@ -31,7 +32,7 @@ export async function streamIntelligence(
   signal: AbortSignal,
   receive: (event: IntelligenceEvent) => void,
 ) {
-  const options = init(signal);
+  const options = await init(signal);
   const response = await transport(`${base}/api/intelligence/stream`, {
     ...options,
     method: 'POST',
@@ -88,7 +89,7 @@ export async function streamIntelligence(
 
 export async function loadIntelligenceStatus(signal: AbortSignal) {
   return withReadDeadline(async (readSignal) => {
-    const response = await transport(`${base}/api/intelligence/status`, init(readSignal));
+    const response = await transport(`${base}/api/intelligence/status`, await init(readSignal));
     if (!response.ok) throw new Error('Status unavailable');
     const body: unknown = await response.json();
     if (typeof body !== 'object' || !body || !('provider' in body))
@@ -103,7 +104,7 @@ export async function saveIntelligenceScenario(
   input: { turnId: string; blockIndex: number; requestId: string; confirmed: true },
   signal: AbortSignal,
 ) {
-  const options = init(signal);
+  const options = await init(signal);
   const response = await transport(`${base}/api/intelligence/scenarios/save`, {
     ...options,
     method: 'POST',
@@ -120,7 +121,7 @@ export async function saveIntelligenceScenario(
 
 export async function clearIntelligenceHistory(signal: AbortSignal) {
   const response = await transport(`${base}/api/intelligence/history`, {
-    ...init(signal),
+    ...(await init(signal)),
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('History could not be cleared');

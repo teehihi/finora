@@ -41,7 +41,7 @@ export class ApiError extends Error {
 }
 export function createApi(
   base: string,
-  headers: () => Record<string, string>,
+  headers: () => Record<string, string> | Promise<Record<string, string>>,
   transport: typeof fetch = fetch,
 ) {
   async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
@@ -50,7 +50,7 @@ export function createApi(
         method,
         signal,
         credentials: 'include',
-        headers: { ...headers(), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+        headers: { ...(await headers()), ...(body ? { 'Content-Type': 'application/json' } : {}) },
         body: body ? JSON.stringify(body) : undefined,
       });
       if (!r.ok) throw new ApiError(r.status);
@@ -135,7 +135,11 @@ export function createApi(
       const r = await transport(base + '/api/assistant/stream', {
         method: 'POST',
         credentials: 'include',
-        headers: { ...headers(), 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        headers: {
+          ...(await headers()),
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
         body: JSON.stringify(input),
         signal,
       });
