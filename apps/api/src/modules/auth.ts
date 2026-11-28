@@ -3,6 +3,7 @@ import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { emailOTP } from 'better-auth/plugins';
 import { z } from 'zod';
+import { displayNameSchema } from '@finora/contracts';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { fromNodeHeaders } from 'better-auth/node';
 import { expo } from '@better-auth/expo';
@@ -12,6 +13,8 @@ import { env, webOrigins } from '../config/env.js';
 import { logger } from '../common/http.js';
 import { emailService } from '../infrastructure/email.js';
 import { createOtpCooldown } from './otp-policy.js';
+import { finoraPasskey } from './passkey.js';
+import { finoraTwoFactor, isFactorSignInPath } from './two-factor.js';
 
 const google =
   env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
@@ -34,7 +37,24 @@ const apple =
             : { email: undefined },
       }
     : undefined;
-export const authProviders = { emailOtp: true, google: Boolean(google) };
+const passkeyConfig =
+  env.PASSKEY_RP_ID && env.PASSKEY_ORIGINS
+    ? {
+        rpId: env.PASSKEY_RP_ID,
+        origins: env.PASSKEY_ORIGINS.split(',').map((origin) => origin.trim()),
+      }
+    : undefined;
+export const authProviders = {
+  emailOtp: true,
+  google: Boolean(google),
+  passkey: passkeyConfig
+    ? {
+        rpId: passkeyConfig.rpId,
+        origins: passkeyConfig.origins,
+        ios: Boolean(env.PASSKEY_APPLE_APP_ID),
+      }
+    : null,
+};
 export const isApplePrepared = Boolean(apple);
 const acquireOtpCooldown = createOtpCooldown();
 const emailInput = z.email();
@@ -72,6 +92,8 @@ export const auth = betterAuth({
   ],
   socialProviders: { ...(google && { google }), ...(apple && { apple }) },
   plugins: [
+    finoraTwoFactor(),
+    ...(passkeyConfig ? [finoraPasskey(passkeyConfig.rpId, passkeyConfig.origins)] : []),
     expo(),
     emailOTP({
       otpLength: 6,
@@ -111,6 +133,11 @@ export const auth = betterAuth({
     '/forget-password/email-otp',
     '/email-otp/request-email-change',
     '/email-otp/change-email',
+    '/two-factor/get-totp-uri',
+    '/two-factor/generate-backup-codes',
+    '/two-factor/send-otp',
+    '/two-factor/verify-otp',
+    '/totp/generate',
   ],
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
@@ -119,6 +146,43 @@ export const auth = betterAuth({
         !allowedNativeOAuthTarget(ctx.query?.authorizationURL)
       ) {
         throw new APIError('BAD_REQUEST', { code: 'AUTH_OAUTH_TARGET_INVALID' });
+      }
+      if (ctx.path === '/update-user' && ctx.body && Object.hasOwn(ctx.body, 'name')) {
+        const name = displayNameSchema.safeParse(ctx.body.name);
+        if (!name.success) throw new APIError('BAD_REQUEST', { code: 'AUTH_DISPLAY_NAME_INVALID' });
+        ctx.body.name = name.data;
+      }
+      if (
+        ctx.path === '/passkey/generate-register-options' ||
+        ctx.path === '/passkey/verify-registration' ||
+        ctx.path === '/passkey/delete-passkey'
+      ) {
+        const session = await getSessionFromCtx(ctx);
+        if (!session?.user.emailVerified)
+          throw new APIError('FORBIDDEN', { code: 'AUTH_VERIFY_EMAIL_FIRST' });
+        if (Date.now() - new Date(session.session.createdAt).getTime() > 600_000)
+          throw new APIError('FORBIDDEN', { code: 'PASSKEY_RECENT_SIGN_IN' });
+      }
+      if (ctx.path === '/two-factor/enable' || ctx.path === '/two-factor/disable') {
+        const session = await getSessionFromCtx(ctx);
+        if (!session?.user.emailVerified)
+          throw new APIError('FORBIDDEN', { code: 'AUTH_VERIFY_EMAIL_FIRST' });
+        if (ctx.path === '/two-factor/enable' && session.user.twoFactorEnabled)
+          throw new APIError('BAD_REQUEST', { code: 'AUTH_2FA_ALREADY_ENABLED' });
+
+        // For a passwordless account, only a recent verified sign-in can change
+        // this setting. Password accounts prove possession again in Better Auth.
+        const password = await db.account.findFirst({
+          where: { userId: session.user.id, providerId: 'credential', password: { not: null } },
+          select: { id: true },
+        });
+        const maxAgeMs = 10 * 60 * 1000;
+        if (!password && Date.now() - new Date(session.session.createdAt).getTime() > maxAgeMs)
+          throw new APIError('FORBIDDEN', { code: 'AUTH_2FA_RECENT_SIGN_IN' });
+      }
+      if (ctx.path === '/two-factor/verify-totp' || ctx.path === '/two-factor/verify-backup-code') {
+        // Every new password sign-in should challenge. Do not permit trusted-device cookies.
+        ctx.body.trustDevice = false;
       }
       if (ctx.path === '/link-social') {
         const session = await getSessionFromCtx(ctx);
@@ -153,6 +217,16 @@ export const auth = betterAuth({
       return { context: { body: { ...ctx.body, email } } };
     }),
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === '/two-factor/verify-totp') {
+        const prior = ctx.context.session;
+        const next = ctx.context.newSession;
+        if (prior && !prior.user.twoFactorEnabled && next?.user.twoFactorEnabled) {
+          // A session created before enrollment did not pass the new second factor.
+          await db.session.deleteMany({
+            where: { userId: next.user.id, id: { not: next.session.id } },
+          });
+        }
+      }
       if (ctx.path !== '/email-otp/send-verification-otp') return;
       const email = String(ctx.body?.email ?? '')
         .trim()
@@ -165,6 +239,30 @@ export const auth = betterAuth({
         ),
       };
     }),
+  },
+  databaseHooks: {
+    session: {
+      create: {
+        async before(session, ctx) {
+          // Any new entry point must adopt the same challenge before it
+          // can issue a session for a user with 2FA enabled.
+          if (
+            isFactorSignInPath(ctx?.path) ||
+            (passkeyConfig && ctx?.path === '/passkey/verify-authentication') ||
+            ctx?.path === '/two-factor/verify-totp' ||
+            ctx?.path === '/two-factor/verify-backup-code' ||
+            ctx?.path === '/two-factor/disable'
+          )
+            return;
+          const user = await db.user.findUnique({
+            where: { id: session.userId },
+            select: { twoFactorEnabled: true },
+          });
+          if (user?.twoFactorEnabled)
+            throw new APIError('FORBIDDEN', { code: 'AUTH_2FA_FLOW_UNAVAILABLE' });
+        },
+      },
+    },
   },
   account: {
     encryptOAuthTokens: true,
@@ -186,6 +284,9 @@ export const auth = betterAuth({
       '/email-otp/send-verification-otp': { window: 300, max: 12 },
       '/sign-in/email-otp': { window: 60, max: 16 },
       '/email-otp/verify-email': { window: 60, max: 16 },
+      '/two-factor/verify-totp': { window: 60, max: 8 },
+      '/passkey/generate-authenticate-options': { window: 60, max: 30 },
+      '/passkey/verify-authentication': { window: 60, max: 20 },
     },
   },
   advanced: {

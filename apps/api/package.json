@@ -7,13 +7,15 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "node ../../scripts/expo-lan.mjs api-dev",
-    "test": "node --test scripts/dev-network-auth.test.mjs && jest --runInBand",
+    "test": "node --test scripts/dev-network-auth.test.mjs && pnpm run test:auth:totp && jest --runInBand",
     "start": "node ../../scripts/expo-lan.mjs api-start",
-    "test:auth:local": "node scripts/verify-auth-local.mjs"
+    "test:auth:local": "node scripts/verify-auth-local.mjs",
+    "test:auth:totp": "node --import tsx --test scripts/two-factor-oauth.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1178.0",
     "@better-auth/expo": "1.6.35",
+    "@better-auth/passkey": "1.6.35",
     "@finora/contracts": "workspace:*",
     "@finora/database": "workspace:*",
     "@finora/financial-engine": "workspace:*",

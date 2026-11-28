@@ -10,6 +10,12 @@ export const profileSchema = z
   .object({ income: money.positive(), debt: money, expenses: money })
   .strict();
 export type Profile = z.infer<typeof profileSchema>;
+export const displayNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(80)
+  .regex(/^[^\p{Cc}]+$/u);
 export const preferencesSchema = z
   .object({ locale: localeSchema, appearance: z.enum(['light', 'dark', 'system']) })
   .strict();

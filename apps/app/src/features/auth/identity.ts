@@ -33,7 +33,23 @@ export function useIdentityOptions() {
         typeof body.google !== 'boolean'
       )
         throw new Error('Invalid auth methods response');
-      return { emailOtp: body.emailOtp, google: body.google };
+      const passkey = 'passkey' in body ? body.passkey : null;
+      return {
+        emailOtp: body.emailOtp,
+        google: body.google,
+        passkey:
+          passkey &&
+          typeof passkey === 'object' &&
+          'rpId' in passkey &&
+          typeof passkey.rpId === 'string' &&
+          'origins' in passkey &&
+          Array.isArray(passkey.origins) &&
+          passkey.origins.every((origin: unknown) => typeof origin === 'string') &&
+          'ios' in passkey &&
+          typeof passkey.ios === 'boolean'
+            ? { rpId: passkey.rpId, origins: passkey.origins as string[], ios: passkey.ios }
+            : null,
+      };
     },
   });
 }

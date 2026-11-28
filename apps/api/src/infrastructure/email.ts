@@ -33,10 +33,12 @@ class SmtpEmailProvider implements EmailProvider {
       ...message,
       from: { name: 'Finora', address: env.SMTP_FROM },
     });
-    const accepted = result.accepted.some((recipient) =>
-      typeof recipient === 'string' && recipient.toLowerCase() === message.to.toLowerCase(),
+    const accepted = result.accepted.some(
+      (recipient) =>
+        typeof recipient === 'string' && recipient.toLowerCase() === message.to.toLowerCase(),
     );
-    if (!accepted) throw Object.assign(new Error('SMTP rejected recipient'), { code: 'ERECIPIENT' });
+    if (!accepted)
+      throw Object.assign(new Error('SMTP rejected recipient'), { code: 'ERECIPIENT' });
   }
 }
 

@@ -1,5 +1,6 @@
 export { cashflowCopy } from './cashflow';
 export { profileMenuCopy } from './profile-menu';
+export { personalProfileCopy } from './personal-profile';
 
 export type Locale = 'vi-VN' | 'en-US';
 const copy = {

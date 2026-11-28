@@ -1,0 +1,33 @@
+export const passkeyCopy = {
+  'vi-VN': {
+    title: 'Passkey',
+    action: 'Đăng nhập bằng passkey',
+    description: 'Tạo passkey để lần sau đăng nhập mà không cần nhập mật khẩu hay mã xác thực.',
+    add: 'Tạo passkey',
+    remove: 'Gỡ passkey',
+    removeTitle: 'Gỡ passkey này?',
+    removeBody: 'Bạn sẽ không thể dùng passkey này để đăng nhập FINORA nữa.',
+    cancelled: 'Bạn có thể thử lại hoặc chọn cách đăng nhập khác.',
+    unavailable: 'Không tìm được passkey dùng được cho FINORA. Hãy chọn cách đăng nhập khác.',
+    recent: 'Hãy đăng xuất rồi đăng nhập lại trước khi đổi passkey.',
+    verifyEmail: 'Xác minh email trước khi tạo passkey.',
+    created: 'Đã tạo passkey.',
+    deleted: 'Đã gỡ passkey.',
+  },
+  'en-US': {
+    title: 'Passkeys',
+    action: 'Sign in with a passkey',
+    description:
+      'Create a passkey to sign in without a password or an authenticator code next time.',
+    add: 'Create a passkey',
+    remove: 'Remove passkey',
+    removeTitle: 'Remove this passkey?',
+    removeBody: 'You will not be able to use this passkey to sign in to FINORA anymore.',
+    cancelled: 'Try again or choose a different sign-in method.',
+    unavailable: 'No usable passkey was found for FINORA. Choose another sign-in method.',
+    recent: 'Sign out and sign in again before changing a passkey.',
+    verifyEmail: 'Verify your email before creating a passkey.',
+    created: 'Passkey created.',
+    deleted: 'Passkey removed.',
+  },
+} as const;

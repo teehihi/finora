@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@better-auth/expo": "1.6.35",
+    "@better-auth/passkey": "1.6.35",
     "@callstack/liquid-glass": "0.8.2",
     "@expo-google-fonts/geist": "0.4.2",
     "@expo-google-fonts/instrument-serif": "0.4.1",
@@ -30,6 +31,7 @@
     "babel-preset-expo": "~58.0.26",
     "better-auth": "1.6.35",
     "expo": "58.0.26",
+    "expo-better-auth-passkey": "1.6.2",
     "expo-blur": "~58.0.6",
     "expo-constants": "~58.0.16",
     "expo-crypto": "~58.0.8",
@@ -49,6 +51,7 @@
     "lucide-react-native": "^0.545.0",
     "morphicons": "^2.0.2",
     "nativewind": "4.2.7",
+    "qrcode-generator": "2.0.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-hook-form": "^7.65.0",
