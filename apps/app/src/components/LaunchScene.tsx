@@ -6,6 +6,7 @@ import markLight from '../../assets/brand/lockup.png';
 import markDark from '../../assets/brand/lockup-night.png';
 import palette from './launch-palette.json';
 import { usePulse } from './task-surface';
+import fin from '../../assets/brand/fin-login.png';
 
 // Still intaglio curves, not moving background layers. Only one small pill animates.
 const curves = Array.from(
@@ -56,6 +57,19 @@ export function LaunchScene({ checking = false }: { checking?: boolean }) {
           />
         </Svg>
       </View>
+      <Image
+        accessible={false}
+        source={fin}
+        resizeMode="contain"
+        style={{
+          position: 'absolute',
+          bottom: -12,
+          width: 198,
+          height: 166,
+          alignSelf: 'center',
+          opacity: night ? 0.88 : 1,
+        }}
+      />
       <Image
         accessible={false}
         source={night ? markDark : markLight}

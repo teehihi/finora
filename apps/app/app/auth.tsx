@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, View, useWindowDimensions } from 'react-native';
-import { Redirect, router, useLocalSearchParams, type Href } from 'expo-router';
-import { ArrowRight, ArrowUpRight, MailCheck, ShieldCheck, WifiOff } from 'lucide-react-native';
+import { ActivityIndicator, Image, Platform, View, useWindowDimensions } from 'react-native';
+import { Redirect, useLocalSearchParams, type Href } from 'expo-router';
+import { ArrowRight, LockKeyhole, Mail, MailCheck } from 'lucide-react-native';
 import { z } from 'zod';
 import { getAccessStrings, type Key } from '@finora/i18n';
 import { Action, Button, Field, Heading, Text, useDesign } from '@finora/ui';
 import { LaunchScene } from '../src/components/LaunchScene';
-import { PublicPage } from '../src/components/layout';
+import { Logo, PublicPage } from '../src/components/layout';
 import { SignatureIcon } from '../src/components/signature';
 import { ResendCode, VerificationField, resendDelay } from '../src/features/auth/Verification';
 import {
@@ -17,16 +17,23 @@ import {
   redirectOAuthSupported,
 } from '../src/features/auth/identity';
 import { auth } from '../src/services/client';
+import { GoogleAction } from '../src/features/auth/GoogleAction';
+import { AuthInputField } from '../src/features/auth/AuthInputField';
 import { passkeySupported } from '../src/services/passkey-client';
 import { passkeyCopy } from '../src/features/auth/passkey-copy';
-import { GoogleAction } from '../src/features/auth/GoogleAction';
-import { AuthArtwork } from '../src/features/auth/AuthArtwork';
 import { twoFactorCopy } from '../src/features/auth/two-factor-copy';
-import { AccessProgress } from '../src/features/auth/AccessProgress';
+import finVerification from '../assets/brand/fin-verification.png';
 
 type Step = 'email' | 'code' | 'password' | 'totp';
 type Pending =
-  'request' | 'resend' | 'verify' | 'password' | 'google' | 'passkey' | 'reconnect' | 'restore';
+  | 'request'
+  | 'resend'
+  | 'verify'
+  | 'password'
+  | 'google'
+  | 'passkey'
+  | 'reconnect'
+  | 'restore';
 const emailSchema = z.email().max(254);
 
 export default function Auth() {
@@ -36,7 +43,6 @@ export default function Auth() {
   const copy = getAccessStrings(locale);
   const factor = twoFactorCopy[locale];
   const passkey = passkeyCopy[locale];
-  const vi = locale === 'vi-VN';
   const { width } = useWindowDimensions();
   const wide = width >= 1024;
   const session = auth.useSession();
@@ -237,7 +243,7 @@ export default function Auth() {
 
   function verifyAuthenticator() {
     if (inFlight.current) return;
-    if (recovery ? !code.trim() : !/^\d{6}$/.test(code)) return setFactorError(factor.incorrect);
+    if (recovery ? !code.trim() : !/^\\d{6}$/.test(code)) return setFactorError(factor.incorrect);
     void run(
       async () => {
         const result = recovery
@@ -345,19 +351,25 @@ export default function Auth() {
   const googleAvailable = methods.data?.google === true && redirectOAuthSupported;
   const emailAvailable = methods.data?.emailOtp !== false;
   const showPasskey = step === 'email' && passkeySupported(methods.data?.passkey);
-  const title = step === 'code' ? 'authCodeTitle' : 'signIn';
+  const title =
+    step === 'code' ? 'authCodeTitle' : step === 'password' ? 'authPasswordTitle' : 'authWelcome';
   const verificationInvalid =
-    error === 'authCodeNeedSix' || error === 'authCodeAttempts' || error === 'authCodeInvalid';
+    error === 'authCodeNeedSix' ||
+    error === 'authCodeAttempts' ||
+    error === 'authCodeExpired' ||
+    error === 'authCodeInvalid';
   if (session.isPending && !busy && !restoring && step === 'email') return <LaunchScene checking />;
 
   if (restoring) {
     return (
-      <PublicPage auth>
+      <PublicPage auth authBack={{ label: t('back'), onPress: () => changeStep('email') }}>
         <View
           style={{
             width: '100%',
             maxWidth: 490,
             alignSelf: 'center',
+            flex: 1,
+            justifyContent: 'center',
             marginVertical: 30,
             borderTopWidth: 1,
             borderColor: c.border,
@@ -396,99 +408,112 @@ export default function Auth() {
   }
 
   return (
-    <PublicPage auth>
+    <PublicPage
+      auth
+      authBrand={false}
+      authBack={
+        step === 'email'
+          ? undefined
+          : {
+              label: t('back'),
+              onPress: step === 'totp' ? cancelAuthenticator : () => changeStep('email'),
+            }
+      }
+    >
       <View
         style={{
           width: '100%',
-          maxWidth: wide ? 1040 : 470,
+          maxWidth: wide ? 520 : 470,
           alignSelf: 'center',
-          flexDirection: wide ? 'row' : 'column',
-          alignItems: wide ? 'stretch' : undefined,
-          marginTop: wide ? 24 : 10,
-          marginBottom: wide ? 40 : 28,
-          ...(wide
-            ? {
-                borderRadius: 30,
-                borderWidth: 1,
-                borderColor: c.border,
-                backgroundColor: c.surface,
-                overflow: 'hidden',
-              }
-            : { gap: 15 }),
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          marginTop: 0,
+          marginBottom: 0,
+          flex: 1,
+          gap: 5,
         }}
       >
-        {wide ? <AuthArtwork wide /> : step === 'email' ? <AuthArtwork wide={false} /> : null}
         <View
           style={{
-            flex: wide ? 1 : undefined,
+            flex: 1,
             minWidth: 0,
             justifyContent: 'center',
-            gap: wide ? 18 : 13,
-            paddingHorizontal: wide ? 37 : 0,
-            paddingVertical: wide ? 30 : 0,
+            gap: wide ? 20 : 16,
+            paddingVertical: 12,
           }}
         >
-          <View style={{ gap: 8 }}>
-            {step !== 'totp' && (step !== 'email' || emailAvailable) ? (
-              <AccessProgress step={step} />
-            ) : null}
-            <Heading size={wide ? 37 : 33}>{step === 'totp' ? factor.title : t(title)}</Heading>
-            <Text muted style={{ fontSize: 15, lineHeight: 23, maxWidth: 410 }}>
-              {step === 'totp'
-                ? recovery
-                  ? factor.recoveryIntro
-                  : factor.intro
-                : t(
-                    step === 'code'
-                      ? 'authCodeIntro'
-                      : step === 'password'
-                        ? 'authPasswordIntro'
-                        : 'authWelcomeBody',
-                  )}
-            </Text>
-          </View>
-
-          {connectionIssue ? (
-            <View
-              style={{
-                backgroundColor: c.elevated,
-                borderRadius: 15,
-                borderLeftWidth: 3,
-                borderColor: c.error,
-                padding: 12,
-                gap: 6,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <WifiOff size={17} color={c.error} />
-                <Text role="alert" bold small>
-                  {copy.offlineTitle}
+          <View
+            style={{ gap: 8, alignItems: step === 'code' || step === 'totp' ? 'center' : 'stretch' }}
+          >
+            {step !== 'code' ? (
+              <View style={{ alignItems: 'center', gap: 1, marginBottom: 5 }}>
+                <Logo auth />
+                <Text small muted style={{ fontSize: 12, lineHeight: 16 }}>
+                  {t('authBrandSlogan')}
                 </Text>
               </View>
-              <Text small muted>
-                {copy.offlineBody}
-              </Text>
-              <Action
-                label={copy.offlineRetry}
-                onPress={reconnect}
-                disabled={busy}
-                style={{ alignSelf: 'flex-start' }}
-              >
-                <Text small bold style={{ color: c.primary }}>
-                  {copy.offlineRetry}
+            ) : null}
+            {step === 'code' ? (
+              <View style={{ height: 90, width: 112, marginBottom: 0 }}>
+                <Image
+                  source={finVerification}
+                  resizeMode="contain"
+                  accessibilityLabel={t('authCodeTitle')}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              </View>
+            ) : null}
+            <Heading
+              size={wide ? 34 : 29}
+              style={{ textAlign: step === 'code' || step === 'totp' ? 'center' : 'left' }}
+            >
+              {step === 'totp' ? factor.title : t(title)}
+            </Heading>
+            {step === 'code' ? (
+              <View style={{ alignItems: 'center', gap: 3 }}>
+                <Text muted style={{ fontSize: 15, lineHeight: 21, textAlign: 'center' }}>
+                  {t('authCodeIntro')}
                 </Text>
-              </Action>
-            </View>
-          ) : null}
-
-          {showPasskey ? (
-            <Button
-              label={passkey.action}
-              onPress={signInPasskey}
-              loading={pending === 'passkey'}
-              disabled={busy}
-            />
-          ) : null}
+                <Text bold style={{ fontSize: 15, lineHeight: 21, textAlign: 'center' }}>
+                  {email.replace(/^(.{1,2})[^@]*/, '$1•••')}
+                </Text>
+                <Text small muted style={{ textAlign: 'center' }}>
+                  {t('authCodeExpiresIn')}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                  <Text small muted>
+                    {t('authEmailWrong')}
+                  </Text>
+                  <Action
+                    disabled={busy}
+                    onPress={() => changeStep('email')}
+                    label={t('authEditEmail')}
+                    style={{ minHeight: 28, justifyContent: 'center' }}
+                  >
+                    <Text small bold style={{ color: c.primary }}>
+                      {t('authEditEmail')}
+                    </Text>
+                  </Action>
+                </View>
+              </View>
+            ) : step === 'totp' ? (
+              <Text muted style={{ fontSize: 15, lineHeight: 22, textAlign: 'center' }}>
+                {recovery ? factor.recoveryIntro : factor.intro}
+              </Text>
+            ) : (
+              <Text
+                muted
+                style={{
+                  fontSize: 15,
+                  lineHeight: 22,
+                  maxWidth: 410,
+                  textAlign: 'left',
+                }}
+              >
+                {t(step === 'password' ? 'authPasswordIntro' : 'authWelcomeBody')}
+              </Text>
+            )}
+          </View>
 
           {step === 'totp' ? (
             <Field
@@ -508,37 +533,7 @@ export default function Auth() {
               onSubmitEditing={verifyAuthenticator}
             />
           ) : step === 'code' ? (
-            <View style={{ gap: 12 }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 12,
-                  backgroundColor: c.elevated,
-                  borderRadius: 16,
-                  paddingHorizontal: 12,
-                  paddingVertical: 4,
-                }}
-              >
-                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-                  <Text small muted>
-                    {t('authCodeSentTo')}
-                  </Text>
-                  <Text bold numberOfLines={2} style={{ fontSize: 15, lineHeight: 21 }}>
-                    {email}
-                  </Text>
-                </View>
-                <Action
-                  disabled={busy}
-                  onPress={() => changeStep('email')}
-                  label={t('authEditEmail')}
-                >
-                  <Text small bold style={{ color: c.primary }}>
-                    {t('authEditEmail')}
-                  </Text>
-                </Action>
-              </View>
+            <View style={{ gap: 13 }}>
               <VerificationField
                 code={code}
                 setCode={(value) => {
@@ -549,16 +544,12 @@ export default function Auth() {
                 invalid={verificationInvalid}
                 onSubmit={verifyCode}
               />
-              <Text small muted>
-                {vi
-                  ? 'Chưa thấy thư? Kiểm tra hộp thư rác hoặc sửa địa chỉ trên.'
-                  : 'No email yet? Check spam or edit the address above.'}
-              </Text>
             </View>
           ) : (
-            <View style={{ gap: 12 }}>
-              <Field
+            <View style={{ gap: 13 }}>
+              <AuthInputField
                 label={t('email')}
+                icon={Mail}
                 value={email}
                 onChangeText={(next) => {
                   setEmail(next);
@@ -571,18 +562,18 @@ export default function Auth() {
                 returnKeyType={step === 'email' ? 'go' : 'default'}
                 maxLength={254}
                 editable={!busy}
-                placeholder="ban@example.com"
-                style={{ minHeight: 54, borderRadius: 16 }}
-                error={error === 'authEmailInvalid' ? t(error) : undefined}
+                placeholder={t('authEmailPlaceholder')}
                 inputMode="email"
+                error={error === 'authEmailInvalid' ? t(error) : undefined}
                 onSubmitEditing={step === 'email' ? () => requestCode() : undefined}
               />
               {step === 'password' ? (
-                <Field
+                <AuthInputField
                   label={t('password')}
+                  icon={LockKeyhole}
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry
+                  secure
                   autoComplete="current-password"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -590,7 +581,6 @@ export default function Auth() {
                   autoFocus
                   maxLength={128}
                   editable={!busy}
-                  style={{ minHeight: 54, borderRadius: 16 }}
                   error={error === 'authPasswordRequired' ? t(error) : undefined}
                   onSubmitEditing={signInPassword}
                 />
@@ -605,7 +595,11 @@ export default function Auth() {
           ) : null}
           {error &&
           !['authConnectionError', 'authEmailInvalid', 'authPasswordRequired'].includes(error) ? (
-            <Text role="alert" small style={{ color: c.error }}>
+            <Text
+              role="alert"
+              small
+              style={{ color: c.error, textAlign: step === 'code' ? 'center' : 'left' }}
+            >
               {t(error)}
             </Text>
           ) : null}
@@ -622,7 +616,17 @@ export default function Auth() {
             </Text>
           ) : null}
 
-          <View style={{ gap: 7 }}>
+          {showPasskey ? (
+            <Button
+              variant="outline"
+              label={passkey.action}
+              onPress={signInPasskey}
+              loading={pending === 'passkey'}
+              disabled={busy}
+            />
+          ) : null}
+
+          <View style={{ gap: 8 }}>
             <Button
               variant={showPasskey ? 'outline' : 'primary'}
               icon={<ArrowRight size={17} color={showPasskey ? c.primary : c.onPrimary} />}
@@ -642,9 +646,48 @@ export default function Auth() {
                       ? signInPassword
                       : () => requestCode()
               }
-              loading={pending === 'request' || pending === 'verify' || pending === 'password'}
-              disabled={busy || (step === 'email' && !emailAvailable)}
+              loading={
+                pending === 'request' ||
+                pending === 'verify' ||
+                pending === 'password' ||
+                pending === 'passkey'
+              }
+              disabled={
+                busy ||
+                (step === 'email' && !emailAvailable) ||
+                ((step === 'code' || (step === 'totp' && !recovery)) && code.length !== 6) ||
+                (step === 'totp' && recovery && !code.trim())
+              }
             />
+            {connectionIssue ? (
+              <View
+                style={{
+                  minHeight: 24,
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                }}
+              >
+                <Text role="alert" small numberOfLines={1} style={{ color: c.error }}>
+                  {copy.offlineTitle}
+                </Text>
+                <Text small muted>
+                  ·
+                </Text>
+                <Action
+                  label={copy.offlineRetry}
+                  onPress={reconnect}
+                  disabled={busy}
+                  style={{ minHeight: 28, justifyContent: 'center' }}
+                >
+                  <Text small bold style={{ color: c.primary }}>
+                    {copy.offlineRetry}
+                  </Text>
+                </Action>
+              </View>
+            ) : null}
             {step === 'totp' ? (
               <>
                 <Button
@@ -666,7 +709,18 @@ export default function Auth() {
                 />
               </>
             ) : step === 'code' ? (
-              <View style={{ alignItems: 'center', gap: 4 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  marginTop: 4,
+                }}
+              >
+                <Text small muted numberOfLines={1}>
+                  {t('authCodeNoEmail')}
+                </Text>
                 <ResendCode
                   until={until}
                   disabled={busy}
@@ -679,7 +733,12 @@ export default function Auth() {
                 label={t(step === 'password' ? 'authUseCode' : 'authUsePassword')}
                 onPress={() => changeStep(step === 'password' ? 'email' : 'password')}
                 disabled={busy}
-                style={{ alignItems: 'center', marginTop: 2 }}
+                style={{
+                  alignItems: 'center',
+                  marginTop: 6,
+                  minHeight: 40,
+                  justifyContent: 'center',
+                }}
               >
                 <Text small bold style={{ color: c.primary }}>
                   {t(step === 'password' ? 'authUseCode' : 'authUsePassword')}
@@ -688,8 +747,8 @@ export default function Auth() {
             )}
           </View>
 
-          {step === 'email' && googleAvailable ? (
-            <View style={{ gap: 9 }}>
+          {step !== 'code' && step !== 'totp' ? (
+            <View style={{ gap: 9, marginTop: 2 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={{ height: 1, flex: 1, backgroundColor: c.border }} />
                 <Text small muted>
@@ -700,46 +759,10 @@ export default function Auth() {
               <GoogleAction
                 onPress={signInGoogle}
                 label={t('authGoogleContinue')}
-                disabled={busy}
+                disabled={busy || !googleAvailable}
                 busy={pending === 'google'}
               />
             </View>
-          ) : null}
-
-          {step !== 'totp' ? (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 10,
-                borderTopWidth: 1,
-                borderColor: c.border,
-                paddingTop: 14,
-              }}
-            >
-              <SignatureIcon icon={ShieldCheck} tone="emerald" size={33} />
-              <Text small muted style={{ flex: 1 }}>
-                {t('authHint')}
-              </Text>
-            </View>
-          ) : null}
-          {step === 'email' ? (
-            <Action
-              label={copy.preview}
-              onPress={() => router.push('/showcase')}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                alignSelf: 'flex-start',
-                gap: 5,
-              }}
-            >
-              <Text small bold style={{ color: c.primary }}>
-                {copy.preview}
-              </Text>
-              <ArrowUpRight size={15} color={c.primary} />
-            </Action>
           ) : null}
         </View>
       </View>
