@@ -12,8 +12,8 @@
     "android": "node ../../scripts/expo-lan.mjs prepare && expo run:android"
   },
   "dependencies": {
-    "@better-auth/expo": "1.6.35",
-    "@better-auth/passkey": "1.6.35",
+    "@better-auth/expo": "1.7.7",
+    "@better-auth/passkey": "1.7.7",
     "@callstack/liquid-glass": "0.8.2",
     "@expo-google-fonts/geist": "0.4.2",
     "@expo-google-fonts/instrument-serif": "0.4.1",
@@ -29,7 +29,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@tanstack/react-query": "^5.90.0",
     "babel-preset-expo": "~58.0.26",
-    "better-auth": "1.6.35",
+    "better-auth": "1.7.7",
     "expo": "58.0.26",
     "expo-better-auth-passkey": "1.6.2",
     "expo-blur": "~58.0.6",

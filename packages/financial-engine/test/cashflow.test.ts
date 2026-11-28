@@ -79,4 +79,19 @@ describe('90-day daily cash flow', () => {
       RangeError,
     );
   });
+
+  it('includes dated planned expenses without treating them as loan payments', () => {
+    const result = projectCashflow(
+      fixture({
+        opening: 500,
+        income: { amount: 0, day: 1 },
+        payments: [],
+        oneOffExpenses: [{ id: 'school', title: 'School', date: '2026-11-25', amount: 700 }],
+      }),
+    );
+    expect(result.firstShortfall?.date).toBe('2026-11-25');
+    expect(result.days[1]?.events).toContainEqual(
+      expect.objectContaining({ kind: 'expense', id: 'school', amount: -700 }),
+    );
+  });
 });

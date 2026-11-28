@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   intelligenceBlocksSchema,
+  intelligenceRoutingSchema,
   intelligenceScenarioSchema,
   loanSchema,
   profileSchema,
@@ -11,12 +12,31 @@ import { interpret, normalizeVn, snapshotOf, type Intent } from './intelligence-
 
 const amount = z.number().int().nonnegative().max(1_000_000_000_000);
 const term = z.number().int().min(1).max(360);
+const amountStatus = z
+  .object({
+    income: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    expenses: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    debt: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    principal: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    savings: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    currentSavings: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    minimumReserve: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+    preferredPayment: z.enum(['approximate', 'stated', 'confirmed']).optional(),
+  })
+  .strict();
 const contextSchema = z
   .object({
     income: profileSchema.shape.income.optional(),
+    incomeStability: z.enum(['stable', 'variable']).optional(),
     expenses: profileSchema.shape.expenses.optional(),
+    essentialExpenses: amount.optional(),
     debt: profileSchema.shape.debt.optional(),
     savings: amount.optional(),
+    currentSavings: amount.optional(),
+    minimumReserve: amount.optional(),
+    amountStatus: amountStatus.optional(),
+    reserveMonths: z.number().int().min(0).max(60).optional(),
+    preferredPayment: amount.optional(),
     principal: loanSchema.shape.principal.optional(),
     annualRate: loanSchema.shape.annualRate.optional(),
     monthlyQuoted: z.boolean().optional(),
@@ -28,14 +48,19 @@ const contextSchema = z
     extraExpense: amount.optional(),
     expenseRisePercent: z.number().min(0).max(1000).optional(),
     purpose: z.enum(['personal', 'education', 'home', 'vehicle', 'business']).optional(),
+    vehicleRepair: z.boolean().optional(),
     firstDue: loanSchema.shape.firstDue.optional(),
   })
   .strict();
 type Context = z.infer<typeof contextSchema>;
-const analysisRecord = z.object({ version: z.literal(2), blocks: intelligenceBlocksSchema });
+const analysisRecord = z.object({
+  version: z.literal(2),
+  blocks: intelligenceBlocksSchema,
+  routing: intelligenceRoutingSchema.optional(),
+});
 const envelope = analysisRecord.extend({ context: contextSchema.optional() });
 
-type PreviousTurn = { blocks: unknown; prompt: string; simulationId: string | null };
+export type PreviousTurn = { blocks: unknown; prompt: string; simulationId: string | null };
 
 export function analysisBlocks(value: unknown): IntelligenceBlock[] {
   const parsed = analysisRecord.safeParse(value);
@@ -43,8 +68,49 @@ export function analysisBlocks(value: unknown): IntelligenceBlock[] {
   return intelligenceBlocksSchema.parse(value);
 }
 
-export function persistedAnalysis(blocks: IntelligenceBlock[], context?: Context) {
-  return envelope.parse({ version: 2, blocks, ...(context ? { context } : {}) });
+export function persistedAnalysis(
+  blocks: IntelligenceBlock[],
+  context?: Context,
+  routing?: z.infer<typeof intelligenceRoutingSchema>,
+) {
+  return envelope.parse({ version: 2, blocks, context, routing });
+}
+
+export const storedRouting = (blocks: unknown) => analysisRecord.safeParse(blocks).data?.routing;
+
+export function latestContext(history: PreviousTurn[], simulationId?: string) {
+  return history
+    .filter((turn) => (turn.simulationId ?? undefined) === simulationId)
+    .map(contextOf)
+    .find(Boolean);
+}
+
+export function carryConversationBudget(
+  context?: Context,
+  previous?: Context,
+): Context | undefined {
+  if (!context) return previous;
+  if (!previous) return context;
+  const fields = [
+    'income',
+    'incomeStability',
+    'expenses',
+    'essentialExpenses',
+    'debt',
+    'savings',
+    'currentSavings',
+    'minimumReserve',
+    'reserveMonths',
+    'preferredPayment',
+  ] as const;
+  const budget = Object.fromEntries(fields.map((key) => [key, context[key] ?? previous[key]]));
+  const budgetStatus = { ...previous.amountStatus };
+  delete budgetStatus.principal;
+  return {
+    ...context,
+    ...budget,
+    amountStatus: { ...budgetStatus, ...context.amountStatus },
+  };
 }
 
 function contextOf(turn: PreviousTurn): Context | undefined {
@@ -102,20 +168,23 @@ export function continueIntent(
   attached?: LoanInput,
   simulationId?: string,
 ) {
-  const previous = history
-    .filter((turn) => (turn.simulationId ?? undefined) === simulationId)
-    .map(contextOf)
-    .find(Boolean);
+  const previous = latestContext(history, simulationId);
   const normalized = normalizeVn(prompt);
   const asksComparison =
     /\b(?:khoan nao|phuong an nao|ky han nao|which term|which option)\b/.test(normalized) &&
     /\b(?:chi phi|tien lai|tong tien|tra it|cost|interest|cheaper)\b/.test(normalized);
   const explicitFollow =
     asksComparison ||
-    /\b(neu|thi sao|what if|instead|giam them|tang them|follow[- ]?up)\b/.test(normalized) ||
+    /\b(?:tong hop|tom tat|summari[sz]e|kha nang chi tra|kha nang tra no|co the tra|repayment capacity|can i afford)\b/u.test(
+      normalized,
+    ) ||
+    /\b(neu|thi sao|what if|instead|giam them|tang them|follow[- ]?up|tong hop ho so|kha nang chi tra)\b/.test(
+      normalized,
+    ) ||
     current.incomeCut !== undefined ||
     current.extraExpense !== undefined ||
     current.expenseRisePercent !== undefined ||
+    current.knownPayment !== undefined ||
     current.resetStress ||
     current.principalDelta !== undefined ||
     current.early;
@@ -127,15 +196,28 @@ export function continueIntent(
     current.annualRate !== undefined ||
     current.method !== undefined ||
     current.fee !== undefined;
-  const completesBudget = [current.income, current.expenses, current.debt].some(
-    (value) => value !== undefined,
-  );
+  const completesBudget = [
+    current.income,
+    current.expenses,
+    current.essentialExpenses,
+    current.debt,
+    current.savings,
+    current.currentSavings,
+    current.minimumReserve,
+    current.reserveMonths,
+    current.preferredPayment,
+    current.incomeStability,
+  ].some((value) => value !== undefined);
   const continues = Boolean(
     previous &&
     (explicitFollow ||
       (current.principal === undefined &&
         current.purpose === undefined &&
         ((changesTerms && !definitionQuestion) || completesBudget)) ||
+      (current.principal !== undefined &&
+        current.principal === previous.principal &&
+        (!current.purpose || current.purpose === previous.purpose) &&
+        /\b(?:tinh lich tra|repayment schedule)\b/u.test(normalized)) ||
       (current.principal !== undefined &&
         previous.principal === undefined &&
         (!current.purpose || current.purpose === previous.purpose) &&
@@ -145,12 +227,20 @@ export function continueIntent(
   const priorStress = current.resetStress ? undefined : prior;
   const updatesExpenseStress =
     current.extraExpense !== undefined || current.expenseRisePercent !== undefined;
+  const mergedStatus = { ...prior?.amountStatus, ...current.amountStatus };
   const intent: Intent = {
     ...current,
     income: current.income ?? prior?.income,
+    incomeStability: current.incomeStability ?? prior?.incomeStability,
     expenses: current.expenses ?? prior?.expenses,
+    essentialExpenses: current.essentialExpenses ?? prior?.essentialExpenses,
     debt: current.debt ?? prior?.debt,
     savings: current.savings ?? prior?.savings,
+    currentSavings: current.currentSavings ?? prior?.currentSavings,
+    minimumReserve: current.minimumReserve ?? prior?.minimumReserve,
+    amountStatus: Object.keys(mergedStatus).length ? mergedStatus : undefined,
+    reserveMonths: current.reserveMonths ?? prior?.reserveMonths,
+    preferredPayment: current.preferredPayment ?? prior?.preferredPayment,
     incomeCut: current.incomeCut ?? priorStress?.incomeCut,
     extraExpense: updatesExpenseStress ? current.extraExpense : priorStress?.extraExpense,
     expenseRisePercent: updatesExpenseStress
@@ -171,6 +261,7 @@ export function continueIntent(
           ? prior.fee
           : attached?.fee,
     purpose: current.purpose ?? prior?.purpose,
+    vehicleRepair: current.purpose ? current.vehicleRepair : prior?.vehicleRepair,
   };
   if (current.principalDelta !== undefined) {
     const before = prior?.principal ?? attached?.principal;

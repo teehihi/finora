@@ -1,40 +1,9 @@
 import { z } from 'zod';
 import type { SavedStressAnalysis } from './intelligence';
+import { localeSchema, loanSchema } from './core.js';
+import type { Locale, Method, Profile, Preferences, LoanInput } from './core.js';
 
-export const localeSchema = z.enum(['vi-VN', 'en-US']);
-export type Locale = z.infer<typeof localeSchema>;
-export const methodSchema = z.enum(['flat', 'equalPrincipal', 'annuity']);
-export type Method = z.infer<typeof methodSchema>;
-export const money = z.number().int().min(0).max(1_000_000_000_000);
-export const profileSchema = z
-  .object({ income: money.positive(), debt: money, expenses: money })
-  .strict();
-export type Profile = z.infer<typeof profileSchema>;
-export const displayNameSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(80)
-  .regex(/^[^\p{Cc}]+$/u);
-export const preferencesSchema = z
-  .object({ locale: localeSchema, appearance: z.enum(['light', 'dark', 'system']) })
-  .strict();
-export type Preferences = z.infer<typeof preferencesSchema>;
-export const loanSchema = z
-  .object({
-    principal: money.positive(),
-    annualRate: z
-      .number()
-      .min(0)
-      .max(100)
-      .refine((rate) => Number(rate.toFixed(4)) === rate, 'Use at most four decimal places'),
-    months: z.number().int().min(1).max(360),
-    method: methodSchema,
-    fee: money.nullable(),
-    firstDue: z.iso.date().refine((v) => v >= '2000-01-01' && v < '2100-01-01'),
-  })
-  .strict();
-export type LoanInput = z.infer<typeof loanSchema>;
+export * from './core.js';
 export const draftSchema = z
   .object({ productId: z.string().max(80).min(1), input: loanSchema })
   .strict();
@@ -109,6 +78,8 @@ export interface AccountData {
 export const zone = 'Asia/Ho_Chi_Minh';
 
 export * from './catalog-intelligence.js';
+export * from './loan-matching.js';
+export * from './digital-twin.js';
 export * from './repayments.js';
 
 export * from './intelligence';
@@ -119,9 +90,13 @@ export const maxDocumentBytes = 5 * 1024 * 1024;
 export const documentFieldNames = [
   'lender',
   'principal',
+  'disbursementAmount',
   'months',
   'annualRate',
+  'effectiveApr',
+  'interestRateType',
   'method',
+  'paymentFrequency',
   'firstDue',
   'monthlyRepayment',
   'totalRepayment',
@@ -130,14 +105,50 @@ export const documentFieldNames = [
   'insuranceFee',
   'latePenalty',
   'earlyRepayment',
+  'earlyRepaymentFee',
+  'otherObligations',
   'importantClauses',
 ] as const;
 export type DocumentFieldName = (typeof documentFieldNames)[number];
-export type DocumentExtractionMode = 'pdf-text' | 'local-ocr' | 'manual';
+export type DocumentExtractionMode = 'pdf-text' | 'pdf-ocr' | 'local-ocr' | 'manual';
+export type DocumentEvidenceBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  imageWidth: number;
+  imageHeight: number;
+};
+export type DocumentEvidence = {
+  page: number;
+  excerpt: string;
+  bbox?: DocumentEvidenceBox;
+};
 export type DocumentField = {
   state: 'found' | 'missing' | 'conflicting' | 'unsupported';
   value: string | number | null;
-  sources: { page: number; excerpt: string }[];
+  sources: DocumentEvidence[];
+  rawValue?: string | null;
+  unit?: 'VND' | 'months' | 'percent_per_year' | 'percent' | 'date' | 'frequency' | 'text' | null;
+  confidence?: 'high' | 'review' | 'none';
+  extraction?: 'direct_text' | 'ocr' | 'none';
+  confirmationRequired?: boolean;
+};
+export type DocumentRiskKind =
+  | 'mandatory_fee'
+  | 'insurance_deduction'
+  | 'nominal_effective_gap'
+  | 'ambiguous_interest'
+  | 'early_repayment_penalty'
+  | 'late_payment_obligation'
+  | 'missing_term'
+  | 'conflicting_term'
+  | 'non_monthly_frequency';
+export type DocumentRisk = {
+  kind: DocumentRiskKind;
+  field: DocumentFieldName;
+  severity: 'review' | 'attention';
+  evidence: DocumentEvidence[];
 };
 export interface DocumentSummary {
   id: string;
@@ -149,8 +160,20 @@ export interface DocumentSummary {
 }
 export interface DocumentReview extends DocumentSummary {
   fields: Record<DocumentFieldName, DocumentField>;
-  reason?: 'text-unavailable' | 'ocr-unavailable' | 'reader-unavailable';
+  confirmedTerms?: Partial<Record<DocumentFieldName, DocumentConfirmedTerm>>;
+  risks?: DocumentRisk[];
+  pagesAnalyzed?: number;
+  truncated?: boolean;
+  reason?: 'text-unavailable' | 'ocr-unavailable' | 'reader-unavailable' | 'processing-timeout';
 }
+export type DocumentConfirmedTerm = {
+  value: string | number;
+  rawValue: string;
+  unit: NonNullable<DocumentField['unit']>;
+};
+export const documentTermCorrectionSchema = z
+  .object({ rawValue: z.string().trim().min(1).max(220) })
+  .strict();
 export const reviewedDocumentSource = 'finora:confirmed-private-document';
 export const documentReviewSchema = z
   .object({

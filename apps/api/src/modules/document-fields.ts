@@ -1,13 +1,28 @@
 import {
   documentFieldNames,
   loanSchema,
+  type DocumentEvidenceBox,
   type DocumentField,
   type DocumentFieldName,
+  type DocumentConfirmedTerm,
 } from '@finora/contracts';
+
+export type DocumentPageText = {
+  page: number;
+  text: string;
+  origin?: 'pdf-text' | 'ocr';
+  lines?: { text: string; bbox?: DocumentEvidenceBox }[];
+};
 
 const labels: Record<DocumentFieldName, readonly string[]> = {
   lender: ['lender', 'loan provider', 'ben cho vay', 'to chuc cho vay', 'ngan hang cho vay'],
   principal: ['principal', 'loan principal', 'loan amount', 'so tien vay', 'tien goc', 'goc vay'],
+  disbursementAmount: [
+    'disbursement amount',
+    'net disbursement',
+    'so tien giai ngan',
+    'tien thuc nhan',
+  ],
   months: [
     'loan duration',
     'loan term',
@@ -21,10 +36,19 @@ const labels: Record<DocumentFieldName, readonly string[]> = {
     'annual interest rate',
     'annual rate',
     'nominal annual rate',
+    'interest rate',
     'lai suat nam',
     'lai suat danh nghia',
     'lai suat',
   ],
+  effectiveApr: [
+    'apr',
+    'effective annual rate',
+    'annual percentage rate',
+    'lai suat hieu dung',
+    'lai suat thuc te',
+  ],
+  interestRateType: ['interest rate type', 'rate type', 'loai lai suat', 'hinh thuc lai suat'],
   method: [
     'interest calculation method',
     'repayment method',
@@ -32,6 +56,13 @@ const labels: Record<DocumentFieldName, readonly string[]> = {
     'phuong phap tinh lai',
     'phuong thuc tra no',
     'cach tinh lai',
+  ],
+  paymentFrequency: [
+    'payment frequency',
+    'repayment frequency',
+    'tan suat tra no',
+    'chu ky tra no',
+    'ky tra no',
   ],
   firstDue: [
     'first due date',
@@ -72,6 +103,18 @@ const labels: Record<DocumentFieldName, readonly string[]> = {
     'tat toan truoc han',
     'dieu kien tra truoc han',
   ],
+  earlyRepaymentFee: [
+    'early repayment fee',
+    'early settlement fee',
+    'phi tra no truoc han',
+    'phi tat toan truoc han',
+  ],
+  otherObligations: [
+    'other obligations',
+    'additional obligations',
+    'nghia vu khac',
+    'khoan phai tra khac',
+  ],
   importantClauses: [
     'important clauses',
     'special conditions',
@@ -80,16 +123,25 @@ const labels: Record<DocumentFieldName, readonly string[]> = {
     'dieu khoan dac biet',
   ],
 };
+
 const fieldByLabel = new Map(
-  documentFieldNames.flatMap((name) => labels[name].map((label) => [label, name] as const)),
+  documentFieldNames.flatMap((field) => labels[field].map((label) => [label, field] as const)),
 );
 const moneyFields = new Set<DocumentFieldName>([
   'principal',
+  'disbursementAmount',
   'monthlyRepayment',
   'totalRepayment',
   'totalFees',
   'serviceFee',
   'insuranceFee',
+]);
+const textFields = new Set<DocumentFieldName>([
+  'lender',
+  'latePenalty',
+  'earlyRepayment',
+  'otherObligations',
+  'importantClauses',
 ]);
 const clean = (s: string) =>
   s
@@ -100,88 +152,155 @@ const clean = (s: string) =>
 const fold = (s: string) =>
   clean(s).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/đ/g, 'd');
 
-function money(value: string) {
-  const m = clean(value).match(
+function money(value: string): number | null {
+  const match = clean(value).match(
     /^(\d{1,13}|\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+|\d{1,3}(?: \d{3})+)\s*(?:₫|đ|VNĐ|VND)$/iu,
   );
-  if (!m) return null;
-  const n = Number(m[1].replace(/[., ]/g, ''));
-  return Number.isSafeInteger(n) && n <= 1_000_000_000_000 ? n : null;
+  if (!match) return null;
+  const amount = Number(match[1].replace(/[., ]/g, ''));
+  return Number.isSafeInteger(amount) && amount <= 1_000_000_000_000 ? amount : null;
 }
 
-function parse(field: DocumentFieldName, value: string, label: string): string | number | null {
+type Parsed = { value: string | number; unit: NonNullable<DocumentField['unit']> };
+function parse(field: DocumentFieldName, raw: string, label: string): Parsed | null {
   if (moneyFields.has(field)) {
-    const n = money(value);
-    return field === 'principal' && n === 0 ? null : n;
+    const value = money(raw);
+    return value === null || (field === 'principal' && value === 0) ? null : { value, unit: 'VND' };
   }
-  const v = fold(value);
-  if (!v) return null;
+  const value = fold(raw);
+  if (!value) return null;
   if (field === 'months') {
-    const m = v.match(/^(\d{1,3})\s*(?:thang|months?)$/);
-    const n = m ? Number(m[1]) : 0;
-    return n > 0 && n <= 360 ? n : null;
+    const match = value.match(/^(\d{1,3})\s*(?:thang|months?)$/);
+    const months = match ? Number(match[1]) : 0;
+    return months > 0 && months <= 360 ? { value: months, unit: 'months' } : null;
   }
-  if (field === 'annualRate') {
+  if (field === 'annualRate' || field === 'effectiveApr') {
     if (
+      field === 'annualRate' &&
       !/(^|\s)(annual|nam)(\s|$)/.test(label) &&
-      !/(?:\/\s*nam|moi nam|per annum|per year|p\.a\.)$/.test(v)
+      !/(?:\/\s*nam|moi nam|per annum|per year|p\.a\.)$/.test(value)
     )
       return null;
-    const m = v.match(
+    const match = value.match(
       /^(\d{1,3}(?:[.,]\d{1,4})?)\s*%\s*(?:\/\s*nam|moi nam|per annum|per year|p\.a\.)?$/,
     );
-    const n = m ? Number(m[1].replace(',', '.')) : -1;
-    return n >= 0 && n <= 100 ? n : null;
+    const rate = match ? Number(match[1].replace(',', '.')) : -1;
+    return rate >= 0 && rate <= 100 ? { value: rate, unit: 'percent_per_year' } : null;
+  }
+  if (field === 'earlyRepaymentFee') {
+    const amount = money(raw);
+    if (amount !== null) return { value: amount, unit: 'VND' };
+    const match = value.match(/^(\d{1,3}(?:[.,]\d{1,4})?)\s*%$/);
+    const rate = match ? Number(match[1].replace(',', '.')) : -1;
+    return rate >= 0 && rate <= 100 ? { value: rate, unit: 'percent' } : null;
+  }
+  if (field === 'interestRateType') {
+    if (/^(fixed|co dinh|lai suat co dinh)$/.test(value)) return { value: 'fixed', unit: 'text' };
+    if (/^(variable|floating|tha noi|bien doi|lai suat tha noi)$/.test(value))
+      return { value: 'variable', unit: 'text' };
+    if (/^(introductory|uu dai|lai suat uu dai)$/.test(value))
+      return { value: 'introductory', unit: 'text' };
+    return null;
   }
   if (field === 'method') {
-    if (/^(flat|flat rate|lai phang|lai tren du no goc|du no goc)$/.test(v)) return 'flat';
-    if (/^(equal principal|goc chia deu|tra goc deu)$/.test(v)) return 'equalPrincipal';
-    if (/^(annuity|equal installments|tra gop deu|tra deu hang thang)$/.test(v)) return 'annuity';
+    if (/^(flat|flat rate|lai phang|lai tren du no goc|du no goc)$/.test(value))
+      return { value: 'flat', unit: 'text' };
+    if (/^(equal principal|goc chia deu|tra goc deu)$/.test(value))
+      return { value: 'equalPrincipal', unit: 'text' };
+    if (/^(annuity|equal installments|tra gop deu|tra deu hang thang)$/.test(value))
+      return { value: 'annuity', unit: 'text' };
+    return null;
+  }
+  if (field === 'paymentFrequency') {
+    if (/^(monthly|hang thang|moi thang)$/.test(value))
+      return { value: 'monthly', unit: 'frequency' };
+    if (/^(weekly|hang tuan|moi tuan)$/.test(value)) return { value: 'weekly', unit: 'frequency' };
+    if (/^(quarterly|hang quy|moi quy)$/.test(value))
+      return { value: 'quarterly', unit: 'frequency' };
     return null;
   }
   if (field === 'firstDue') {
-    const localDate = v.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/);
-    const iso = localDate
-      ? `${localDate[3]}-${localDate[2].padStart(2, '0')}-${localDate[1].padStart(2, '0')}`
-      : v;
-    return loanSchema.shape.firstDue.safeParse(iso).success ? iso : null;
+    const local = value.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/);
+    const iso = local
+      ? `${local[3]}-${local[2].padStart(2, '0')}-${local[1].padStart(2, '0')}`
+      : value;
+    return loanSchema.shape.firstDue.safeParse(iso).success ? { value: iso, unit: 'date' } : null;
   }
-  return clean(value).slice(0, field === 'lender' ? 160 : 220);
+  if (textFields.has(field))
+    return { value: clean(raw).slice(0, field === 'lender' ? 160 : 220), unit: 'text' };
+  return null;
+}
+
+export function normalizeConfirmedTerm(
+  field: DocumentFieldName,
+  rawValue: string,
+): DocumentConfirmedTerm | null {
+  const raw = clean(rawValue);
+  if (!raw || raw.length > 220) return null;
+  const parsed = parse(field, raw, field === 'annualRate' ? 'annual' : '');
+  return parsed ? { ...parsed, rawValue: raw } : null;
+}
+
+function empty(): DocumentField {
+  return {
+    state: 'missing',
+    value: null,
+    sources: [],
+    rawValue: null,
+    unit: null,
+    confidence: 'none',
+    extraction: 'none',
+    confirmationRequired: true,
+  };
 }
 
 export function extractDocumentFields(
-  pages: { page: number; text: string }[],
+  pages: DocumentPageText[],
 ): Record<DocumentFieldName, DocumentField> {
   const entries = {} as Record<DocumentFieldName, DocumentField>;
-  for (const key of documentFieldNames)
-    entries[key] = { state: 'missing', value: null, sources: [] };
-  for (const { page, text } of pages) {
-    for (const raw of text.split(/\r?\n/).slice(0, 1_200)) {
-      const line = clean(raw);
+  for (const key of documentFieldNames) entries[key] = empty();
+  for (const page of pages) {
+    if (!Number.isInteger(page.page) || page.page < 1) continue;
+    const lines: { text: string; bbox?: DocumentEvidenceBox }[] =
+      page.lines ?? page.text.split(/\r?\n/).map((text) => ({ text }));
+    for (const rawLine of lines.slice(0, 1_200)) {
+      const line = clean(rawLine.text);
       const delimiter = line.indexOf(':');
       if (delimiter < 1 || delimiter > 70) continue;
       const label = fold(line.slice(0, delimiter));
       const field = fieldByLabel.get(label);
       if (!field) continue;
-      const source = { page, excerpt: line.slice(0, 240) };
-      const value = parse(field, line.slice(delimiter + 1), label);
+      const source = {
+        page: page.page,
+        excerpt: line.slice(0, 240),
+        ...(rawLine.bbox ? { bbox: rawLine.bbox } : {}),
+      };
+      const rawValue = clean(line.slice(delimiter + 1));
+      const parsed = parse(field, rawValue, label);
       const old = entries[field];
       if (old.sources.length < 3) old.sources.push(source);
       if (old.state === 'conflicting') continue;
-      if (value === null) {
+      if (parsed === null) {
         if (old.state === 'found') {
           old.state = 'conflicting';
           old.value = null;
-        } else {
-          old.state = 'unsupported';
-        }
+          old.unit = null;
+        } else old.state = 'unsupported';
+        old.confidence = 'none';
       } else if (old.state === 'missing') {
         old.state = 'found';
-        old.value = value;
-      } else if (old.state !== 'found' || old.value !== value) {
+        old.value = parsed.value;
+        old.rawValue = rawValue;
+        old.unit = parsed.unit;
+        old.confidence = page.origin === 'ocr' ? 'review' : 'high';
+        old.extraction = page.origin === 'ocr' ? 'ocr' : 'direct_text';
+      } else if (old.state !== 'found' || old.value !== parsed.value || old.unit !== parsed.unit) {
         old.state = 'conflicting';
         old.value = null;
-      }
+        old.unit = null;
+        old.confidence = 'none';
+      } else if (page.origin === 'ocr') old.confidence = 'review';
+      if (parsed === null && old.rawValue === null) old.rawValue = rawValue;
     }
   }
   return entries;

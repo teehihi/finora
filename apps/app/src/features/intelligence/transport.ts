@@ -4,8 +4,10 @@ import { fetch as expoFetch } from 'expo/fetch';
 import {
   intelligenceEventSchema,
   intelligenceHistorySchema,
+  intelligenceProviderSchema,
   intelligenceRequestSchema,
   type IntelligenceEvent,
+  type IntelligenceProviderChoice,
   type IntelligenceRequest,
 } from '@finora/contracts';
 import { auth, base } from '../../services/client';
@@ -13,14 +15,19 @@ import { chooseSimulationId } from './model';
 
 const transport = Platform.OS === 'web' ? fetch : (expoFetch as typeof fetch);
 
-function init(signal: AbortSignal) {
-  const headers: Record<string, string> = Platform.OS === 'web' ? {} : { cookie: auth.getCookie() };
+async function init(signal: AbortSignal) {
+  const headers: Record<string, string> =
+    Platform.OS === 'web' ? {} : { cookie: await auth.getCookie() };
   return { signal, credentials: 'include' as const, headers };
 }
 
-export async function loadIntelligenceHistory(signal: AbortSignal) {
+function historyUrl(conversationId?: string) {
+  return `${base}/api/intelligence/history${conversationId ? '?conversationId=' + encodeURIComponent(conversationId) : ''}`;
+}
+
+export async function loadIntelligenceHistory(signal: AbortSignal, conversationId?: string) {
   return withReadDeadline(async (readSignal) => {
-    const response = await transport(`${base}/api/intelligence/history`, init(readSignal));
+    const response = await transport(historyUrl(conversationId), await init(readSignal));
     if (!response.ok) throw new Error('History unavailable');
     return intelligenceHistorySchema.parse(await response.json());
   }, signal);
@@ -31,7 +38,7 @@ export async function streamIntelligence(
   signal: AbortSignal,
   receive: (event: IntelligenceEvent) => void,
 ) {
-  const options = init(signal);
+  const options = await init(signal);
   const response = await transport(`${base}/api/intelligence/stream`, {
     ...options,
     method: 'POST',
@@ -88,14 +95,24 @@ export async function streamIntelligence(
 
 export async function loadIntelligenceStatus(signal: AbortSignal) {
   return withReadDeadline(async (readSignal) => {
-    const response = await transport(`${base}/api/intelligence/status`, init(readSignal));
+    const response = await transport(`${base}/api/intelligence/status`, await init(readSignal));
     if (!response.ok) throw new Error('Status unavailable');
     const body: unknown = await response.json();
     if (typeof body !== 'object' || !body || !('provider' in body))
       throw new Error('Invalid intelligence status');
-    if (body.provider !== 'mock' && body.provider !== 'openai')
+    if (body.provider !== 'mock' && body.provider !== 'openai' && body.provider !== 'anthropic')
       throw new Error('Invalid intelligence provider');
-    return body.provider;
+    const available: Exclude<IntelligenceProviderChoice, 'mock'>[] =
+      'available' in body && Array.isArray(body.available)
+        ? body.available.flatMap((item) => {
+            const parsed = intelligenceProviderSchema.safeParse(item);
+            return parsed.success && parsed.data !== 'mock' ? [parsed.data] : [];
+          })
+        : body.provider === 'mock'
+          ? []
+          : [body.provider];
+    const provider: IntelligenceProviderChoice = body.provider;
+    return { provider, available };
   }, signal);
 }
 
@@ -103,7 +120,7 @@ export async function saveIntelligenceScenario(
   input: { turnId: string; blockIndex: number; requestId: string; confirmed: true },
   signal: AbortSignal,
 ) {
-  const options = init(signal);
+  const options = await init(signal);
   const response = await transport(`${base}/api/intelligence/scenarios/save`, {
     ...options,
     method: 'POST',
@@ -118,9 +135,9 @@ export async function saveIntelligenceScenario(
   return id;
 }
 
-export async function clearIntelligenceHistory(signal: AbortSignal) {
-  const response = await transport(`${base}/api/intelligence/history`, {
-    ...init(signal),
+export async function clearIntelligenceHistory(signal: AbortSignal, conversationId?: string) {
+  const response = await transport(historyUrl(conversationId), {
+    ...(await init(signal)),
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('History could not be cleared');

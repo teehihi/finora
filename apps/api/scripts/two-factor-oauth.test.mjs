@@ -91,6 +91,7 @@ for (const provider of ['google', 'apple']) {
       return { accessToken: 'fixture-access-token' };
     };
     providerImpl.getUserInfo = async () => ({
+      data: { sub: 'synthetic-' + provider },
       user: {
         id: 'synthetic-' + provider,
         email: provider + '@example.test',

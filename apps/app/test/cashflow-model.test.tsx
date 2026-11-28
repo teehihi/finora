@@ -37,6 +37,8 @@ test('projects the full tracked schedule rather than the short upcoming list, bu
     payment: 120,
     balance: 300,
     paid: false,
+    recordedAmount: 0,
+    remainingAmount: 120,
     statusChangedAt: null,
   };
   const ledger: RepaymentLedger = {
@@ -52,17 +54,18 @@ test('projects the full tracked schedule rather than the short upcoming list, bu
         simulationId: 'test',
         title: 'QA',
         createdAt: '',
+        state: 'active',
         paidPeriods: 1,
         remainingPrincipal: 100,
         remainingRepayment: 120,
         schedule: [
-          { ...payment, date: '2026-12-25', paid: true },
-          { ...payment, date: '2027-01-25', period: 2 },
+          { ...payment, date: '2026-12-25', paid: true, recordedAmount: 120, remainingAmount: 0 },
+          { ...payment, date: '2027-01-25', period: 2, recordedAmount: 60, remainingAmount: 60 },
         ],
       },
     ],
   };
   expect(paymentsFromLedger(ledger)).toEqual([
-    { id: 'loan:2', title: 'QA', date: '2027-01-25', amount: 120 },
+    { id: 'loan:2', title: 'QA', date: '2027-01-25', amount: 60 },
   ]);
 });

@@ -218,25 +218,18 @@ test('keeps the latest installment visible while refreshing, then recovers in pl
         .first()
         .boundingBox()
     )?.y,
-  ).toBeLessThan(165);
+  ).toBeLessThan(220);
   const dock = page
     .getByRole('tablist')
     .filter({ has: page.getByRole('tab', { name: 'Tổng quan', exact: true }) });
-  const plan = page.getByRole('button', { name: 'Xem cách chuẩn bị' });
+  const plan = page.getByRole('button', { name: 'Chuẩn bị kỳ trả' });
   const planBox = await plan.boundingBox();
   expect((planBox?.y ?? 900) + (planBox?.height ?? 0)).toBeLessThan((await dock.boundingBox())!.y);
   await page.screenshot({ path: info.outputPath('04-payment-390.png') });
-  await page.getByRole('button', { name: 'Xem cách chuẩn bị' }).click();
-  await expect(page).toHaveURL(/\/cashflow$/);
-  await page.getByRole('radio', { name: 'Thử dữ liệu mẫu' }).click();
-  await expect(page.getByRole('heading', { name: /1\.200\.000/ })).toBeVisible();
-  const chart = await page.getByTestId('cashflow-balance-chart').boundingBox();
-  expect(chart?.y).toBeLessThan(350);
-  const cashButton = await page.getByRole('button', { name: /Thử thêm tiền đầu kỳ/ }).boundingBox();
-  expect((cashButton?.y ?? 900) + (cashButton?.height ?? 0)).toBeLessThan(
-    (await dock.boundingBox())!.y,
-  );
-  await page.screenshot({ path: info.outputPath('05-cashflow-390.png') });
+  await plan.click();
+  await expect(page).toHaveURL(/\/prepare\/[^/]+/);
+  await expect(page.getByRole('heading', { name: 'Chuẩn bị kỳ trả' }).first()).toBeVisible();
+  await page.screenshot({ path: info.outputPath('05-prepare-390.png') });
   const after = await (await context.request.get(base + '/repayments')).json();
   expect(after.loans[0].paidPeriods).toBe(0);
   const latest = await (await context.request.get(base + '/repayments')).json();

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "D01",
+    "split": "development",
+    "expected": { "principal": 50000000, "months": 24, "purpose": "personal", "isBorrowing": true },
+    "selectsTools": true
+  },
+  {
+    "id": "D02",
+    "split": "holdout",
+    "expected": { "principal": 900000000000, "months": 2, "isBorrowing": true },
+    "selectsTools": true
+  },
+  {
+    "id": "D03",
+    "split": "holdout",
+    "expected": { "principal": 30000000, "months": 24, "purpose": "vehicle", "isBorrowing": true },
+    "selectsTools": true
+  },
+  {
+    "id": "A02",
+    "split": "development",
+    "expected": {
+      "income": 15000000,
+      "principal": 50000000,
+      "purpose": "vehicle",
+      "isBorrowing": true
+    },
+    "selectsTools": true
+  },
+  { "id": "S01", "split": "holdout", "expected": { "incomeCut": 20 }, "selectsTools": true },
+  {
+    "id": "R01",
+    "split": "development",
+    "expected": { "principal": 12000000, "months": 12, "annualRate": 0 },
+    "selectsTools": true
+  },
+  {
+    "id": "R02",
+    "split": "holdout",
+    "expected": {
+      "principal": 12000000,
+      "months": 12,
+      "annualRate": 12,
+      "method": "equalPrincipal"
+    },
+    "selectsTools": true
+  },
+  {
+    "id": "R03",
+    "split": "development",
+    "expected": { "annualRate": null, "months": null },
+    "selectsTools": false
+  },
+  { "id": "X04", "split": "holdout", "expected": { "blocked": true }, "selectsTools": false },
+  { "id": "X05", "split": "holdout", "expected": { "blocked": true }, "selectsTools": false },
+  { "id": "U01", "split": "holdout", "expected": { "isBorrowing": false }, "selectsTools": false }
+]

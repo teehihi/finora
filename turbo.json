@@ -20,7 +20,8 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "passThroughEnv": ["DOCUMENT_OCR_LANGS", "TESSDATA_PREFIX"]
     },
     "typecheck": {
       "dependsOn": ["^build"],

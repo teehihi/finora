@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Dialog, Field, Heading, Text, useDesign } from '@finora/ui';
 import type { Saved } from '@finora/contracts';
-import { date } from '@finora/i18n';
+import { date, repaymentProactive } from '@finora/i18n';
 import { api, auth } from '../services/client';
 
 export const ledgerKey = (userId: string | undefined) =>
@@ -28,18 +28,22 @@ export function TrackRepaymentCta({ simulation }: { simulation: Saved }) {
   const label = locale === 'vi-VN' ? simulation.product.name : simulation.product.nameEn;
   const [title, setTitle] = useState(label.slice(0, 80));
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'planned' | 'active'>('active');
+  const s = repaymentProactive[locale];
   const tracked = ledger.data?.loans.find(({ simulationId }) => simulationId === simulation.id);
   const draft = useMutation({
-    mutationFn: () => api.trackRepayment({ simulationId: simulation.id, title, confirmed: true }),
+    mutationFn: () =>
+      api.trackRepayment({ simulationId: simulation.id, title, state: mode, confirmed: true }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ledgerKey(userId) });
       setOpen(false);
       router.push('/repayments');
     },
   });
-  const choice = () => {
+  const choice = (next: 'planned' | 'active') => {
     if (tracked) return router.push('/repayments');
     draft.reset();
+    setMode(next);
     setOpen(true);
   };
   const first = simulation.result.schedule[0];
@@ -53,12 +57,22 @@ export function TrackRepaymentCta({ simulation }: { simulation: Saved }) {
         <Button
           variant="outline"
           label={t(tracked ? 'repaymentsOpen' : 'repaymentsTrack')}
-          onPress={choice}
+          onPress={() => choice('active')}
           disabled={ledger.isPending}
         />
       </View>
+      {!tracked ? (
+        <View style={{ alignSelf: 'flex-start' }}>
+          <Button
+            variant="outline"
+            label={s.planLoan}
+            onPress={() => choice('planned')}
+            disabled={ledger.isPending}
+          />
+        </View>
+      ) : null}
       <Dialog
-        title={t('repaymentsTrack')}
+        title={mode === 'planned' ? s.planLoan : t('repaymentsTrack')}
         visible={open}
         onClose={() => {
           if (!draft.isPending) setOpen(false);
@@ -99,14 +113,14 @@ export function TrackRepaymentCta({ simulation }: { simulation: Saved }) {
         <Text small muted>
           {t('repaymentsTotalsNote')}
         </Text>
-        <Text>{t('repaymentsConfirmRule')}</Text>
+        <Text>{mode === 'planned' ? s.planRule : t('repaymentsConfirmRule')}</Text>
         {draft.isError ? (
           <Text role="alert" style={{ color: c.error }}>
             {t('repaymentsError')}
           </Text>
         ) : null}
         <Button
-          label={t('repaymentsConfirmTrack')}
+          label={mode === 'planned' ? s.confirmPlan : t('repaymentsConfirmTrack')}
           onPress={() => {
             if (!draft.isPending) draft.mutate();
           }}

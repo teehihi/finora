@@ -17,6 +17,7 @@ function loan(id: string, date: string, paid = false): TrackedRepayment {
     simulationId: 'simulation-' + id,
     title: id,
     createdAt: '2026-11-24',
+    state: 'active',
     paidPeriods: paid ? 1 : 0,
     remainingPrincipal: paid ? 0 : 800_000,
     remainingRepayment: paid ? 0 : 850_000,
@@ -30,6 +31,8 @@ function loan(id: string, date: string, paid = false): TrackedRepayment {
         balance: 0,
         statusChangedAt: null,
         paid,
+        recordedAmount: paid ? 850_000 : 0,
+        remainingAmount: paid ? 0 : 850_000,
       },
     ],
   };

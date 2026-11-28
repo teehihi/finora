@@ -1,34 +1,21 @@
-# Personal repayment tracking
+# Repayment tracking and preparation
 
-Saving a simulation does not create a loan. Its owner can review the simulated
-principal, interest method and saved schedule and explicitly record that the
-loan was taken out. This references the owner's immutable saved schedule and
-does not verify the agreement with a lender. A simulation is tracked at most
-once; creating the same tracking record again returns the existing one.
-Recording or undoing a payment requires a separate user confirmation.
+A saved simulation is a snapshot, not a loan. The owner may explicitly save it as **planned** or confirm it as an **active** obligation. The existing schedule remains the source of scheduled principal and interest. `completed` is derived only when every scheduled period has been manually recorded in full. The owner may archive a loan. Finora never claims to have sent money to a lender or verified a lender transaction.
 
-- Due totals include only unchecked installments scheduled from today (Vietnam
-  time) through the next 29 calendar dates. Past-due dates are shown separately.
-- Remaining principal and principal plus interest are sums of unchecked schedule
-  rows, not real-time lender balances. Out-of-order confirmations do not
-  decrement earlier unchecked payments. Separate fees, penalties, and ad hoc
-  early repayments are not inferred.
-- The database enforces that the simulation and tracking record have the same
-  owner, and API requests scope each record to the authenticated session. Any
-  actual deletion of the parent snapshot would also remove its tracking record.
-- Reminders are computed on read and rendered inside the app. No bank access,
-  money movement, background reminder task, native notification request or
-  email is sent. The due ledger can supply a future opt-in notification adapter;
-  consent and delivery are intentionally not implemented here.
+`TrackedRepayment` still references the owner's immutable `LoanSimulation`. `RepaymentPayment` stores the cumulative manually recorded amount for each period, and `RepaymentPaymentAudit` records each amount change with its previous value, new value, timestamp, optional user-reported payment day and idempotency request ID. Corrections and partial entries change only this local record. A repeated request ID with different details is rejected. Updates use serializable transactions and retry serialization conflicts. Existing boolean payment records remain readable as full-period entries. Scheduled remaining amounts are the schedule amounts less manually recorded amounts; outstanding principal is still the sum of principal portions for periods not fully recorded, not a verified lender balance or allocation of a partial payment.
 
-## Verification
+The Better Auth session supplies every user ID. Owner-scoped API reads and writes, plus the composite simulation/owner foreign key, prevent cross-user access. Every mutation requires a validated contract in `packages/contracts`. The user must confirm creating or activating a tracked loan and recording/correcting a payment. No simulation is activated automatically.
 
-The deterministic unit suite covers required confirmation, malformed snapshots,
-Vietnam-local date boundaries, and manual out-of-order status. A Chromium journey
-on the local Expo export and PostgreSQL 17 confirms that saving does not start
-tracking, the confirmation dialog does not mutate data, confirmed progress
-persists after reload, undo restores the due amount, and a separate user cannot
-access or alter the ledger.
+The preparation API accepts user-reported available funds, recurring income and expense amounts/days, one-off expenses and a reserve. Missing fields remain `null` and return a named `insufficient_information` result. The calculation calls the existing `projectCashflow` financial engine for a 90-day daily projection. It reports the due-date balance, amount needed to maintain the reserve, daily/weekly preparation goal and first negative-balance day. The stored preparation is invalidated after a payment correction or financial profile update. A payment more than 90 days away cannot be prepared with this daily model yet.
 
-Rendered examples: [390px before payment](../design-system/screenshots/intelligence-v3/repayments-390.webp)
-and [1440px after confirming the first installment](../design-system/screenshots/intelligence-v3/repayments-1440.webp).
+## Notification policy
+
+`NotificationPreference` stores a valid IANA time zone, quiet hours, in-app reminder settings and an optional generic email opt-in. `RepaymentNotification` stores a stable deduplication key, local-date trigger, scheduled UTC instant, delivery/read state and email delivery attempts. A periodic API process sweep and authenticated notification reads synchronize upcoming obligations. Scheduled stages occur 7, 3 and 1 day before, on the due day and one day after if still unrecorded. Missed past stages are not backfilled as fresh reminders. An overdue stage can be recovered for up to 30 days. Separate grounded alerts cover saved-projection cash shortfall, reserve gap and distinct loans due within three days. A profile review reminder is optional. Existing in-app history remains visible when reminders are disabled; queued entries are canceled. An active loan's schedule, not a saved or planned simulation, drives reminders.
+
+In-app delivery is the baseline. Email is disabled by default and requires `FINORA_REMINDER_EMAIL_ENABLED=true`, a verified email address, user opt-in and a configured SMTP server. Email contains only a generic prompt to open Finora; no amount, product or title. The worker claims messages, observes the user's quiet hours and records `sent`, `failed` or `failed_permanent`. Mailpit is suitable for local verification. Push delivery has no configured provider and is reported as unavailable in the UI. SMTP acceptance is the evidence for `sent`; a process crash between SMTP acceptance and the database update can still duplicate an email on retry, so exactly-once external delivery is not claimed. Production needs a continuously running worker or scheduler; the current in-process sweep runs every 15 minutes while the API is up.
+
+Fin's `monitorRepayments` tool is read-only and owner-scoped. It returns a typed summary of the next due period, recorded obligations and saved preparation gap; it does not pass the private ledger or stored profile to an external model. All repayment and projection arithmetic stays in the deterministic financial engine.
+
+## Local operations
+
+Use `pnpm run setup` with PostgreSQL 17 and Mailpit Compose services; this applies committed idempotent migrations and preserves the local volume. Keep email reminders off unless testing or deploying a configured SMTP provider. Test with synthetic accounts only. `pnpm exec playwright test tests/e2e/proactive-repayment.spec.ts` covers in-app delivery and owner isolation. For the optional email test, set `FINORA_REMINDER_EMAIL_ENABLED=true` in the test process and run the same spec against local Mailpit. Verify mobile web screenshots and native device behavior separately.

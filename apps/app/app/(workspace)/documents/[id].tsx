@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from '
 import {
   AccessibilityInfo,
   Keyboard,
+  Linking,
   Platform,
   ScrollView,
   View,
@@ -22,17 +23,20 @@ import {
 } from 'lucide-react-native';
 import {
   documentFieldNames,
+  type DocumentEvidence,
+  type DocumentFieldName,
   type DocumentReview,
   type DocumentReviewInput,
   type Estimate,
   type Method,
 } from '@finora/contracts';
 import { documentStrings } from '@finora/i18n';
-import { auth } from '../../../src/services/client';
+import { api, auth } from '../../../src/services/client';
 import { backTo, Data, Page } from '../../../src/components/layout';
 import { Breakdown } from '../../../src/features/breakdown';
 import { DocumentApiError, docApi } from '../../../src/features/documents/client';
 import { PrivatePreview } from '../../../src/features/documents/PrivatePreview';
+import { compareContractToPublished } from '../../../src/features/documents/compare';
 import { prepareSimulationHandoff } from '../../../src/features/simulation-handoff';
 
 import {
@@ -49,6 +53,15 @@ type EditableField = (typeof editableFields)[number];
 const requiredForm = ['principal', 'months', 'annualRate', 'firstDue'] as const;
 const optionalForm = ['totalFees', 'lender'] as const;
 const numericOnly = ['principal', 'months', 'totalFees'];
+const calculationFields = new Set<DocumentFieldName>([
+  'principal',
+  'months',
+  'annualRate',
+  'method',
+  'firstDue',
+  'totalFees',
+  'lender',
+]);
 
 function Review({
   document: documentReview,
@@ -57,13 +70,29 @@ function Review({
   document: DocumentReview;
   userId: string;
 }) {
-  const { locale, colors: c, money } = useDesign();
+  const { locale, colors: c, money, t } = useDesign();
   const s = documentStrings[locale];
   const { width } = useWindowDimensions();
   const split = width >= 1100;
   const vi = locale === 'vi-VN';
   const queryClient = useQueryClient();
   const [showSources, setShowSources] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [focusedEvidence, setFocusedEvidence] = useState<
+    (DocumentEvidence & { nonce: number }) | null
+  >(null);
+  const [correctionField, setCorrectionField] = useState<DocumentFieldName | null>(null);
+  const [correctionValue, setCorrectionValue] = useState('');
+  const catalog = useQuery({
+    queryKey: ['published-catalog'],
+    queryFn: () => api.publicCatalog(),
+    enabled: compareOpen,
+  });
+  const selectedProduct = catalog.data?.find((product) => product.id === selectedProductId);
+  const comparison = selectedProduct
+    ? compareContractToPublished(documentReview.fields, selectedProduct)
+    : [];
   const [deleting, setDeleting] = useState(false);
   const [confirmingSave, setConfirmingSave] = useState(false);
   const [handoffFailed, setHandoffFailed] = useState(false);
@@ -123,7 +152,7 @@ function Review({
   const modeMessage =
     documentReview.mode === 'pdf-text'
       ? s.textReview
-      : documentReview.mode === 'local-ocr'
+      : documentReview.mode === 'local-ocr' || documentReview.mode === 'pdf-ocr'
         ? s.ocrReview
         : documentReview.reason === 'reader-unavailable'
           ? documentReview.mime === 'application/pdf'
@@ -154,9 +183,19 @@ function Review({
       queryClient.removeQueries({ queryKey: ['privateDocument', userId, documentReview.id] });
     },
   });
-  const busy = preview.isPending || save.isPending || remove.isPending;
+  const correctTerm = useMutation({
+    mutationFn: ({ field, rawValue }: { field: DocumentFieldName; rawValue: string }) =>
+      docApi.confirmTerm(documentReview.id, field, rawValue),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['privateDocument', userId, documentReview.id], updated);
+      setCorrectionField(null);
+      setCorrectionValue('');
+    },
+  });
+  const busy = preview.isPending || save.isPending || remove.isPending || correctTerm.isPending;
   const currencyEvidence: string[] = [
     'principal',
+    'disbursementAmount',
     'monthlyRepayment',
     'totalRepayment',
     'totalFees',
@@ -249,6 +288,13 @@ function Review({
           {modeMessage}
         </Text>
       ) : null}
+      {documentReview.mode !== 'manual' && documentReview.reason ? (
+        <Text small role="alert" style={{ color: c.warning }}>
+          {vi
+            ? 'Một số trang chưa đọc được bằng OCR. Hãy kiểm tra toàn bộ bản gốc.'
+            : 'Some pages could not be read by OCR. Check the complete original.'}
+        </Text>
+      ) : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 6 }}>
         <Text small bold style={{ color: requiredAttention ? c.actionAmber : c.primary }}>
           {documentReview.mode === 'manual'
@@ -316,10 +362,133 @@ function Review({
           })}
         </View>
       ) : null}
+      {(documentReview.risks?.length ?? 0) > 0 ? (
+        <View style={{ gap: 7, borderTopWidth: 1, borderColor: c.border, paddingTop: 12 }}>
+          <Text bold>{s.riskTitle}</Text>
+          {documentReview.risks?.map((risk, index) => (
+            <View key={index} style={{ gap: 3, paddingVertical: 5 }}>
+              <Text
+                small
+                bold
+                style={{ color: risk.severity === 'attention' ? c.warning : c.foreground }}
+              >
+                {s.riskKinds[risk.kind]} · {s.fields[risk.field]}
+              </Text>
+              {risk.evidence.slice(0, 2).map((source, citation) => (
+                <Action
+                  key={citation}
+                  label={(vi ? 'Xem' : 'View') + ' · ' + s.page + ' ' + source.page}
+                  onPress={() => setFocusedEvidence({ ...source, nonce: Date.now() + citation })}
+                >
+                  <Text small muted>
+                    {s.page} {source.page}: “{source.excerpt}”
+                  </Text>
+                </Action>
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : null}
+      <View style={{ gap: 8, borderTopWidth: 1, borderColor: c.border, paddingTop: 12 }}>
+        <Text bold>{s.comparisonTitle}</Text>
+        <Button
+          variant="outline"
+          label={s.comparisonOpen}
+          onPress={() => setCompareOpen((open) => !open)}
+        />
+        {compareOpen ? (
+          <View style={{ gap: 9 }}>
+            <Text small muted>
+              {s.comparisonNote}
+            </Text>
+            {catalog.isPending ? (
+              <Text small muted>
+                {s.comparisonSelect}…
+              </Text>
+            ) : null}
+            {catalog.isError ? (
+              <Text small role="alert">
+                {s.requestError}
+              </Text>
+            ) : null}
+            {catalog.data ? (
+              <>
+                <Text small bold>
+                  {s.comparisonSelect}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
+                  {catalog.data.map((product) => (
+                    <Action
+                      key={product.id}
+                      role="radio"
+                      selected={selectedProductId === product.id}
+                      label={product.institution + ' · ' + (vi ? product.name : product.nameEn)}
+                      onPress={() => setSelectedProductId(product.id)}
+                      style={{
+                        padding: 9,
+                        borderWidth: 1,
+                        borderRadius: 9,
+                        borderColor: selectedProductId === product.id ? c.primary : c.border,
+                      }}
+                    >
+                      <Text small bold>
+                        {product.institution} · {vi ? product.name : product.nameEn}
+                      </Text>
+                    </Action>
+                  ))}
+                </View>
+              </>
+            ) : null}
+            {selectedProduct ? (
+              <View style={{ gap: 7 }}>
+                {comparison.map((row) => (
+                  <View
+                    key={row.field}
+                    style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 7, gap: 2 }}
+                  >
+                    <Text small bold>
+                      {s.fields[row.field]} · {s.comparisonStatuses[row.status]}
+                    </Text>
+                    <Text small muted>
+                      {s.comparisonContract}:{' '}
+                      {row.contractValue === null ? s.unknown : String(row.contractValue)}
+                    </Text>
+                    <Text small muted>
+                      {s.comparisonPublished}:{' '}
+                      {row.publishedValue === null ? s.unknown : String(row.publishedValue)}
+                    </Text>
+                  </View>
+                ))}
+                {selectedProduct.sources.map((source) => (
+                  <Action
+                    key={source.url}
+                    label={s.comparisonSource + ': ' + source.title}
+                    onPress={() => void Linking.openURL(source.url)}
+                  >
+                    <Text small style={{ color: c.primary }}>
+                      {s.comparisonSource}: {source.title} ↗
+                    </Text>
+                  </Action>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
       <Button
         variant="outline"
         label={showSources ? s.hideSources : s.showSources}
         onPress={() => setShowSources(!showSources)}
+      />
+      <Button
+        variant="outline"
+        label={t('intelligenceDocumentAsk')}
+        onPress={() =>
+          router.push({
+            pathname: '/assistant',
+            params: { documentId: documentReview.id, draftPrompt: t('intelligenceDocumentPrompt') },
+          })
+        }
       />
       {showSources ? (
         <Text small muted>
@@ -329,6 +498,7 @@ function Review({
       {showSources
         ? documentFieldNames.map((field) => {
             const value = documentReview.fields[field];
+            const correction = documentReview.confirmedTerms?.[field];
             const label =
               value.state === 'conflicting'
                 ? s.conflict
@@ -342,9 +512,11 @@ function Review({
                   ? s.methods[value.value]
                   : typeof value.value === 'number' && currencyEvidence.includes(field)
                     ? money(value.value)
-                    : field === 'annualRate'
+                    : field === 'annualRate' || field === 'effectiveApr'
                       ? value.value + '%'
-                      : String(value.value);
+                      : field === 'earlyRepaymentFee' && value.unit === 'percent'
+                        ? value.value + '%'
+                        : String(value.value);
             return (
               <View
                 key={field}
@@ -376,6 +548,51 @@ function Review({
                     </Text>
                   )}
                 </View>
+                {value.state === 'found' ? (
+                  <Text small muted>
+                    {s.confidence[value.confidence ?? 'none']}
+                  </Text>
+                ) : null}
+                {correction ? (
+                  <Text small bold style={{ color: c.primary }}>
+                    {s.correctionConfirmed}: {correction.rawValue}
+                  </Text>
+                ) : null}
+                {!calculationFields.has(field) ? (
+                  correctionField === field ? (
+                    <View style={{ gap: 7 }}>
+                      <Field
+                        label={s.fields[field]}
+                        value={correctionValue}
+                        maxLength={220}
+                        editable={!busy}
+                        hint={s.correctionHint}
+                        error={correctTerm.isError ? s.correctionError : undefined}
+                        onChangeText={(next) => {
+                          setCorrectionValue(next);
+                          if (correctTerm.isError) correctTerm.reset();
+                        }}
+                      />
+                      <Button
+                        label={s.correctionSave}
+                        loading={correctTerm.isPending}
+                        disabled={busy || !correctionValue.trim()}
+                        onPress={() => correctTerm.mutate({ field, rawValue: correctionValue })}
+                      />
+                    </View>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      label={s.correctionEdit}
+                      disabled={busy}
+                      onPress={() => {
+                        correctTerm.reset();
+                        setCorrectionField(field);
+                        setCorrectionValue(correction?.rawValue ?? value.rawValue ?? '');
+                      }}
+                    />
+                  )
+                ) : null}
                 {value.sources.map((source, i) => (
                   <View
                     key={i}
@@ -387,6 +604,14 @@ function Review({
                     <Text small>
                       {s.page} {source.page}: “{source.excerpt}”
                     </Text>
+                    <Action
+                      label={(vi ? 'Xem trang gốc' : 'View source page') + ' ' + source.page}
+                      onPress={() => setFocusedEvidence({ ...source, nonce: Date.now() + i })}
+                    >
+                      <Text small bold style={{ color: c.primary }}>
+                        {vi ? 'Xem trang gốc' : 'View source page'} →
+                      </Text>
+                    </Action>
                   </View>
                 ))}
               </View>
@@ -504,7 +729,7 @@ function Review({
         <ReviewStep number={2} label={s.reviewTerms} active={!checked} complete={!!checked} />
         <ReviewStep number={3} label={s.stepEstimate} active={!!checked} />
       </View>
-      <PrivatePreview review={documentReview} />
+      <PrivatePreview review={documentReview} focus={focusedEvidence} />
       {documentReview.synthetic ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
           <CircleAlert size={15} color={c.warning} />

@@ -59,7 +59,8 @@ test('a fresh build needs no env files; an explicit opt-out and local overrides 
     assert.equal(prepareNetwork(root, { FINORA_KEEP_LEGACY_LAN: '1' }), false);
     assert.equal(readFileSync(appPath, 'utf8'), app);
     assert.equal(prepareNetwork(root, {}), true);
-    assert.equal(statSync(apiPath).mode & 0o777, 0o600);
+    // Windows reports ACL-backed permissions as 0666 even when mode 0600 was requested.
+    if (process.platform !== 'win32') assert.equal(statSync(apiPath).mode & 0o777, 0o600);
     assert.equal(readFileSync(overridePath, 'utf8'), override);
     assert.equal(prepareNetwork(root, {}), false);
   } finally {

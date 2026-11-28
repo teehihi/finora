@@ -1,4 +1,7 @@
 export { cashflowCopy } from './cashflow';
+export { matchingText, type MatchingCopyKey } from './loan-matching';
+export { digitalTwinText, type DigitalTwinCopyKey } from './digital-twin';
+export { repaymentProactive } from './repayment-proactive';
 export { profileMenuCopy } from './profile-menu';
 export { personalProfileCopy } from './personal-profile';
 
@@ -530,11 +533,12 @@ const copy = {
   intelligenceStarterShock: ['Nếu thu nhập giảm?', 'What if my income falls?'],
   intelligenceStarterCompare: ['So sánh các điều khoản', 'Compare lending terms'],
   intelligenceStarterSaved: ['Kiểm tra mô phỏng đã lưu', 'Review my saved simulation'],
-  intelligenceExternalReady: ['Cho phép AI bên ngoài', 'External AI allowed'],
+  intelligenceExternalReady: ['Đã chọn AI bên ngoài', 'External AI selected'],
+  intelligenceSendExternal: ['Gửi tới', 'Send to'],
   intelligenceFirstDue: ['Ngày trả kỳ đầu', 'First due date'],
   intelligenceConsentOn: [
-    'Cho phép xử lý câu hỏi này bên ngoài.',
-    'External processing is allowed for this question.',
+    'Bấm gửi để cho phép xử lý riêng câu hỏi này.',
+    'Press send to allow external processing for this question.',
   ],
   intelligenceFrom: ['Từ', 'From'],
   intelligenceUpTo: ['Đến', 'Up to'],
@@ -579,23 +583,51 @@ const copy = {
   ],
   intelligenceLocalDefault: ['Mặc định: mô phỏng cục bộ', 'Default: local simulation'],
   intelligenceLocal: ['Mô phỏng cục bộ', 'Local simulation'],
+  intelligenceFallback: ['AI lỗi · dùng cục bộ', 'AI failed · local fallback'],
   intelligenceRemote: ['AI bên ngoài', 'External AI'],
   intelligenceConsent: ['Cho phép xử lý bên ngoài', 'Allow external processing'],
+  intelligenceChooseExternal: ['Dùng AI bên ngoài cho câu này', 'Use external AI for this request'],
+  intelligenceChooseExternalShort: ['Chọn AI bên ngoài', 'Choose external AI'],
   intelligenceDataHint: [
-    'Chỉ khi bật và có cấu hình, câu hỏi hiện tại đã được lọc mới gửi đến nhà cung cấp AI. Hồ sơ, lịch sử và tài liệu không được gửi. Không nhập số CCCD hay tài khoản.',
-    'If enabled and configured, only the filtered current question goes to the AI provider. Your profile, history, and documents are not sent. Do not enter ID or account numbers.',
+    'Finora ghi nhớ nhà cung cấp đã chọn. Mỗi lần bấm “Gửi tới” nhà cung cấp là bạn cho phép xử lý câu hỏi đó. Hồ sơ, lịch sử và tài liệu được giữ trong Finora.',
+    'Finora remembers your selected provider. Each press of “Send to” allows external processing for that question. Your profile, history and documents stay in Finora.',
   ],
   intelligencePrivacy: ['Dữ liệu và chế độ xử lý', 'Data and processing mode'],
   intelligenceWorking: [
     'Đang kiểm tra dữ liệu và tính toán…',
     'Checking data and running calculations…',
   ],
+  intelligenceProgressProvider: ['Đang trao đổi với AI…', 'Consulting the AI provider…'],
+  intelligenceProgressProfile: ['Đang đọc hồ sơ tài chính…', 'Reading financial profile…'],
+  intelligenceProgressCatalog: ['Đang tra cứu khoản vay công bố…', 'Searching published loans…'],
+  intelligenceProgressCalculation: ['Đang tính lịch trả nợ…', 'Calculating repayment schedule…'],
   intelligenceComplete: ['Đã nhận kết quả phân tích.', 'Analysis received.'],
   intelligenceStopped: ['Đã dừng phân tích.', 'Analysis stopped.'],
   intelligenceSendError: ['Phân tích chưa hoàn tất.', 'The analysis did not finish.'],
   intelligenceTools: ['Nguồn và công cụ', 'Sources and tools'],
   intelligenceCatalog: ['Tra điều kiện khoản vay', 'Check published loan terms'],
   intelligenceDocuments: ['Đọc điều khoản trong tài liệu', 'Review terms in a document'],
+  intelligenceDocumentAttached: ['Tài liệu riêng tư đang tham chiếu', 'Private document attached'],
+  intelligenceDocumentCard: ['Rà soát tài liệu', 'Document review'],
+  intelligenceDocumentFound: ['Số trường trích xuất để kiểm tra', 'Extracted fields to verify'],
+  intelligenceDocumentReviewHint: [
+    'Đối chiếu từng giá trị và trích dẫn trước khi dùng để tính. Tài liệu không được gửi đến AI bên ngoài.',
+    'Verify each value and citation before calculation. The document is not sent to external AI.',
+  ],
+  intelligenceDocumentOpen: ['Mở bản rà soát', 'Open document review'],
+  intelligenceDocumentAsk: ['Hỏi Fin về tài liệu này', 'Ask Fin about this document'],
+  intelligenceDocumentPrompt: [
+    'Giúp tôi rà soát các điều khoản trong tài liệu này.',
+    'Help me review the terms in this document.',
+  ],
+  intelligenceProfileUpdate: ['Cập nhật hồ sơ', 'Update profile'],
+  intelligenceProfileReview: ['Kiểm tra thông tin hồ sơ', 'Review profile values'],
+  intelligenceProfileUpdateHint: [
+    'Các giá trị này chỉ được lưu vào hồ sơ sau khi bạn xác nhận. Finora không gửi hồ sơ đến AI bên ngoài.',
+    'These values are saved to your profile only after you confirm. Finora does not send the profile to external AI.',
+  ],
+  intelligenceProfileConfirm: ['Xác nhận cập nhật hồ sơ', 'Confirm profile update'],
+  intelligenceProfileUpdated: ['Đã cập nhật hồ sơ', 'Profile updated'],
   intelligenceCaution: [
     'Finora không cấp khoản vay. Kết quả là ước tính, không bảo đảm lãi suất hay phê duyệt.',
     'Finora does not issue loans. These are estimates, not guaranteed rates or approvals.',

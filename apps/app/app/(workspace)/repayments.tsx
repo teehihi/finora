@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { AccessibilityInfo, Platform, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { randomUUID } from 'expo-crypto';
 import {
   CalendarClock,
   CalendarDays,
@@ -9,9 +10,19 @@ import {
   CircleAlert,
   CircleCheck,
 } from 'lucide-react-native';
-import { Action, Button, Dialog, EmptyState, Heading, Progress, Text, useDesign } from '@finora/ui';
+import {
+  Action,
+  Button,
+  Dialog,
+  EmptyState,
+  Field,
+  Heading,
+  Progress,
+  Text,
+  useDesign,
+} from '@finora/ui';
 import { tokens } from '@finora/design-tokens';
-import { date, numeric } from '@finora/i18n';
+import { date, numeric, repaymentProactive } from '@finora/i18n';
 import type { DueRepayment, TrackedPayment, TrackedRepayment } from '@finora/contracts';
 import { backTo, Page } from '../../src/components/layout';
 import { RefreshAction, TaskData } from '../../src/components/task-surface';
@@ -24,6 +35,7 @@ type RowSelection = { loanId: string; title: string; payment: TrackedPayment };
 
 export default function Repayments() {
   const { t, money, colors: c, locale } = useDesign();
+  const s = repaymentProactive[locale];
   const { width } = useWindowDimensions();
   const { ledger, userId } = useRepaymentLedger();
   const qc = useQueryClient();
@@ -31,6 +43,23 @@ export default function Repayments() {
   const back = () => backTo('/loans');
   const refresh = <RefreshAction busy={ledger.isFetching} onPress={() => void ledger.refetch()} />;
   const [selection, setSelection] = useState<RowSelection | null>(null);
+  const [recordAmount, setRecordAmount] = useState('');
+  const [recordError, setRecordError] = useState(false);
+  const [stateSelection, setStateSelection] = useState<{
+    id: string;
+    title: string;
+    state: 'active' | 'archived';
+  } | null>(null);
+  const notifications = useQuery({
+    queryKey: ['notifications', userId],
+    queryFn: api.notifications,
+    enabled: !!userId,
+  });
+  const history = useQuery({
+    queryKey: ['repayment-history', userId, selection?.loanId, selection?.payment.period],
+    queryFn: () => api.repaymentHistory(selection!.loanId, selection!.payment.period),
+    enabled: !!selection,
+  });
   const [resultNotice, setResultNotice] = useState('');
   const save = useMutation({
     mutationFn: (next: RowSelection) =>
@@ -46,6 +75,28 @@ export default function Repayments() {
       setSelection(null);
     },
   });
+  const record = useMutation({
+    mutationFn: (value: { row: RowSelection; amount: number }) =>
+      api.recordRepayment(value.row.loanId, value.row.payment.period, {
+        amount: value.amount,
+        requestId: randomUUID(),
+        confirmed: true,
+      }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ledgerKey(userId) });
+      await qc.invalidateQueries({ queryKey: ['repayment-history', userId] });
+      setSelection(null);
+      setResultNotice(t('repaymentsSavedNotice'));
+    },
+  });
+  const changeState = useMutation({
+    mutationFn: (item: NonNullable<typeof stateSelection>) =>
+      api.repaymentState(item.id, { state: item.state, confirmed: true }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ledgerKey(userId) });
+      setStateSelection(null);
+    },
+  });
 
   return (
     <Page
@@ -54,6 +105,13 @@ export default function Repayments() {
       description={t('repaymentsIntro')}
       showDescriptionOnPhone={false}
     >
+      <View style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
+        <Button
+          variant="outline"
+          label={`${s.notifications}${notifications.data?.unread ? ` · ${notifications.data.unread}` : ''}`}
+          onPress={() => router.push('/notifications')}
+        />
+      </View>
       <TaskData query={ledger}>
         {(value) => {
           const selectDue = ({ loanId, period }: DueRepayment) => {
@@ -63,13 +121,18 @@ export default function Repayments() {
             save.reset();
             setResultNotice('');
             setSelection({ loanId, title: loan.title, payment });
+            setRecordAmount(String(payment.recordedAmount));
+            setRecordError(false);
           };
           const upcoming = firstUpcomingPayment(value);
           const urgent = value.overdue[0];
           const focus = urgent ?? upcoming;
-          const paid = value.loans.reduce((sum, loan) => sum + loan.paidPeriods, 0);
-          const total = value.loans.reduce((sum, loan) => sum + loan.schedule.length, 0);
-          const remaining = value.loans.reduce((sum, loan) => sum + loan.remainingRepayment, 0);
+          const obligations = value.loans.filter(
+            (loan) => loan.state === 'active' || loan.state === 'completed',
+          );
+          const paid = obligations.reduce((sum, loan) => sum + loan.paidPeriods, 0);
+          const total = obligations.reduce((sum, loan) => sum + loan.schedule.length, 0);
+          const remaining = obligations.reduce((sum, loan) => sum + loan.remainingRepayment, 0);
           return value.loans.length ? (
             <>
               {focus ? (
@@ -138,8 +201,13 @@ export default function Repayments() {
                     </Text>
                   </View>
                   <Button
-                    label={locale === 'vi-VN' ? 'Xem cách chuẩn bị' : 'Plan for this payment'}
-                    onPress={() => router.push('/cashflow')}
+                    label={s.prepare}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/prepare/[id]',
+                        params: { id: focus.loanId, period: String(focus.period) },
+                      })
+                    }
                   />
                 </>
               ) : (
@@ -226,7 +294,10 @@ export default function Repayments() {
                     save.reset();
                     setResultNotice('');
                     setSelection({ loanId: loan.id, title: loan.title, payment });
+                    setRecordAmount(String(payment.recordedAmount));
+                    setRecordError(false);
                   }}
+                  onState={(state) => setStateSelection({ id: loan.id, title: loan.title, state })}
                 />
               ))}
             </>
@@ -276,6 +347,57 @@ export default function Repayments() {
             <Text small muted>
               {t('repaymentsManualNotice')}
             </Text>
+            <Field
+              label={s.recordAmount}
+              value={recordAmount}
+              onChangeText={(value) => {
+                setRecordAmount(value);
+                setRecordError(false);
+              }}
+              keyboardType="number-pad"
+              inputMode="numeric"
+              maxLength={15}
+            />
+            <Text small muted>
+              {s.recordHelp}
+            </Text>
+            {recordError || record.isError ? (
+              <Text role="alert" style={{ color: c.error }}>
+                {t('repaymentsError')}
+              </Text>
+            ) : null}
+            <Button
+              variant="outline"
+              label={s.recordSave}
+              loading={record.isPending}
+              onPress={() => {
+                const amount = /^\d+$/.test(recordAmount.trim())
+                  ? Number(recordAmount.trim())
+                  : Number.NaN;
+                if (
+                  !Number.isSafeInteger(amount) ||
+                  amount < 0 ||
+                  amount > selection.payment.payment
+                ) {
+                  setRecordError(true);
+                  return;
+                }
+                record.mutate({ row: selection, amount });
+              }}
+            />
+            {history.data?.length ? (
+              <View style={{ gap: 5 }}>
+                <Text small bold>
+                  {s.paymentHistory}
+                </Text>
+                {history.data.map((event) => (
+                  <Text key={event.id} small muted>
+                    {date(event.createdAt, locale)} · {money(event.previousAmount)} →{' '}
+                    {money(event.newAmount)}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
             {save.isError ? (
               <Text style={{ color: c.error }} role="alert">
                 {t('repaymentsError')}
@@ -290,6 +412,29 @@ export default function Repayments() {
             />
           </>
         ) : null}
+      </Dialog>
+      <Dialog
+        visible={!!stateSelection}
+        bottom={width < 620}
+        title={stateSelection?.state === 'archived' ? s.archive : s.activate}
+        onClose={() => setStateSelection(null)}
+      >
+        <Text>{stateSelection?.title}</Text>
+        <Text small muted>
+          {s.manual}
+        </Text>
+        {changeState.isError ? (
+          <Text role="alert" style={{ color: c.error }}>
+            {t('repaymentsError')}
+          </Text>
+        ) : null}
+        <Button
+          label={stateSelection?.state === 'archived' ? s.archive : s.activate}
+          loading={changeState.isPending}
+          onPress={() => {
+            if (stateSelection) changeState.mutate(stateSelection);
+          }}
+        />
       </Dialog>
     </Page>
   );
@@ -396,12 +541,15 @@ function LoanArticle({
   loan,
   today,
   onSelect,
+  onState,
 }: {
   loan: TrackedRepayment;
   today: string;
   onSelect: (payment: TrackedPayment) => void;
+  onState: (state: 'active' | 'archived') => void;
 }) {
   const { t, locale, money, colors: c } = useDesign();
+  const s = repaymentProactive[locale];
   const [shown, setShown] = useState(6);
   const [filter, setFilter] = useState<'all' | 'open' | 'paid'>('all');
   const schedule = loan.schedule.filter((row) =>
@@ -429,6 +577,14 @@ function LoanArticle({
           <Heading size={23}>{loan.title}</Heading>
         </View>
       </View>
+      <Text small bold style={{ color: c.primary }}>
+        {s[loan.state]}
+      </Text>
+      {loan.state === 'planned' || loan.state === 'archived' ? (
+        <Button variant="outline" label={s.activate} onPress={() => onState('active')} />
+      ) : loan.state === 'active' || loan.state === 'completed' ? (
+        <Button variant="outline" label={s.archive} onPress={() => onState('archived')} />
+      ) : null}
       <Text small bold>
         {progress}
       </Text>
@@ -545,6 +701,12 @@ function LoanArticle({
                 <Text small muted>
                   {money(payment.payment)}
                 </Text>
+                {payment.recordedAmount > 0 ? (
+                  <Text small style={{ color: c.primary }}>
+                    {s.amountRecorded}: {money(payment.recordedAmount)} · {s.remaining}:{' '}
+                    {money(payment.remainingAmount)}
+                  </Text>
+                ) : null}
                 <Text
                   small
                   bold
@@ -568,6 +730,7 @@ function LoanArticle({
                 leading={payment.paid ? <CircleCheck size={17} color={c.success} /> : undefined}
                 label={t(payment.paid ? 'repaymentsUndoPaid' : 'repaymentsMarkPaid')}
                 onPress={() => onSelect(payment)}
+                disabled={loan.state === 'planned' || loan.state === 'archived'}
               />
             </View>
           );

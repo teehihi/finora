@@ -19,11 +19,11 @@ export const normalizeVn = (value: string) =>
     .replace(/đ/g, 'd')
     .replace(/−/g, '-');
 const amountPattern =
-  '((?:[0-9]{1,3}(?:[.,][0-9]{3}){1,3}|[0-9]+(?:[.,][0-9]+)?))\\s*(trieu|tr\\b|million\\b|nghin|ngan|k\\b|thousand\\b|ty\\b|billion\\b)?';
+  '((?:[0-9]{1,3}(?:[.,][0-9]{3}){1,3}|[0-9]+(?:[.,][0-9]+)?))\\s*(trieu|tr\\b|cu\\b|million\\b|nghin|ngan|k\\b|thousand\\b|ty\\b|billion\\b)?';
 function parseNumber(raw: string, unit?: string): number | undefined {
   const scale = /^(ty|billion)$/.test(unit ?? '')
     ? 1_000_000_000
-    : /^(trieu|tr|million)$/.test(unit ?? '')
+    : /^(trieu|tr|cu|million)$/.test(unit ?? '')
       ? 1_000_000
       : /^(nghin|ngan|k|thousand)$/.test(unit ?? '')
         ? 1_000
@@ -39,12 +39,46 @@ function parseNumber(raw: string, unit?: string): number | undefined {
     ? n
     : undefined;
 }
-function moneyAfter(prompt: string, label: string) {
+type AmountStatus = 'approximate' | 'stated' | 'confirmed';
+type AmountField =
+  | 'income'
+  | 'expenses'
+  | 'debt'
+  | 'principal'
+  | 'savings'
+  | 'currentSavings'
+  | 'minimumReserve'
+  | 'preferredPayment';
+type AmountDetail = { value: number; status: AmountStatus };
+function amountStatus(matched: string): AmountStatus {
+  if (/\b(?:khoang|tam|gan|about|approximately)\b/u.test(matched)) return 'approximate';
+  return /\b(?:xac nhan|chinh xac|confirmed)\b/u.test(matched) ? 'confirmed' : 'stated';
+}
+function moneyAfterDetail(prompt: string, label: string): AmountDetail | undefined {
   const r = new RegExp(
-    '(?:^|[^a-z0-9])(?:' + label + ')\\s*(?:la|about|of|:|=)?\\s*' + amountPattern,
+    '(?:^|[^a-z0-9])(?:' +
+      label +
+      ')\\s*(?:(?:la|doi thanh|thay doi thanh|cap nhat thanh|khoang|tam|gan|it nhat|chinh xac|changed to|about|approximately|of|:|=)\\s*)*' +
+      amountPattern,
   ).exec(prompt);
   if (!r?.[1]) return undefined;
-  return parseNumber(r[1], r[2]);
+  const value = parseNumber(r[1], r[2]);
+  return value === undefined ? undefined : { value, status: amountStatus(r[0]) };
+}
+export function moneyAfter(prompt: string, label: string) {
+  return moneyAfterDetail(prompt, label)?.value;
+}
+function moneyBeforeDetail(prompt: string, label: string): AmountDetail | undefined {
+  const match = new RegExp(
+    '(?:^|[^a-z0-9])' + amountPattern + '\\s*(?:tien\\s+)?(?:' + label + ')\\b',
+  ).exec(prompt);
+  if (!match?.[1]) return undefined;
+  const value = parseNumber(match[1], match[2]);
+  const nearby = prompt.slice(
+    Math.max(0, (match.index ?? 0) - 18),
+    (match.index ?? 0) + match[0].length,
+  );
+  return value === undefined ? undefined : { value, status: amountStatus(nearby) };
 }
 const purposeKeys = ['personal', 'education', 'home', 'vehicle', 'business'] as const;
 export type IntentPurpose = (typeof purposeKeys)[number];
@@ -52,9 +86,17 @@ export type InputIssue = 'annualRate' | 'months' | 'method' | 'incomeCut' | 'ext
 export const approvedPurposes = purposeKeys;
 export type Intent = {
   income?: number;
+  incomeStability?: 'stable' | 'variable';
   expenses?: number;
   debt?: number;
   savings?: number;
+  essentialExpenses?: number;
+  discretionaryExpenses?: number;
+  currentSavings?: number;
+  minimumReserve?: number;
+  amountStatus?: Partial<Record<AmountField, AmountStatus>>;
+  reserveMonths?: number;
+  preferredPayment?: number;
   principal?: number;
   principalDelta?: number;
   aprOnly?: boolean;
@@ -73,10 +115,30 @@ export type Intent = {
   payoffAfter?: number;
   payoffFeeRate?: number;
   purpose?: IntentPurpose;
+  vehicleRepair?: boolean;
   isBorrowing: boolean;
   blocked: boolean;
   early: boolean;
 };
+export function needsExternalTools(intent: Intent, prompt: string): boolean {
+  if (
+    [
+      intent.principal,
+      intent.income,
+      intent.expenses,
+      intent.debt,
+      intent.annualRate,
+      intent.months,
+      intent.purpose,
+      intent.incomeCut,
+      intent.extraExpense,
+    ].some((value) => value !== undefined)
+  )
+    return true;
+  return /\b(?:compare|calculate|simulate|search|find|catalog|products?|offers?|repayments?|schedule|budget|profile|saved|stress|so sanh|tinh|tim|san pham|goi vay|lich tra|ho so)\b/u.test(
+    normalizeVn(prompt),
+  );
+}
 const rates = (value?: string) => (value ? Number(value.replace(',', '.')) : undefined);
 const validTerm = (v?: string) => (v && Number(v) >= 1 && Number(v) <= 360 ? Number(v) : undefined);
 export function interpret(prompt: string): Intent {
@@ -84,7 +146,7 @@ export function interpret(prompt: string): Intent {
   const inputIssues: InputIssue[] = [];
   const quotedRates = [
     ...s.matchAll(
-      /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:la|of|doi thanh|doi sang|sang|change to|set to|:|=)?\s*(-?\d+(?:[.,]\d+)?)\s*%\s*(?:\/\s*)?(thang|month|nam|year)?/g,
+      /(?:\blai(?: suat)?\b|interest(?: rate)?)\s*(?:danh nghia|nominal)?\s*(?:la|of|doi thanh|doi sang|sang|change to|set to|:|=)?\s*(-?\d+(?:[.,]\d+)?)\s*%\s*(?:\/\s*|moi\s*|mot\s*)?(thang|month|nam|year)?/g,
     ),
   ];
   const m = quotedRates[0];
@@ -110,7 +172,14 @@ export function interpret(prompt: string): Intent {
     /(?<![\d.,-])(-?\d{1,6})(?:\s*(?:thang|months?)\b)?\s*(?:va|voi|vs\.?|or|hay|hoac|\/|so voi)\s*(-?\d{1,6})\s*(?:thang|months?)\b/.exec(
       s,
     );
-  const single = /(?<![\d.,-])(-?\d{1,6})\s*(?:thang|months?)\b/.exec(s);
+  const single = [...s.matchAll(/(?<![\d.,-])(-?\d{1,6})\s*(?:thang|months?)\b/g)].find((match) => {
+    const before = s.slice(Math.max(0, (match.index ?? 0) - 24), match.index);
+    const after = s.slice(
+      (match.index ?? 0) + match[0].length,
+      (match.index ?? 0) + match[0].length + 24,
+    );
+    return !/(?:du phong|reserve)\s*$/.test(before) && !/^\s*(?:du phong|reserve)\b/.test(after);
+  });
   const yr = /\b(\d{1,2}|mot|hai|ba|bon|nam|one|two|three|four|five)\s*(?:nam|years?)\b/.exec(s);
   const writtenYears: Record<string, number> = {
     mot: 1,
@@ -157,7 +226,7 @@ export function interpret(prompt: string): Intent {
     (expenseRaises.length > 0 && extraExpense !== undefined)
   )
     inputIssues.push('extraExpense');
-  const purpose = /\b(mua xe|xe may|o to|vehicle|car|motorbike)\b/.test(s)
+  const purpose = /\b(mua xe|sua xe|xe may|o to|vehicle|car|motorbike)\b/.test(s)
     ? 'vehicle'
     : /\b(hoc phi|hoc tap|study|tuition|education)\b/.test(s)
       ? 'education'
@@ -176,7 +245,8 @@ export function interpret(prompt: string): Intent {
   const mentionedMethods = methods.filter(([pattern]) => pattern.test(s));
   if (mentionedMethods.length > 1) inputIssues.push('method');
   const method = mentionedMethods.length === 1 ? mentionedMethods[0][1] : undefined;
-  const early = /tra truoc han|tat toan som|early repayment|repay early/.test(s);
+  const early =
+    /tra truoc han|tat toan som|early repayment|repay early|\brepay\b.{0,80}\bearly\b/.test(s);
   const payoffAfter = early
     ? validTerm(
         /(?:sau ky|sau thang|vao ky|thang thu|after month|after payment)\s*(\d{1,3})/.exec(
@@ -199,6 +269,26 @@ export function interpret(prompt: string): Intent {
     'vay nhieu hon|tang so tien vay(?: them)?|borrow more(?: by)?',
   );
   const principalDelta = lowerPrincipal !== undefined ? -lowerPrincipal : higherPrincipal;
+  const stability =
+    /\b(?:thu nhap|luong|income)\s+(?:is\s+)?(?:on dinh|stable|fixed)\b|\b(?:stable|fixed)\s+income\b/.test(
+      s,
+    )
+      ? 'stable'
+      : /\b(?:thu nhap|luong|income)\s+(?:is\s+)?(?:khong on dinh|that thuong|variable|irregular)\b|\b(?:variable|irregular)\s+income\b/.test(
+            s,
+          )
+        ? 'variable'
+        : undefined;
+  const reserveMatch =
+    /\b(?:du phong|quy du phong|emergency reserve|reserve)\s*(\d{1,2})\s*(?:thang|months?)\b|\b(\d{1,2})\s*(?:thang|months?)\s*(?:du phong|emergency reserve|of emergency reserve)\b/.exec(
+      s,
+    );
+  const reserveMonths =
+    /\b(?:khong can|khong yeu cau|no)\s+(?:quy )?(?:du phong|emergency reserve)\b/.test(s)
+      ? 0
+      : reserveMatch
+        ? Number(reserveMatch[1] ?? reserveMatch[2])
+        : undefined;
   const rawTerm =
     pair?.[1] ??
     (early && validTerm(single?.[1]) === payoffAfter ? undefined : single?.[1]) ??
@@ -209,31 +299,74 @@ export function interpret(prompt: string): Intent {
     /\b\d+[.,]\d+\s*(?:thang|months?)\b/.test(s)
   )
     inputIssues.push('months');
-  return {
-    income: moneyAfter(
-      s,
-      'luong(?: moi thang| hang thang)?|thu nhap(?: moi thang| hang thang)?|monthly income|income',
-    ),
-    expenses: moneyAfter(
-      s,
-      'chi phi(?: sinh hoat| thiet yeu| moi thang)?|chi tieu|monthly expenses|expenses',
-    ),
-    debt: /\b(khong co no|khong tra no hien tai|no existing debt)\b/.test(s)
-      ? 0
-      : moneyAfter(
+  const incomeDetail = moneyAfterDetail(
+    s,
+    '(?:(?:doi|sua|cap nhat) (?:thu nhap|luong)(?: cua toi)? thanh)|luong(?: cua toi)?(?: moi thang| hang thang)?|thu nhap(?: cua toi)?(?: moi thang| hang thang)?|monthly income|income',
+  );
+  const expenseDetail = moneyAfterDetail(
+    s,
+    'chi phi(?: sinh hoat| thiet yeu| moi thang)?|chi tieu|monthly expenses|expenses',
+  );
+  const debtZero =
+    /\b(khong co no|khong co no hien tai|khong tra no hien tai|no existing debt)\b/.test(s);
+  const debtDetail = debtZero
+    ? { value: 0, status: 'stated' as const }
+    : moneyAfterDetail(
+        s,
+        'no hien tai|(?:dang )?tra (?:mot khoan )?no(?: khac| moi thang| hang thang| hien tai)?|tien tra no(?: hien tai)?|existing debt|debt payments',
+      );
+  const savingsDetail = moneyAfterDetail(s, 'tiet kiem du phong|quy du phong|emergency savings');
+  const currentSavingsDetail =
+    moneyAfterDetail(s, 'tiet kiem hien tai|so du tiet kiem|current savings|savings balance') ??
+    moneyBeforeDetail(s, 'tiet kiem|savings');
+  const minimumReserveDetail = /\b(?:du phong|reserve)\b/.test(s)
+    ? moneyAfterDetail(
+        s,
+        'muon giu lai it nhat|giu lai it nhat|giu it nhat|muon giu lai|minimum emergency reserve',
+      )
+    : undefined;
+  const preferredPaymentDetail = moneyAfterDetail(
+    s,
+    'muon tra moi thang|uu tien tra moi thang|(?:muon )?tra toi da|tra khong qua|preferred monthly repayment|preferred monthly payment|monthly payment preference|prefer a monthly payment of',
+  );
+  const principalDetail =
+    principalDelta !== undefined
+      ? undefined
+      : moneyAfterDetail(
           s,
-          'no hien tai|(?:dang )?tra no(?: moi thang| hang thang| hien tai)?|tien tra no(?: hien tai)?|existing debt|debt payments',
-        ),
-    savings: moneyAfter(s, 'tiet kiem du phong|quy du phong|emergency savings'),
+          'vay(?: khoang| them)?|khoan vay|so tien vay|tim khoan vay(?: tieu dung| ca nhan)?|tim khoan|borrow(?:ing)?|loan amount|principal',
+        );
+  const detailMap = {
+    income: incomeDetail,
+    expenses: expenseDetail,
+    debt: debtDetail,
+    principal: principalDetail,
+    savings: savingsDetail,
+    currentSavings: currentSavingsDetail,
+    minimumReserve: minimumReserveDetail,
+    preferredPayment: preferredPaymentDetail,
+  } satisfies Record<AmountField, AmountDetail | undefined>;
+  const statuses = Object.fromEntries(
+    Object.entries(detailMap).flatMap(([field, detail]) =>
+      detail ? [[field, detail.status]] : [],
+    ),
+  ) as Partial<Record<AmountField, AmountStatus>>;
+  return {
+    income: incomeDetail?.value,
+    incomeStability: stability,
+    expenses: expenseDetail?.value,
+    debt: debtDetail?.value,
+    savings: savingsDetail?.value,
+    essentialExpenses: moneyAfter(s, 'chi phi sinh hoat|chi phi thiet yeu|essential expenses'),
+    discretionaryExpenses: moneyAfter(s, 'chi tieu tuy y|chi phi tuy y|discretionary expenses'),
+    currentSavings: currentSavingsDetail?.value,
+    minimumReserve: minimumReserveDetail?.value,
+    amountStatus: Object.keys(statuses).length ? statuses : undefined,
+    reserveMonths: reserveMonths !== undefined && reserveMonths <= 60 ? reserveMonths : undefined,
+    preferredPayment: preferredPaymentDetail?.value,
     principalDelta,
     aprOnly,
-    principal:
-      principalDelta !== undefined
-        ? undefined
-        : moneyAfter(
-            s,
-            'vay(?: khoang| them)?|khoan vay|so tien vay|tim khoan|borrow(?:ing)?|loan amount|principal',
-          ),
+    principal: principalDetail?.value,
     annualRate: percent !== undefined && percent <= 100 ? Number(percent.toFixed(4)) : undefined,
     monthlyQuoted: /month|thang/.test(m?.[2] ?? ''),
     months: validTerm(rawTerm),
@@ -260,11 +393,13 @@ export function interpret(prompt: string): Intent {
     payoffAfter,
     payoffFeeRate: payoffFeeRate !== undefined && payoffFeeRate <= 100 ? payoffFeeRate : undefined,
     purpose,
+    vehicleRepair:
+      purpose === 'vehicle' ? /\bsua xe\b|\b(?:car|vehicle|motorbike) repair\b/.test(s) : undefined,
     isBorrowing:
       /vay|borrow|loan|lai|interest|repay|tra no|khoan tra|tra them|chi phi|cash flow/.test(s) ||
       !!purpose,
     blocked:
-      /(?:ignore|disregard|override|bo qua|ghi de).{0,28}(?:instruction|chi dan|huong dan|quy tac|rule|system|kiem soat)|(?:system prompt|api key|secret key|khoa bi mat|arbitrary sql)|(?:du lieu|data|ho so).{0,24}(?:nguoi khac|tai khoan khac|other user|another account)|(?:execute|chay|thuc thi).{0,18}(?:sql|shell|terminal|script)|\b(?:duyet chac chan|chac chan duoc duyet|guarantee approval|guaranteed approval)\b/.test(
+      /(?:ignore|disregard|override|bo qua|ghi de).{0,28}(?:instruction|chi dan|huong dan|quy tac|rule|system|kiem soat|bi mat)|(?:system prompt|api key|secret key|khoa bi mat|bi mat he thong|arbitrary sql)|(?:du lieu|data|ho so).{0,24}(?:nguoi khac|tai khoan khac|other user|another account)|(?:execute|chay|thuc thi).{0,18}(?:sql|shell|terminal|script)|(?:danh dau|mark).{0,25}(?:moi ky|all payments).{0,20}(?:da tra|paid)|\b(?:duyet chac chan|chac chan duoc duyet|guarantee approval|guaranteed approval)\b/.test(
         s,
       ),
     early,
@@ -275,6 +410,7 @@ export function redactExternalPrompt(value: string) {
     .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, '[email]')
     .replace(/https?:\/\/\S+/gi, '[link]')
     .replace(/\b(?:\+?\d[ ()-]*){9,}\b/g, '[personal number]')
+    .replace(/\p{N}+(?:[.,]\p{N}+)*/gu, '[value]')
     .slice(0, 1000);
 }
 export function buildProfile(intent: Intent, persisted: Profile | null) {
@@ -293,10 +429,59 @@ export function buildProfile(intent: Intent, persisted: Profile | null) {
   return {
     profile: parsed.success ? parsed.data : null,
     basis: basis as 'user' | 'profile',
-    missing: (['income', 'expenses', 'debt'] as const).filter(
-      (k) => raw[k] === undefined || (k === 'income' && raw[k] === 0),
-    ),
+    missing: (['income', 'expenses', 'debt'] as const).filter((k) => raw[k] === undefined),
   };
+}
+export function consultationGaps(intent: Intent) {
+  return (['incomeStability', 'savings', 'reserveMonths', 'preferredPayment'] as const).filter(
+    (key) => intent[key] === undefined,
+  );
+}
+
+export type ConversationField =
+  | 'income'
+  | 'expenses'
+  | 'debt'
+  | 'principal'
+  | 'months'
+  | 'annualRate'
+  | 'method'
+  | 'preferredPayment'
+  | 'currentSavings'
+  | 'minimumReserve'
+  | 'incomeStability';
+
+export function nextConversationFields(
+  intent: Intent,
+  profileMissing: readonly ('income' | 'expenses' | 'debt')[],
+  wantsSchedule: boolean,
+): ConversationField[] {
+  if (profileMissing.length) return profileMissing.slice(0, 2);
+  if (wantsSchedule) {
+    const schedule: ConversationField[] = ['principal', 'months', 'annualRate', 'method'];
+    const missing = schedule.filter((field) => intent[field] === undefined);
+    if (missing.length) return missing.slice(0, 2);
+  }
+  if (intent.principal === undefined) return [];
+  const preferences: ConversationField[] = [
+    'months',
+    'preferredPayment',
+    'currentSavings',
+    'minimumReserve',
+    'incomeStability',
+  ];
+  return preferences
+    .filter((field) => {
+      if (field === 'currentSavings' && intent.savings !== undefined) return false;
+      if (field === 'minimumReserve' && intent.reserveMonths !== undefined) return false;
+      return intent[field] === undefined;
+    })
+    .slice(0, 2);
+}
+
+export function repaymentPreferenceGap(result: Estimate, preferredPayment: number | undefined) {
+  if (preferredPayment === undefined) return null;
+  return Math.max(0, Math.max(...result.schedule.map((row) => row.payment)) - preferredPayment);
 }
 export function snapshotOf(plan: IntelligenceScenario, firstDue: string): LoanInput {
   return {

@@ -45,6 +45,7 @@ const record = z.strictObject({
   rate: rate.nullable(),
   method: z.enum(['flat', 'equalPrincipal', 'annuity']).nullable(),
   fee: z.number().int().min(0).max(1_000_000_000_000).nullable(),
+  insuranceFee: z.number().int().min(0).max(1_000_000_000_000).nullable().default(null),
   feeDetails: detail.nullable(),
   feeDetailsEn: detail.nullable(),
   insurance: detail.nullable(),
@@ -62,6 +63,29 @@ const record = z.strictObject({
 });
 
 function consistent(product: z.infer<typeof record>, ctx: z.RefinementCtx) {
+  if (
+    product.rate &&
+    product.method &&
+    ((product.rate.basis === 'flat' && product.method !== 'flat') ||
+      (product.rate.basis === 'declining' && product.method === 'flat'))
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['method'],
+      message: 'Repayment method conflicts with rate basis',
+    });
+  }
+  if (
+    product.fee !== null &&
+    product.insuranceFee !== null &&
+    product.fee + product.insuranceFee > 1_000_000_000_000
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['insuranceFee'],
+      message: 'Combined known fees exceed supported engine input',
+    });
+  }
   if (
     product.amountMin !== null &&
     product.amountMax !== null &&
@@ -90,6 +114,7 @@ function consistent(product: z.infer<typeof record>, ctx: z.RefinementCtx) {
 export const publicLoanRecordSchema = record.superRefine(consistent);
 export const publicLoanProductSchema = record
   .extend({
+    classification: z.enum(['real', 'simulated', 'incomplete']),
     completeness: z.strictObject({
       known: z.number().int().min(0).max(10),
       total: z.literal(10),
@@ -189,7 +214,7 @@ export function loanDataCompleteness(product: PublicLoanRecord): PublicLoanProdu
     product.rate !== null,
     product.method !== null,
     product.fee !== null,
-    product.insurance !== null,
+    product.insuranceFee !== null,
     product.earlyRepayment !== null,
     product.eligibility.length > 0,
   ].filter(Boolean).length;

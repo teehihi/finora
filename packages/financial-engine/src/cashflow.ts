@@ -20,6 +20,7 @@ export interface CashflowInput {
   income: MonthlyCashMovement;
   expense: MonthlyCashMovement;
   payments: CashflowPayment[];
+  oneOffExpenses?: { id: string; title: string; date: string; amount: number }[];
 }
 
 export type CashflowEvent = {
@@ -92,6 +93,17 @@ export function projectCashflow(input: CashflowInput, extraOpening = 0) {
       id: payment.id,
       title: payment.title,
       amount: -payment.amount,
+    });
+  }
+  for (const expense of input.oneOffExpenses ?? []) {
+    calendarDate(expense.date);
+    if (!validAmount(expense.amount)) throw new RangeError('Invalid planned expense');
+    if (!expense.amount || expense.date > end) continue;
+    add({
+      kind: 'expense',
+      id: expense.id,
+      date: expense.date < input.start ? input.start : expense.date,
+      amount: -expense.amount,
     });
   }
   let balance = BigInt(input.opening) + BigInt(extraOpening);

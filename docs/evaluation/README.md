@@ -2,6 +2,8 @@
 
 The [UTF-8 Vietnamese evaluation dataset](intelligence-vi.json) describes 33 synthetic test scenarios and intended assertions. No case contains actual client data or production accounts. These are test vectors, **not results**. Categories are intended to survive changes to tool names; map each expected decision to actual instrumented handlers. Do not claim native, paid-provider or model evaluation from the mere existence of these files.
 
+Phase 6 adds [11 explicit development/holdout intent labels](phase6-intent-labels.json), a repeatable deterministic parser runner (`pnpm --filter @finora/api exec tsx scripts/evaluate-intent.ts`), and a four-case API evaluation (`pnpm exec playwright test tests/e2e/phase6-evaluation.spec.ts`). The former measures parsed fields and whether external tools are offered; it does **not** measure actual model tool-call selection. The latter records provider, result-block kind, schema validity, exact engine reconciliation and SSE end-to-end latency in gitignored `.data/evaluation/phase6-api-local.json` or `phase6-api-live.json`. With `FINORA_LIVE_AI_TEST=1`, only synthetic current prompts are sent to the configured provider with per-request consent. See [Phase 6 report](../PHASE6_REPORT.md) for actual sample sizes and failures.
+
 ## Fixtures
 
 - `emptyProfile`: all financial numbers absent, not zero; the user supplies any figures stated in their prompt.

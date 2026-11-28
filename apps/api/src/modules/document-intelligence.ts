@@ -9,6 +9,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Req,
   Res,
   ServiceUnavailableException,
@@ -17,21 +18,32 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import {
+  documentFieldNames,
   documentMimeSchema,
   documentReviewSchema,
+  documentTermCorrectionSchema,
   documentSaveSchema,
   loanSchema,
   reviewedDocumentSource,
   type DocumentExtractionMode,
   type DocumentMime,
   type DocumentReview,
+  type DocumentFieldName,
+  type DocumentField,
   type DocumentSummary,
 } from '@finora/contracts';
 import { Prisma } from '@finora/database';
 import { Validate } from '../common/http.js';
 import { db } from '../infrastructure/db.js';
 import { SessionGuard, type OwnedRequest } from './auth.js';
-import { analyzeDocument, DocumentReadersBusy, isValidDocument } from './document-extraction.js';
+import {
+  analyzeDocument,
+  DocumentReadersBusy,
+  isValidDocument,
+  renderPrivatePdfPage,
+} from './document-extraction.js';
+import { assessDocumentRisks } from './document-risk.js';
+import { normalizeConfirmedTerm } from './document-fields.js';
 import { financialTools } from './tools.js';
 
 const maxDocuments = 10;
@@ -71,8 +83,38 @@ function summary(row: {
 function review(
   row: Parameters<typeof summary>[0] & { extraction: Prisma.JsonValue },
 ): DocumentReview {
-  const { fields, reason } = row.extraction as unknown as Pick<DocumentReview, 'fields' | 'reason'>;
-  return { ...summary(row), fields, reason };
+  const {
+    fields: storedFields,
+    reason,
+    risks,
+    pagesAnalyzed,
+    truncated,
+    confirmedTerms,
+  } = row.extraction as unknown as Pick<
+    DocumentReview,
+    'fields' | 'reason' | 'risks' | 'pagesAnalyzed' | 'truncated' | 'confirmedTerms'
+  >;
+  const fields = {} as Record<DocumentFieldName, DocumentField>;
+  for (const name of documentFieldNames)
+    fields[name] = storedFields?.[name] ?? {
+      state: 'missing',
+      value: null,
+      sources: [],
+      rawValue: null,
+      unit: null,
+      confidence: 'none',
+      extraction: 'none',
+      confirmationRequired: true,
+    };
+  return {
+    ...summary(row),
+    fields,
+    confirmedTerms,
+    reason,
+    risks: risks ?? assessDocumentRisks(fields),
+    pagesAnalyzed,
+    truncated,
+  };
 }
 
 const extId = new ParseUUIDPipe();
@@ -153,6 +195,38 @@ export class DocumentIntelligenceController {
     return review(row);
   }
 
+  @Put(':id/terms/:field') async confirmTerm(
+    @Req() req: OwnedRequest,
+    @Param('id', extId) id: string,
+    @Param('field') fieldRaw: string,
+    @Body(new Validate(documentTermCorrectionSchema))
+    body: typeof documentTermCorrectionSchema._output,
+  ) {
+    if (!documentFieldNames.includes(fieldRaw as DocumentFieldName))
+      throw new BadRequestException('Unknown document field');
+    const field = fieldRaw as DocumentFieldName;
+    const confirmed = normalizeConfirmedTerm(field, body.rawValue);
+    if (!confirmed) throw new BadRequestException('Unsupported term value or unit');
+    return db.$transaction(async (tx) => {
+      const row = await tx.documentAnalysis.findFirst({
+        where: { id, userId: req.userId },
+        select: reviewSelect,
+      });
+      if (!row) throw new NotFoundException();
+      const extraction = row.extraction as Prisma.JsonObject;
+      const previous = (extraction.confirmedTerms ?? {}) as Prisma.JsonObject;
+      const updated = {
+        ...extraction,
+        confirmedTerms: { ...previous, [field]: confirmed },
+      } as Prisma.InputJsonValue;
+      await tx.documentAnalysis.updateMany({
+        where: { id, userId: req.userId },
+        data: { extraction: updated },
+      });
+      return review({ ...row, extraction: updated as Prisma.JsonValue });
+    });
+  }
+
   @Get(':id/file') async download(
     @Req() req: OwnedRequest,
     @Param('id', extId) id: string,
@@ -170,6 +244,31 @@ export class DocumentIntelligenceController {
         `attachment; filename="loan-document.${extensions[row.mime as DocumentMime]}"`,
       )
       .send(Buffer.from(row.content));
+  }
+
+  @Get(':id/pages/:page') async pagePreview(
+    @Req() req: OwnedRequest,
+    @Param('id', extId) id: string,
+    @Param('page') pageRaw: string,
+    @Res() res: Response,
+  ) {
+    const page = Number(pageRaw);
+    if (!/^\d{1,2}$/.test(pageRaw) || page < 1 || page > 20)
+      throw new BadRequestException('Invalid page');
+    const row = await db.documentAnalysis.findFirst({
+      where: { id, userId: req.userId },
+      select: { mime: true, content: true },
+    });
+    if (!row) throw new NotFoundException();
+    if (row.mime !== 'application/pdf') throw new UnsupportedMediaTypeException();
+    try {
+      const image = await renderPrivatePdfPage(Buffer.from(row.content), page);
+      res.type('image/png').set('Cache-Control', 'private, no-store').send(image);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+        throw new ServiceUnavailableException('PDF preview unavailable');
+      throw new BadRequestException('PDF page unavailable');
+    }
   }
 
   @Delete(':id') async delete(@Req() req: OwnedRequest, @Param('id', extId) id: string) {

@@ -43,7 +43,7 @@ export function finoraTwoFactor() {
     hooks: {
       // Use Better Auth's built-in cookie scrubbing, session deletion, one-time
       // challenge and attempt tracking for every supported first-factor route.
-      // Pinned to Better Auth 1.6.35; the OAuth adapter contract is covered by tests.
+      // The OAuth adapter contract is covered by tests.
       after: plugin.hooks.after.map((hook) => ({
         matcher(context: Parameters<typeof hook.matcher>[0]) {
           return hook.matcher(context) || isFactorSignInPath(context.path);

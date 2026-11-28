@@ -1,0 +1,16 @@
+.git
+.env
+**/.env
+**/.env.*
+!**/.env.example
+node_modules
+**/node_modules
+**/dist
+**/.expo
+**/.data
+**/coverage
+test-results
+playwright-report
+*.log
+apps/app/ios
+apps/app/android

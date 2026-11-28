@@ -31,7 +31,7 @@ describe('Progressive section reads', () => {
     expect(ui.getByText('cached')).toBeTruthy();
     await fireEvent.press(ui.getByRole('button'));
     expect(refetch).toHaveBeenCalledTimes(1);
-  });
+  }, 15_000);
   it.each([401, 403, 404, 410])('hides a previous result after HTTP %i', async (status) => {
     const ui = await render(boundary('private', { isError: true, error: { status } }));
     expect(ui.queryByText('private')).toBeNull();

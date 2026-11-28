@@ -27,6 +27,111 @@ const store = (prompt: string, context?: ReturnType<typeof captureContext>) => (
 });
 
 describe('conversation-local borrowing assumptions', () => {
+  it('recognizes a correction that starts with the change verb', () => {
+    expect(interpret('Đổi thu nhập thành 14 triệu mỗi tháng.').income).toBe(14_000_000);
+  });
+  it('retains the actual five-turn Vietnamese consultation and summarizes known facts', () => {
+    const turns = [
+      'Tôi muốn vay 20 triệu để sửa xe.',
+      'Thu nhập của tôi là 12 triệu mỗi tháng.',
+      'Chi phí sinh hoạt khoảng 7 triệu, đang trả một khoản nợ khác 500 nghìn mỗi tháng.',
+      'Tôi muốn vay trong 12 tháng và trả tối đa 2 triệu mỗi tháng.',
+      'Tôi có 10 triệu tiết kiệm và muốn giữ lại ít nhất 5 triệu làm quỹ dự phòng.',
+    ];
+    const history: ReturnType<typeof store>[] = [];
+    for (const prompt of turns) {
+      const next = parse(prompt, history);
+      history.unshift(store(prompt, captureContext(next.intent)));
+    }
+    const summary = parse(
+      'Hãy tổng hợp hồ sơ tài chính và phân tích khả năng chi trả của tôi.',
+      history,
+    );
+    expect(summary.intent).toMatchObject({
+      principal: 20_000_000,
+      purpose: 'vehicle',
+      income: 12_000_000,
+      expenses: 7_000_000,
+      essentialExpenses: 7_000_000,
+      debt: 500_000,
+      months: 12,
+      preferredPayment: 2_000_000,
+      currentSavings: 10_000_000,
+      minimumReserve: 5_000_000,
+    });
+    expect(summary.intent.amountStatus).toMatchObject({
+      expenses: 'approximate',
+      debt: 'stated',
+      currentSavings: 'stated',
+    });
+    expect(buildProfile(summary.intent, null).missing).toEqual([]);
+  });
+  it('uses the retained budget when a later turn assumes an additional monthly payment', () => {
+    const prior = interpret(
+      'Vay 20 triệu sửa xe. Thu nhập 12 triệu, chi phí 7 triệu, trả nợ 500 nghìn.',
+    );
+    const prompt = 'Giả sử trả thêm 2 triệu mỗi tháng thì còn bao nhiêu?';
+    const next = parse(prompt, [store('first', captureContext(prior))]);
+    expect(next.continues).toBe(true);
+    expect(next.intent).toMatchObject({
+      principal: 20_000_000,
+      income: 12_000_000,
+      expenses: 7_000_000,
+      debt: 500_000,
+      knownPayment: 2_000_000,
+    });
+  });
+  it('keeps loan terms separate from reserve months in a three-turn consultation', () => {
+    const firstPrompt = 'Tôi muốn vay 50 triệu mua xe, so sánh kỳ hạn 12 tháng và 24 tháng.';
+    const secondPrompt =
+      'Thu nhập 15 triệu mỗi tháng, chi phí sinh hoạt 8 triệu, đang trả nợ 1 triệu. Thu nhập ổn định, tiết kiệm dự phòng 20 triệu, muốn giữ dự phòng 3 tháng và trả tối đa 3 triệu mỗi tháng.';
+    const thirdPrompt = 'Lãi suất danh nghĩa 12% mỗi năm, trả góp đều. Tôi chưa biết phí.';
+    const first = parse(firstPrompt);
+    const second = parse(secondPrompt, [store(firstPrompt, captureContext(first.intent))]);
+    expect(second.intent).toMatchObject({
+      principal: 50_000_000,
+      months: 12,
+      secondMonths: 24,
+      reserveMonths: 3,
+      preferredPayment: 3_000_000,
+    });
+    const third = parse(thirdPrompt, [
+      store(secondPrompt, captureContext(second.intent)),
+      store(firstPrompt, captureContext(first.intent)),
+    ]);
+    expect(third.intent).toMatchObject({
+      principal: 50_000_000,
+      months: 12,
+      secondMonths: 24,
+      annualRate: 12,
+      method: 'annuity',
+      fee: null,
+    });
+    expect(scenarioInput(third.intent, undefined, date).success).toBe(true);
+  });
+  it('retains repayment preference, income stability and reserve goal across a clarification', () => {
+    const first = interpret(
+      'I want to borrow 50 million. My income is stable. I prefer a monthly payment of 3 million and need 6 months of emergency reserve.',
+    );
+    expect(first).toMatchObject({
+      principal: 50_000_000,
+      incomeStability: 'stable',
+      preferredPayment: 3_000_000,
+      reserveMonths: 6,
+    });
+    const next = parse('What if the term is 24 months?', [store('first', captureContext(first))]);
+    expect(next.intent).toMatchObject({
+      principal: 50_000_000,
+      incomeStability: 'stable',
+      preferredPayment: 3_000_000,
+      reserveMonths: 6,
+    });
+  });
+
+  it('distinguishes a zero reserve goal from an unknown goal', () => {
+    expect(interpret('No emergency reserve required').reserveMonths).toBe(0);
+    expect(interpret('I need a loan').reserveMonths).toBeUndefined();
+  });
   it('keeps a partially specified comparison, collects missing terms, and stresses both durations', () => {
     const first = parse(ask).intent;
     expect(first).toMatchObject({

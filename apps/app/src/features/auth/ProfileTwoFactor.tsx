@@ -65,7 +65,7 @@ export function ProfileTwoFactor({ hasPassword }: { hasPassword: boolean }) {
     try {
       if (mode === 'enable' && !setup) {
         const result = await auth.twoFactor.enable(hasPassword ? { password } : {});
-        if (result.error || !result.data) {
+        if (result.error || !result.data || result.data.method !== 'totp') {
           setError(
             result.error?.code === 'AUTH_2FA_RECENT_SIGN_IN'
               ? copy.recent

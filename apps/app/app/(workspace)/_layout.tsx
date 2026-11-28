@@ -109,7 +109,12 @@ export default function Workspace() {
         (key === 'ai' &&
           (path === '/intelligence' || path === '/documents' || path.startsWith('/documents/'))) ||
         (key === 'loans' &&
-          (path === '/repayments' || path === '/cashflow' || path.startsWith('/saved/'))),
+          (path === '/repayments' ||
+            path === '/notifications' ||
+            path.startsWith('/prepare/') ||
+            path === '/cashflow' ||
+            path.startsWith('/saved/') ||
+            path.startsWith('/twin/'))),
     ),
   );
   useEffect(() => {
@@ -368,7 +373,7 @@ export default function Workspace() {
               ? (c === dark ? profileDark : profileLight).hero
               : !rail && c !== dark && path.startsWith('/profile/')
                 ? profileLight.surface
-                : rail || inSearch
+                : rail && !inSearch
                   ? c.surface
                   : c.background,
         }}
@@ -381,7 +386,7 @@ export default function Workspace() {
             ref={blurTarget}
             style={{
               flex: 1,
-              backgroundColor: inSearch ? c.surface : c.background,
+              backgroundColor: c.background,
               flexDirection: rail ? 'row' : 'column',
             }}
           >

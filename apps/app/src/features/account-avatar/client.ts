@@ -25,7 +25,7 @@ async function request(
     credentials: web ? 'include' : 'omit',
     ...(web ? { cache: 'no-store' } : {}),
     headers: {
-      ...(web ? {} : { cookie: auth.getCookie() }),
+      ...(web ? {} : { cookie: await auth.getCookie() }),
       ...(mime ? { 'Content-Type': mime } : {}),
     },
     body,

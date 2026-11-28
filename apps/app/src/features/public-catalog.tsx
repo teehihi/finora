@@ -16,8 +16,12 @@ import {
   Text,
   useDesign,
 } from '@finora/ui';
-import { publicLoanSearchSchema, type PublicLoanProduct } from '@finora/contracts';
-import { date, numeric, percent, type Key } from '@finora/i18n';
+import {
+  publicLoanSearchSchema,
+  type LoanMatchResult,
+  type PublicLoanProduct,
+} from '@finora/contracts';
+import { date, matchingText, numeric, percent, type Key } from '@finora/i18n';
 import { Data } from '../components/layout';
 import { SignatureIcon } from '../components/signature';
 import { api } from '../services/client';
@@ -39,6 +43,7 @@ import {
   Provenance,
 } from './catalog-marketplace';
 import { publishedComparisonReasons } from './published-comparison';
+import { LoanMatchingResults } from './loan-matching';
 
 const categoryKeys = {
   personal: 'personal',
@@ -231,8 +236,10 @@ function PublicLoanTerms({
 
 function PublishedComparison({
   products,
+  matching,
 }: {
   products: readonly [PublicLoanProduct, PublicLoanProduct];
+  matching?: LoanMatchResult;
 }) {
   const { local, fields } = useTermsFormat();
   const { t, colors: c } = useDesign();
@@ -264,6 +271,9 @@ function PublishedComparison({
   };
   return (
     <View style={{ gap: 12 }}>
+      {matching ? (
+        <LoanMatchingResults result={matching} productIds={products.map((product) => product.id)} />
+      ) : null}
       <Provenance mode="public" />
       <MarketNotice>{t('publicCompareNotice')}</MarketNotice>
       <View style={{ gap: 5, paddingHorizontal: 4 }}>
@@ -309,6 +319,19 @@ export function PublicCatalogView() {
   const [boundDraft, setBoundDraft] = useState({ amount: '', months: '' });
   const [bounds, setBounds] = useState<Bounds>(emptyBounds);
   const [filterError, setFilterError] = useState(false);
+  const matching = useQuery({
+    queryKey: ['loan-matches', bounds.amount, bounds.months, category],
+    enabled: bounds.amount !== null && bounds.months !== null,
+    queryFn: () => {
+      if (bounds.amount === null || bounds.months === null)
+        throw new Error('Matching needs an amount and term');
+      return api.loanMatches({
+        amount: bounds.amount,
+        months: bounds.months,
+        category: category === 'all' ? undefined : category,
+      });
+    },
+  });
   const first = q.data?.find((p) => p.id === selection[0]);
   const second = q.data?.find((p) => p.id === selection[1]);
   const pair = first && second ? ([first, second] as const) : null;
@@ -415,6 +438,19 @@ export function PublicCatalogView() {
               {t('publicCatalogNotice')}
             </Text>
           </View>
+          {bounds.amount !== null && bounds.months !== null ? (
+            matching.data ? (
+              <LoanMatchingResults result={matching.data} compact />
+            ) : (
+              <Text small muted>
+                {matching.isError ? t('error') : t('loading')}
+              </Text>
+            )
+          ) : (
+            <Text small muted>
+              {matchingText('setup', locale)}
+            </Text>
+          )}
           <Data q={q}>
             {(records) => {
               const results = records.filter((p) =>
@@ -632,7 +668,7 @@ export function PublicCatalogView() {
       )}
       {pair && (
         <Overlay title={t('compare')} visible={compareOpen} onClose={() => setCompareOpen(false)}>
-          <PublishedComparison products={pair} />
+          <PublishedComparison products={pair} matching={matching.data} />
         </Overlay>
       )}
     </>

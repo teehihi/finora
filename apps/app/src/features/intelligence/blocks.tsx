@@ -14,16 +14,23 @@ import {
 } from 'lucide-react-native';
 import type { IntelligenceBlock, IntelligenceScenario } from '@finora/contracts';
 import { Action, Button, Dialog, Heading, Text, useDesign } from '@finora/ui';
-import { useQueryClient } from '@tanstack/react-query';
-import { date, intelligenceDecision } from '@finora/i18n';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  date,
+  digitalTwinText,
+  documentStrings,
+  intelligenceDecision,
+  repaymentProactive,
+} from '@finora/i18n';
 import { tokens } from '@finora/design-tokens';
 import { SignatureIcon } from '../../components/signature';
-import { auth } from '../../services/client';
+import { api, auth } from '../../services/client';
 import { requestId } from '../../services/request-id';
 import { saveIntelligenceScenario } from './transport';
 import { compareIntelligenceDurations, safeSource, scenarioPressure } from './model';
 import { AnalysisLedger } from './presentation';
 import { prepareSimulationHandoff } from '../simulation-handoff';
+import { LoanMatchingResults } from '../loan-matching';
 
 function Receipt({
   label,
@@ -135,7 +142,18 @@ export function AnalysisBlocks({
   followUp?: (prompt: string) => void;
 }) {
   const { width } = useWindowDimensions();
-  const order = { affordability: 0, scenario: 1, missing: 2, notice: 3, offers: 4 } as const;
+  const order = {
+    affordability: 0,
+    profile_update: 1,
+    scenario: 2,
+    digital_twin: 3,
+    matches: 4,
+    document_review: 5,
+    repayment_monitor: 6,
+    missing: 7,
+    notice: 8,
+    offers: 9,
+  } as const;
   const sorted = blocks
     .map((block, index) => ({ block, index }))
     .sort((a, b) => order[a.block.kind] - order[b.block.kind]);
@@ -369,6 +387,69 @@ function CompareStrip({ scenarios }: { scenarios: [IntelligenceScenario, Intelli
 
 type Save = { turnId: string; blockIndex: number };
 
+function ProfileUpdateCard({
+  value,
+}: {
+  value: Extract<IntelligenceBlock, { kind: 'profile_update' }>;
+}) {
+  const { t, money, colors: c } = useDesign();
+  const queries = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const update = useMutation({
+    mutationFn: () =>
+      api.profile({ income: value.income, expenses: value.expenses, debt: value.debt }),
+    onSuccess: async () => {
+      await queries.invalidateQueries({ queryKey: ['account'] });
+      await queries.invalidateQueries({ queryKey: ['loan-matches'] });
+      setSaved(true);
+      setOpen(false);
+    },
+  });
+  return (
+    <Receipt label={t('intelligenceProfileUpdate')} title={t('intelligenceProfileReview')}>
+      <AnalysisLedger
+        rows={[
+          { label: t('income'), value: money(value.income) },
+          { label: t('expenses'), value: money(value.expenses) },
+          { label: t('debt'), value: money(value.debt) },
+        ]}
+      />
+      <Text small muted>
+        {t('intelligenceProfileUpdateHint')}
+      </Text>
+      <Button
+        label={saved ? t('intelligenceProfileUpdated') : t('intelligenceProfileUpdate')}
+        variant="outline"
+        disabled={saved || update.isPending}
+        onPress={() => setOpen(true)}
+      />
+      <Dialog
+        title={t('intelligenceProfileConfirm')}
+        visible={open}
+        onClose={() => !update.isPending && setOpen(false)}
+      >
+        <Text>{t('intelligenceProfileUpdateHint')}</Text>
+        <Text bold style={{ color: c.primary }}>
+          {money(value.income)} · {money(value.expenses)} · {money(value.debt)}
+        </Text>
+        {update.isError ? <Text role="alert">{t('error')}</Text> : null}
+        <Button
+          label={t('intelligenceProfileConfirm')}
+          loading={update.isPending}
+          onPress={() => update.mutate()}
+        />
+        <Button
+          label={t('cancel')}
+          variant="outline"
+          disabled={update.isPending}
+          onPress={() => setOpen(false)}
+        />
+      </Dialog>
+    </Receipt>
+  );
+}
+
 function SaveScenario({ save, scenario }: { save: Save; scenario: IntelligenceScenario }) {
   const { t, money, colors: c, locale } = useDesign();
   const words = intelligenceDecision(locale);
@@ -472,6 +553,143 @@ function Block({
   };
 
   switch (value.kind) {
+    case 'repayment_monitor': {
+      const s = repaymentProactive[locale];
+      return (
+        <Receipt
+          label={s.notifications}
+          title={s.prepare}
+          figure={value.next ? money(value.next.payment) : undefined}
+        >
+          {value.next ? (
+            <Text>
+              {value.next.title} · {date(value.next.date, locale)}
+            </Text>
+          ) : (
+            <Text>{s.empty}</Text>
+          )}
+          {value.additionalNeeded !== null ? (
+            <Text bold style={{ color: value.additionalNeeded > 0 ? c.warning : c.primary }}>
+              {s.need}: {money(value.additionalNeeded)}
+            </Text>
+          ) : null}
+          {value.shortfallDate ? (
+            <Text small style={{ color: c.warning }}>
+              {s.firstShortfall}: {date(value.shortfallDate, locale)}
+            </Text>
+          ) : null}
+          {value.alerts.includes('multiple_due_close') ? (
+            <Text small>
+              {locale === 'vi-VN'
+                ? 'Nhiều kỳ trả gần nhau trong lịch.'
+                : 'Several scheduled obligations fall close together.'}
+            </Text>
+          ) : null}
+          {value.missing.length ? (
+            <Text small muted>
+              {s.missing}: {value.missing.map((key) => s[key as keyof typeof s] ?? key).join(', ')}
+            </Text>
+          ) : null}
+          {value.planAsOf ? (
+            <Text small muted>
+              {s.assumptions} · {date(value.planAsOf, locale)}
+            </Text>
+          ) : (
+            <Text small muted>
+              {s.assumptions}
+            </Text>
+          )}
+          {value.next ? (
+            <Button
+              variant="outline"
+              label={s.prepare}
+              onPress={() =>
+                router.push({
+                  pathname: '/prepare/[id]',
+                  params: { id: value.next!.loanId, period: String(value.next!.period) },
+                })
+              }
+            />
+          ) : null}
+        </Receipt>
+      );
+    }
+    case 'digital_twin': {
+      const twin = (key: Parameters<typeof digitalTwinText>[0]) => digitalTwinText(key, locale);
+      const signed = (n: number | null) =>
+        n === null ? twin('unknown') : (n < 0 ? '−' : '') + money(Math.abs(n));
+      return (
+        <Receipt
+          label={twin('scenario')}
+          title={twin('title')}
+          figure={twin(value.stressed.resilience)}
+        >
+          <AnalysisLedger
+            rows={[
+              {
+                label: twin('firstShortfall'),
+                value:
+                  value.stressed.firstCashShortfall === null
+                    ? twin('none')
+                    : twin('month').replace('{value}', String(value.stressed.firstCashShortfall)),
+              },
+              { label: twin('stressed'), value: String(value.stressed.stressedPeriods) },
+              {
+                label: twin('net'),
+                value: signed(value.stressed.minimumCashFlow),
+                warning: (value.stressed.minimumCashFlow ?? 0) < 0,
+              },
+              { label: twin('savingsChart'), value: signed(value.stressed.finalSavings) },
+            ]}
+          />
+          {value.stressed.unknownCosts.map((key) => (
+            <Text key={key} small style={{ color: c.warning }}>
+              {twin(key === 'origination_fee' ? 'unknownFee' : 'unknownEarlyFee')}
+            </Text>
+          ))}
+          {value.stressed.hypotheticalEarlyRepayment ? (
+            <Text small style={{ color: c.warning }}>
+              {twin('earlyHypothetical')}
+            </Text>
+          ) : null}
+          <Text small muted>
+            {twin('intro')}
+          </Text>
+          {value.simulationId ? (
+            <Button
+              label={twin('open')}
+              variant="outline"
+              onPress={() => router.push('/twin/' + value.simulationId)}
+            />
+          ) : null}
+        </Receipt>
+      );
+    }
+    case 'matches':
+      return <LoanMatchingResults result={value.result} compact />;
+    case 'profile_update':
+      return <ProfileUpdateCard value={value} />;
+    case 'document_review':
+      return (
+        <Receipt label={t('intelligenceDocuments')} title={t('intelligenceDocumentCard')}>
+          <Text>{t('intelligenceDocumentFound') + ': ' + value.foundCount}</Text>
+          {value.riskKinds?.map((kind) => (
+            <Text key={kind} small>
+              {documentStrings[locale].riskKinds[kind]}
+            </Text>
+          ))}
+          <Text small muted>
+            {t('intelligenceDocumentReviewHint')}
+          </Text>
+          <Button
+            label={t('intelligenceDocumentOpen')}
+            variant="outline"
+            onPress={() =>
+              router.push({ pathname: '/documents/[id]', params: { id: value.documentId } })
+            }
+          />
+        </Receipt>
+      );
     case 'affordability':
       return (
         <Receipt

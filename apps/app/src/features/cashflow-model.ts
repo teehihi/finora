@@ -44,16 +44,18 @@ export function cashflowInputs(draft: CashflowDraft) {
 }
 
 export function paymentsFromLedger(ledger: RepaymentLedger): CashflowInput['payments'] {
-  return ledger.loans.flatMap((loan) =>
-    loan.schedule
-      .filter((row) => !row.paid)
-      .map((row) => ({
-        id: loan.id + ':' + row.period,
-        title: loan.title,
-        date: row.date.slice(0, 10),
-        amount: row.payment,
-      })),
-  );
+  return ledger.loans
+    .filter((loan) => loan.state === 'active')
+    .flatMap((loan) =>
+      loan.schedule
+        .filter((row) => !row.paid)
+        .map((row) => ({
+          id: loan.id + ':' + row.period,
+          title: loan.title,
+          date: row.date.slice(0, 10),
+          amount: row.remainingAmount,
+        })),
+    );
 }
 
 export function demoCashflow(title: string): CashflowInput {

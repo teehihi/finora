@@ -16,6 +16,8 @@ import { IntelligenceController } from './modules/intelligence.js';
 import { CatalogIntelligenceController } from './modules/catalog-intelligence.js';
 import { DocumentIntelligenceController } from './modules/document-intelligence.js';
 import { RepaymentIntelligenceController } from './modules/repayment-intelligence.js';
+import { NotificationController } from './modules/notifications.js';
+import { sweepNotifications } from './modules/notification-service.js';
 import { DocumentsController, LocalStorageProvider, STORAGE } from './infrastructure/storage.js';
 import { avatarMimes, maxAvatarBytes } from '@finora/contracts';
 import { AccountAvatarController } from './modules/account-avatar.js';
@@ -44,6 +46,7 @@ class HealthModule {}
     CatalogIntelligenceController,
     DocumentIntelligenceController,
     RepaymentIntelligenceController,
+    NotificationController,
   ],
   providers: [
     SessionGuard,
@@ -67,6 +70,7 @@ async function main() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   });
   const server = app.getHttpAdapter().getInstance() as express.Express;
+  server.set('trust proxy', env.TRUST_PROXY_HOPS);
   server.get('/.well-known/apple-app-site-association', (_req, res) => {
     if (!env.PASSKEY_APPLE_APP_ID) return res.sendStatus(404);
     return res.json({ webcredentials: { apps: [env.PASSKEY_APPLE_APP_ID] } });
@@ -162,8 +166,21 @@ async function main() {
   await db.$connect();
   await app.listen(env.PORT, env.HOST);
   logger.info({ port: env.PORT }, 'Finora API ready');
+  const sweep = () =>
+    void sweepNotifications().catch((error: unknown) =>
+      logger.warn(
+        { type: error instanceof Error ? error.name : 'unknown' },
+        'Reminder sweep failed',
+      ),
+    );
+  const initialSweep = setTimeout(sweep, 2_000);
+  const reminderInterval = setInterval(sweep, 15 * 60_000);
+  initialSweep.unref();
+  reminderInterval.unref();
   for (const signal of ['SIGTERM', 'SIGINT'])
     process.once(signal, async () => {
+      clearTimeout(initialSweep);
+      clearInterval(reminderInterval);
       await app.close();
       await db.$disconnect();
       process.exit(0);

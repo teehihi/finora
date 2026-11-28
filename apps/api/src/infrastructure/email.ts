@@ -48,6 +48,15 @@ export class EmailService {
   sendOtp(email: string, otp: string, type: 'sign-in' | 'email-verification') {
     return this.provider.send({ to: email, ...renderOtpEmail(otp, type) });
   }
+
+  sendReminder(email: string) {
+    return this.provider.send({
+      to: email,
+      subject: 'Finora · Check your repayment reminders',
+      text: 'A private reminder is ready in your Finora account. Sign in to review it. No payment has been made by Finora.',
+      html: '<p>A private reminder is ready in your Finora account. Sign in to review it.</p><p>Finora has not made a payment.</p>',
+    });
+  }
 }
 
 export const emailService = new EmailService(new SmtpEmailProvider());

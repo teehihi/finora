@@ -5,6 +5,8 @@ import type {
   Product,
   PublicLoanProduct,
   PublicLoanSearch,
+  LoanMatchRequest,
+  LoanMatchResult,
   LoanInput,
   Estimate,
   Saved,
@@ -17,6 +19,15 @@ import type {
   RepaymentPaymentUpdate,
   TrackedRepayment,
   TrackRepaymentInput,
+  RepaymentRecordInput,
+  RepaymentStateUpdate,
+  RepaymentPreparationInput,
+  RepaymentPreparation,
+  NotificationPreference,
+  NotificationCenter,
+  PaymentAuditEvent,
+  TwinComparisonRequest,
+  TwinComparison,
 } from '@finora/contracts';
 export interface Readiness {
   monthlyBudget: number;
@@ -30,7 +41,7 @@ export class ApiError extends Error {
 }
 export function createApi(
   base: string,
-  headers: () => Record<string, string>,
+  headers: () => Record<string, string> | Promise<Record<string, string>>,
   transport: typeof fetch = fetch,
 ) {
   async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
@@ -39,7 +50,7 @@ export function createApi(
         method,
         signal,
         credentials: 'include',
-        headers: { ...headers(), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+        headers: { ...(await headers()), ...(body ? { 'Content-Type': 'application/json' } : {}) },
         body: body ? JSON.stringify(body) : undefined,
       });
       if (!r.ok) throw new ApiError(r.status);
@@ -64,6 +75,8 @@ export function createApi(
     },
     publicProduct: (id: string) =>
       request<PublicLoanProduct>('intelligence/catalog/' + encodeURIComponent(id)),
+    loanMatches: (input: LoanMatchRequest) =>
+      request<LoanMatchResult>('intelligence/catalog/matches', 'POST', input),
     product: (id: string) => request<Product>('catalog/' + encodeURIComponent(id)),
     preview: (productId: string, input: LoanInput) =>
       request<Estimate>('simulations/preview', 'POST', { productId, input }),
@@ -73,6 +86,14 @@ export function createApi(
       request<Saved>('simulations/custom', 'POST', input),
     saved: () => request<Saved[]>('simulations'),
     detail: (id: string) => request<Saved>('simulations/' + encodeURIComponent(id)),
+    compareTwin: (input: TwinComparisonRequest) =>
+      request<TwinComparison>('digital-twin/compare', 'POST', input),
+    compareSavedTwin: (id: string, input: Omit<TwinComparisonRequest, 'loan'>) =>
+      request<TwinComparison>(
+        'simulations/' + encodeURIComponent(id) + '/digital-twin',
+        'POST',
+        input,
+      ),
     repayments: () => request<RepaymentLedger>('repayments'),
     trackRepayment: (input: TrackRepaymentInput) =>
       request<TrackedRepayment>('repayments', 'POST', input),
@@ -82,13 +103,43 @@ export function createApi(
         'PUT',
         input,
       ),
+    recordRepayment: (id: string, period: number, input: RepaymentRecordInput) =>
+      request<{ recordedAmount: number; paid: boolean; repeated: boolean }>(
+        'repayments/' + encodeURIComponent(id) + '/payments/' + period + '/record',
+        'PUT',
+        input,
+      ),
+    repaymentHistory: (id: string, period: number) =>
+      request<PaymentAuditEvent[]>(
+        'repayments/' + encodeURIComponent(id) + '/payments/' + period + '/history',
+      ),
+    repaymentState: (id: string, input: RepaymentStateUpdate) =>
+      request<TrackedRepayment>('repayments/' + encodeURIComponent(id) + '/state', 'PUT', input),
+    repaymentPreparation: (id: string, period: number, input: RepaymentPreparationInput) =>
+      request<RepaymentPreparation>(
+        'repayments/' + encodeURIComponent(id) + '/preparation/' + period,
+        'PUT',
+        input,
+      ),
+    notifications: () => request<NotificationCenter>('notifications'),
+    notificationPreferences: () => request<NotificationPreference>('notifications/preferences'),
+    notificationCapabilities: () =>
+      request<{ email: boolean; push: boolean }>('notifications/capabilities'),
+    saveNotificationPreferences: (input: NotificationPreference) =>
+      request<NotificationPreference>('notifications/preferences', 'PUT', input),
+    readNotification: (id: string) =>
+      request<{ read: true }>('notifications/' + encodeURIComponent(id) + '/read', 'PUT'),
     clearHistory: () => request<{ removed: number }>('assistant/history', 'DELETE'),
     history: () => request<ChatTurn[]>('assistant/history'),
     async stream(input: ChatRequest, signal: AbortSignal, onDelta: (text: string) => void) {
       const r = await transport(base + '/api/assistant/stream', {
         method: 'POST',
         credentials: 'include',
-        headers: { ...headers(), 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        headers: {
+          ...(await headers()),
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
         body: JSON.stringify(input),
         signal,
       });

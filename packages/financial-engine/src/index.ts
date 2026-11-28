@@ -84,3 +84,6 @@ export function compare(a: LoanInput, b: LoanInput) {
 export { repaymentPlan, repaymentPlanMoneyLimit } from './repayment-plan';
 
 export * from './cashflow';
+export * from './repayment-preparation';
+export * from './matching';
+export * from './digital-twin';

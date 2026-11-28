@@ -1,21 +1,50 @@
-import { Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { z } from 'zod';
 import {
   loanDataCompleteness,
+  loanMatchRequestSchema,
   normalizeLoanSearch,
   publicLoanIdSchema,
   publicLoanSearchSchema,
   reviewedLoanDatasetSchema,
   type PublicLoanProduct,
   type PublicLoanSearch,
+  type LoanMatchRequest,
+  type Profile,
 } from '@finora/contracts';
+import { matchLoans } from '@finora/financial-engine';
 import dataset from '../catalog/loans.vn.json' with { type: 'json' };
 import { Validate } from '../common/http.js';
-import { SessionGuard } from './auth.js';
+import { db } from '../infrastructure/db.js';
+import { env } from '../config/env.js';
+import { SessionGuard, type OwnedRequest } from './auth.js';
 
-const products: readonly PublicLoanProduct[] = reviewedLoanDatasetSchema
-  .parse(dataset)
-  .map((p) => ({ ...p, completeness: loanDataCompleteness(p) }));
+const products: readonly PublicLoanProduct[] = reviewedLoanDatasetSchema.parse(dataset).map((p) => {
+  const completeness = loanDataCompleteness(p);
+  return {
+    ...p,
+    completeness,
+    classification:
+      completeness.known === completeness.total &&
+      p.rate &&
+      p.rate.basis !== 'unknown' &&
+      p.rate.min !== null &&
+      p.rate.max !== null &&
+      p.rate?.min === p.rate?.max
+        ? ('real' as const)
+        : ('incomplete' as const),
+  };
+});
 const productsById = new Map(products.map((p) => [p.id, p]));
 
 export function searchPublicLoans(filters: PublicLoanSearch = {}): PublicLoanProduct[] {
@@ -45,6 +74,14 @@ export function getPublicLoan(id: string): PublicLoanProduct | undefined {
   return productsById.get(id);
 }
 
+export function matchPublicLoans(request: LoanMatchRequest, profile: Profile | null) {
+  return matchLoans({ request, profile }, products, {
+    weights: env.FINORA_MATCH_WEIGHTS,
+    affordabilityTarget: env.FINORA_MATCH_AFFORDABILITY_TARGET,
+    incomeStressPercent: env.FINORA_MATCH_STRESS_PERCENT,
+  });
+}
+
 const queryRecord = z
   .strictObject({
     query: z.string().optional(),
@@ -70,6 +107,18 @@ const queryRecord = z
 @Controller('api/intelligence/catalog')
 @UseGuards(SessionGuard)
 export class CatalogIntelligenceController {
+  @Post('matches')
+  async matches(
+    @Req() req: OwnedRequest,
+    @Body(new Validate(loanMatchRequestSchema)) input: LoanMatchRequest,
+  ) {
+    const row = await db.financialProfile.findUnique({ where: { userId: req.userId } });
+    const profile = row
+      ? { income: Number(row.income), expenses: Number(row.expenses), debt: Number(row.debt) }
+      : null;
+    return matchPublicLoans(input, profile);
+  }
+
   @Get()
   list(@Query(new Validate(queryRecord)) filters: PublicLoanSearch) {
     return searchPublicLoans(filters);

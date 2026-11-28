@@ -43,15 +43,27 @@ type Row = {
   simulationId: string;
   title: string;
   createdAt: Date;
-  payments: { period: number; paid: boolean; updatedAt: Date }[];
+  state?: string;
+  payments: {
+    period: number;
+    paid: boolean;
+    amount?: number | null | { toNumber(): number };
+    updatedAt: Date;
+  }[];
 };
 export function trackedRepayment(row: Row, schedule: Payment[]): TrackedRepayment {
   const statuses = new Map(row.payments.map((payment) => [payment.period, payment]));
   const tracked = schedule.map((payment) => {
     const status = statuses.get(payment.period);
+    const recordedAmount = Math.min(
+      payment.payment,
+      Math.max(0, Number(status?.amount ?? (status?.paid ? payment.payment : 0))),
+    );
     return {
       ...payment,
-      paid: status?.paid ?? false,
+      paid: recordedAmount >= payment.payment,
+      recordedAmount,
+      remainingAmount: payment.payment - recordedAmount,
       statusChangedAt: status?.updatedAt.toISOString() ?? null,
     };
   });
@@ -61,17 +73,23 @@ export function trackedRepayment(row: Row, schedule: Payment[]): TrackedRepaymen
     simulationId: row.simulationId,
     title: row.title,
     createdAt: row.createdAt.toISOString(),
+    state:
+      row.state === 'archived' || row.state === 'planned'
+        ? row.state
+        : open.length === 0
+          ? 'completed'
+          : 'active',
     paidPeriods: tracked.length - open.length,
     remainingPrincipal: open.reduce((total, payment) => total + payment.principal, 0),
-    remainingRepayment: open.reduce((total, payment) => total + payment.payment, 0),
+    remainingRepayment: open.reduce((total, payment) => total + payment.remainingAmount, 0),
     schedule: tracked,
   };
 }
 
-const localDay = (now: Date) => {
+const localDay = (now: Date, timeZone: string) => {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
-      timeZone: zone,
+      timeZone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -82,19 +100,24 @@ const localDay = (now: Date) => {
   return `${parts.year}-${parts.month}-${parts.day}`;
 };
 
-export function repaymentLedger(loans: TrackedRepayment[], now = new Date()): RepaymentLedger {
-  const today = localDay(now);
+export function repaymentLedger(
+  loans: TrackedRepayment[],
+  now = new Date(),
+  timeZone = zone,
+): RepaymentLedger {
+  const today = localDay(now, timeZone);
   const end = new Date(today + 'T00:00:00Z');
   end.setUTCDate(end.getUTCDate() + 29);
   const through = end.toISOString().slice(0, 10);
   const due = loans
+    .filter((loan) => loan.state === 'active')
     .flatMap((loan) =>
       loan.schedule
         .filter(({ paid, date }) => !paid && date <= through)
-        .map(({ payment, date, period }): DueRepayment => ({
+        .map(({ remainingAmount, date, period }): DueRepayment => ({
           loanId: loan.id,
           title: loan.title,
-          payment,
+          payment: remainingAmount,
           date,
           period,
         })),

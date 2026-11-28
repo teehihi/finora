@@ -131,6 +131,48 @@ describe('OpenAI Responses adapter (network mocked)', () => {
     });
   });
 
+  it('replays distinct parallel calls and rejects a missing result', async () => {
+    const fetcher = fakeFetch()
+      .mockResolvedValueOnce(
+        completion([call(), { ...call(), call_id: 'call_second', arguments: '{"months":24}' }]),
+      )
+      .mockResolvedValueOnce(completion([item('Done.')]));
+    const adapter = new OpenAIIntelligenceProvider(config, fetcher);
+    const first = await adapter.complete({ messages, tools });
+    expect(first).toMatchObject({
+      kind: 'calls',
+      calls: [
+        { id: 'call_test', arguments: { months: 12 } },
+        { id: 'call_second', arguments: { months: 24 } },
+      ],
+    });
+    if (first.kind !== 'calls') throw Error('Expected calls');
+    await expect(
+      adapter.complete({
+        messages: [
+          ...messages,
+          { role: 'assistant', calls: first.calls },
+          { role: 'tool', callId: 'call_test', content: 'Accepted.' },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: 'invalid_input' });
+    await adapter.complete({
+      messages: [
+        ...messages,
+        { role: 'assistant', calls: first.calls },
+        { role: 'tool', callId: 'call_test', content: 'Accepted.' },
+        { role: 'tool', callId: 'call_second', content: 'Accepted.' },
+      ],
+    });
+    expect(posted(fetcher, 1).input).toEqual([
+      ...messages,
+      call(),
+      { ...call(), call_id: 'call_second', arguments: '{"months":24}' },
+      { type: 'function_call_output', call_id: 'call_test', output: 'Accepted.' },
+      { type: 'function_call_output', call_id: 'call_second', output: 'Accepted.' },
+    ]);
+  });
+
   it.each([
     [call('unregistered')],
     [call('simulate_repayment', '{bad JSON')],
@@ -211,5 +253,53 @@ describe('OpenAI Responses adapter (network mocked)', () => {
     cancel.abort();
     await expect(aborted).rejects.toMatchObject({ code: 'canceled' });
     await expect(adapter.complete({ messages })).rejects.toMatchObject({ code: 'timeout' });
+  });
+
+  it('uses a configured compatible endpoint and retries a transient response without changing the request', async () => {
+    const fetcher = fakeFetch()
+      .mockResolvedValueOnce(new Response('temporary', { status: 503 }))
+      .mockResolvedValueOnce(completion([item('Ready.')]));
+    const adapter = new OpenAIIntelligenceProvider(
+      { ...config, baseUrl: 'https://llm.example.test/api/v1/', retryCount: 1, retryDelayMs: 0 },
+      fetcher,
+    );
+    await expect(adapter.complete({ messages })).resolves.toMatchObject({
+      kind: 'text',
+      text: 'Ready.',
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      'https://llm.example.test/api/v1/responses',
+      'https://llm.example.test/api/v1/responses',
+    ]);
+    expect(fetcher.mock.calls[0][1]?.body).toBe(fetcher.mock.calls[1][1]?.body);
+  });
+
+  it('does not retry a rejected request or accept unsafe endpoint configuration', async () => {
+    const fetcher = fakeFetch().mockResolvedValue(new Response('bad key', { status: 401 }));
+    const adapter = new OpenAIIntelligenceProvider(
+      { ...config, retryCount: 3, retryDelayMs: 0 },
+      fetcher,
+    );
+    await expect(adapter.complete({ messages })).rejects.toMatchObject({ code: 'rejected' });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    for (const baseUrl of [
+      'http://example.test/v1',
+      'https://user:pass@example.test/v1',
+      'https://example.test/v1?key=secret',
+    ]) {
+      expect(() => new OpenAIIntelligenceProvider({ ...config, baseUrl })).toThrow();
+    }
+  });
+
+  it('checks provider health without sending a user message', async () => {
+    const fetcher = fakeFetch().mockResolvedValue(new Response('{}'));
+    const adapter = new OpenAIIntelligenceProvider(
+      { ...config, baseUrl: 'https://llm.example.test/v1' },
+      fetcher,
+    );
+    await expect(adapter.health()).resolves.toEqual({ healthy: true, model: config.model });
+    expect(fetcher.mock.calls[0][0]).toBe('https://llm.example.test/v1/models/gpt-5.4-mini');
+    expect(fetcher.mock.calls[0][1]).toMatchObject({ method: 'GET', redirect: 'error' });
   });
 });

@@ -13,6 +13,7 @@ import { SourceSerif4_500Medium } from '@expo-google-fonts/source-serif-4/500Med
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Animated,
@@ -41,7 +42,14 @@ import {
   ShieldCheck,
   Square,
 } from 'lucide-react-native';
-import type { IntelligenceBlock, IntelligenceRequest, IntelligenceTurn } from '@finora/contracts';
+import {
+  intelligenceProviderSchema,
+  type IntelligenceBlock,
+  type IntelligenceEvent,
+  type IntelligenceProviderChoice,
+  type IntelligenceRequest,
+  type IntelligenceTurn,
+} from '@finora/contracts';
 import { dark, tokens } from '@finora/design-tokens';
 import { date } from '@finora/i18n';
 import {
@@ -91,9 +99,17 @@ const finInputFont = {
 } as const;
 
 type Provider = IntelligenceTurn['provider'];
+type ProgressStage = Extract<IntelligenceEvent, { type: 'progress' }>['stage'];
+const progressLabel = {
+  provider: 'intelligenceProgressProvider',
+  profile: 'intelligenceProgressProfile',
+  catalog: 'intelligenceProgressCatalog',
+  calculation: 'intelligenceProgressCalculation',
+} as const;
 type Draft = {
   request: IntelligenceRequest;
   provider?: Provider;
+  progress?: ProgressStage;
   answer: string;
   blocks: IntelligenceBlock[];
   turnId?: string;
@@ -102,17 +118,27 @@ type Draft = {
 
 export default function Intelligence() {
   const session = auth.useSession();
-  const { simulationId, draftPrompt } = useLocalSearchParams<{
+  const {
+    simulationId,
+    documentId,
+    draftPrompt,
+    conversationId: conversationParam,
+  } = useLocalSearchParams<{
     simulationId?: string;
+    documentId?: string;
     draftPrompt?: string;
+    conversationId?: string;
   }>();
+  const conversationId = chooseSimulationId(conversationParam);
   const uid = session.data?.user.id;
   const scope = chooseSimulationId(simulationId);
   return uid ? (
     <Desk
-      key={uid + ':' + (scope ?? '')}
+      key={uid + ':' + (conversationId ?? '') + ':' + (scope ?? '') + ':' + (documentId ?? '')}
       uid={uid}
+      conversationId={conversationId}
       simulationId={scope}
+      documentId={documentId}
       initialPrompt={chooseDraftPrompt(draftPrompt)}
     />
   ) : null;
@@ -120,11 +146,15 @@ export default function Intelligence() {
 
 function Desk({
   uid,
+  conversationId,
   simulationId,
+  documentId,
   initialPrompt,
 }: {
   uid: string;
+  conversationId?: string;
   simulationId?: string;
+  documentId?: string;
   initialPrompt: string;
 }) {
   const { t, colors: c, locale, money } = useDesign();
@@ -135,10 +165,9 @@ function Desk({
   const phone = width < tokens.breakpoints.rail;
   const dock = useWorkspaceDockInset();
   const insets = useSafeAreaInsets();
-  const [externalConsent, setConsent] = useState(false);
   const [privacy, openPrivacy] = useState(false);
   const [toolSheet, openTools] = useState(false);
-  const [prompt, setPrompt] = useFinPromptDraft(simulationId, initialPrompt);
+  const [prompt, setPrompt] = useFinPromptDraft(simulationId ?? documentId, initialPrompt);
   const [tabsOpen, showTabs] = useState(false);
   const closeTabs = useCallback(() => showTabs(false), []);
   const hasDraft = prompt.trim().length > 0;
@@ -251,16 +280,28 @@ function Desk({
     [canReturnToPeer, edgeOffset, focus, navigateSwipe, previousPeer, reduceMotion],
   );
   const queryClient = useQueryClient();
-  const historyKey = ['intelligence-history', uid] as const;
+  const historyKey = ['intelligence-history', uid, conversationId] as const;
+  const providerKey = ['intelligence-preference', uid, conversationId] as const;
+  const preferenceStorageKey = 'finora:provider:' + uid + ':' + (conversationId ?? 'default');
   const status = useQuery({
     queryKey: ['intelligence-provider', uid],
     queryFn: ({ signal }) => loadIntelligenceStatus(signal),
     retry: false,
   });
-  const allowConsent = status.data === 'openai';
+  const available = status.data?.available ?? [];
+  const allowConsent = available.length > 0;
+  const preference = useQuery({
+    queryKey: providerKey,
+    queryFn: async () => {
+      const stored = await AsyncStorage.getItem(preferenceStorageKey).catch(() => null);
+      return intelligenceProviderSchema.safeParse(stored).data ?? null;
+    },
+    enabled: Boolean(uid),
+    staleTime: Infinity,
+  });
   const history = useQuery({
     queryKey: historyKey,
-    queryFn: ({ signal }) => loadIntelligenceHistory(signal),
+    queryFn: ({ signal }) => loadIntelligenceHistory(signal, conversationId),
     retry: false,
   });
   const saved = useQuery({
@@ -273,6 +314,30 @@ function Desk({
   const scopeUnavailable = Boolean(simulationId && (saved.isPending || saved.isError));
   const historyRows = history.data ?? [];
   const last = historyRows.at(-1);
+  const selected = preference.data ?? last?.routing?.requestedProvider ?? 'mock';
+  const externalConsent = selected !== 'mock' && available.includes(selected);
+  const providerLabel = selected === 'anthropic' ? 'Claude' : 'OpenAI';
+  const sendLabel = externalConsent
+    ? t('intelligenceSendExternal') + ' ' + providerLabel
+    : t('send');
+
+  function selectProvider(choice: IntelligenceProviderChoice) {
+    if (!uid) return;
+    if (choice === 'mock') active.current?.abort();
+    void queryClient.cancelQueries({ queryKey: providerKey, exact: true });
+    queryClient.setQueryData(providerKey, choice);
+    void AsyncStorage.setItem(preferenceStorageKey, choice).catch(() => undefined);
+  }
+
+  function setConsent(enabled: boolean) {
+    selectProvider(
+      enabled
+        ? (available.find((provider) => provider === status.data?.provider) ??
+            available[0] ??
+            'mock')
+        : 'mock',
+    );
+  }
   const current =
     draft?.stage === 'done' &&
     last?.answer === draft.answer &&
@@ -327,16 +392,22 @@ function Desk({
           prompt: prompt.trim(),
           locale,
           simulationId: scoped?.id,
-          externalConsent: allowConsent && externalConsent,
+          documentId,
+          conversationId,
+          requestedProvider: selected,
+          externalConsent,
         };
-    // Do not re-send a previously opted-in request after turning off permission.
-    if (retry?.externalConsent && (!allowConsent || !externalConsent)) {
-      request.externalConsent = false;
+    // A retry after changing the selection is a new request with new consent.
+    if (
+      retry &&
+      (retry.externalConsent !== externalConsent || retry.requestedProvider !== selected)
+    ) {
+      request.externalConsent = externalConsent;
+      request.requestedProvider = selected;
       request.requestId = requestId();
     }
     const control = new AbortController();
     active.current = control;
-    setConsent(false);
     const currentRequest = () => active.current === control;
     let reply: Draft = { request, answer: '', blocks: [], stage: 'sending' };
     if (!retry) {
@@ -353,6 +424,9 @@ function Desk({
         switch (event.type) {
           case 'meta':
             reply = { ...reply, provider: event.provider };
+            break;
+          case 'progress':
+            reply = { ...reply, progress: event.stage };
             break;
           case 'delta':
             reply = { ...reply, answer: reply.answer + event.text };
@@ -407,7 +481,8 @@ function Desk({
     setClearError(false);
     setClearing(true);
     try {
-      await clearIntelligenceHistory(new AbortController().signal);
+      await clearIntelligenceHistory(new AbortController().signal, conversationId);
+      selectProvider('mock');
       await queryClient.cancelQueries({ queryKey: historyKey, exact: true });
       queryClient.setQueryData(historyKey, []);
       initial.current = false;
@@ -592,7 +667,7 @@ function Desk({
   );
   const sendButton = (
     <FinBarButton
-      label={t(stream ? 'stop' : 'send')}
+      label={stream ? t('stop') : sendLabel}
       disabled={sendUnavailable}
       onPress={() => (stream ? active.current?.abort() : void submit())}
       backgroundColor={sendUnavailable ? (c === dark ? c.secondary : '#D7EDDF') : c.primary}
@@ -652,15 +727,27 @@ function Desk({
         </View>
         {allowConsent && externalConsent ? (
           <View style={{ marginLeft: 'auto' }}>
-            <ModeMark label={t('intelligenceExternalReady')} external />
+            <Action label={t('intelligencePrivacy')} onPress={() => openPrivacy(true)}>
+              <ModeMark label={t('intelligenceExternalReady') + ' · ' + providerLabel} external />
+            </Action>
           </View>
+        ) : allowConsent ? (
+          <Action
+            label={t('intelligenceChooseExternal')}
+            onPress={() => openPrivacy(true)}
+            style={{ marginLeft: 'auto', minHeight: 44, justifyContent: 'center' }}
+          >
+            <Text small bold style={{ color: c.primary }}>
+              {t('intelligenceChooseExternalShort')}
+            </Text>
+          </Action>
         ) : null}
         {!wide && !phone ? toolsButton : null}
       </View>
 
       <View style={{ flex: 1, minHeight: 0, flexDirection: 'row', gap: wide ? 27 : 0 }}>
         <View style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
-          {scoped || (simulationId && saved.isError) ? (
+          {scoped || documentId || (simulationId && saved.isError) ? (
             <View
               style={{
                 flexDirection: 'row',
@@ -673,15 +760,17 @@ function Desk({
             >
               <Paperclip size={16} color={c.primary} />
               <Text small style={{ flex: 1 }} muted>
-                {scoped
-                  ? (locale === 'vi-VN' ? scoped.product.name : scoped.product.nameEn) +
-                    ' · ' +
-                    money(scoped.input.principal)
-                  : t('intelligenceScopeMissing')}
+                {documentId
+                  ? t('intelligenceDocumentAttached')
+                  : scoped
+                    ? (locale === 'vi-VN' ? scoped.product.name : scoped.product.nameEn) +
+                      ' · ' +
+                      money(scoped.input.principal)
+                    : t('intelligenceScopeMissing')}
               </Text>
               <Action
                 label={t('intelligenceScopeRemove')}
-                onPress={() => router.setParams({ simulationId: '' })}
+                onPress={() => router.setParams({ simulationId: '', documentId: '' })}
                 disabled={stream}
               >
                 <Text small bold style={{ color: c.primary }}>
@@ -780,7 +869,10 @@ function Desk({
               </Action>
             ) : null}
             {historyRows.map((row, index) => (
-              <View key={row.id} style={{ gap: 9 }}>
+              <View
+                key={row.id}
+                style={{ gap: 9, width: '100%', maxWidth: 1000, alignSelf: 'center' }}
+              >
                 {index === 0 ||
                 date(row.createdAt, locale) !== date(historyRows[index - 1].createdAt, locale) ? (
                   <Text small muted>
@@ -806,7 +898,7 @@ function Desk({
             ))}
             {current ? (
               <View
-                style={{ gap: 10 }}
+                style={{ gap: 10, width: '100%', maxWidth: 1000, alignSelf: 'center' }}
                 onLayout={({ nativeEvent }) => {
                   turnTop.current = nativeEvent.layout.y;
                 }}
@@ -819,7 +911,7 @@ function Desk({
                   blocks={current.blocks}
                   followUp={current.stage === 'done' && !prompt.trim() ? fill : undefined}
                 />
-                {current.stage === 'sending' && !current.answer ? (
+                {current.stage === 'sending' && !current.blocks.length ? (
                   <View
                     style={{
                       alignSelf: 'flex-start',
@@ -833,7 +925,9 @@ function Desk({
                   >
                     <ActivityIndicator size="small" color={c.primary} />
                     <Text small muted>
-                      {t('intelligenceWorking')}
+                      {current.progress
+                        ? t(progressLabel[current.progress])
+                        : t('intelligenceWorking')}
                     </Text>
                   </View>
                 ) : null}
@@ -846,7 +940,10 @@ function Desk({
                           : 'intelligenceSendError',
                       )}
                     </Text>
-                    <Action label={t('retry')} onPress={() => void submit(current.request)}>
+                    <Action
+                      label={externalConsent ? sendLabel : t('retry')}
+                      onPress={() => void submit(current.request)}
+                    >
                       <Text small bold style={{ color: c.primary }}>
                         {t('retry')}
                       </Text>
@@ -953,7 +1050,7 @@ function Desk({
             </View>
             {allowConsent && externalConsent ? (
               <Text small muted>
-                {t('intelligenceConsentOn')}
+                {sendLabel + ' · ' + t('intelligenceConsentOn')}
               </Text>
             ) : null}
           </View>
@@ -993,6 +1090,17 @@ function Desk({
         {allowConsent ? (
           <Switch label={t('intelligenceConsent')} value={externalConsent} onChange={setConsent} />
         ) : null}
+        {externalConsent && available.length > 1
+          ? available.map((choice) => (
+              <Button
+                key={choice}
+                label={choice === 'anthropic' ? 'Claude' : 'OpenAI'}
+                variant="outline"
+                disabled={selected === choice}
+                onPress={() => selectProvider(choice)}
+              />
+            ))
+          : null}
         <Text small muted>
           {t('intelligenceCaution')}
         </Text>
@@ -1055,12 +1163,13 @@ function Turn({
   followUp?: (value: string) => void;
 }) {
   const { t, colors: c } = useDesign();
+  const { width } = useWindowDimensions();
   return (
-    <View style={{ gap: 13 }}>
+    <View style={{ gap: 13, minWidth: 0 }}>
       <View
         style={{
           alignSelf: 'flex-end',
-          maxWidth: '92%',
+          maxWidth: Math.min(620, Math.max(0, width - 40)),
           backgroundColor: c.secondary,
           borderRadius: tokens.radius.card,
           borderBottomRightRadius: 4,
@@ -1083,15 +1192,21 @@ function Turn({
                 label={
                   provider === 'mock'
                     ? t('intelligenceLocal')
-                    : t('intelligenceRemote') + ' · OpenAI'
+                    : provider === 'fallback'
+                      ? t('intelligenceFallback')
+                      : t('intelligenceRemote') +
+                        (provider === 'anthropic' ? ' · Claude' : ' · OpenAI')
                 }
-                external={provider !== 'mock'}
+                external={provider === 'openai' || provider === 'anthropic'}
               />
             ) : null}
           </View>
           {answer ? (
             <View
               style={{
+                alignSelf: 'flex-start',
+                width: '100%',
+                maxWidth: 760,
                 backgroundColor: c.surface,
                 borderRadius: 18,
                 borderTopLeftRadius: 5,
@@ -1103,7 +1218,9 @@ function Turn({
             </View>
           ) : null}
           {blocks.length ? (
-            <AnalysisBlocks blocks={blocks} turnId={turnId} followUp={followUp} />
+            <View style={{ width: '100%', maxWidth: 960 }}>
+              <AnalysisBlocks blocks={blocks} turnId={turnId} followUp={followUp} />
+            </View>
           ) : null}
         </View>
       ) : null}

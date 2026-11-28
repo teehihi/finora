@@ -8,28 +8,30 @@ datasource db {
 }
 
 model User {
-  id            String             @id
-  name          String
-  email         String             @unique
-  emailVerified Boolean            @default(false)
-  twoFactorEnabled Boolean         @default(false)
-  twoFactors    TwoFactor[]
-  passkeys      Passkey[]
-  image         String?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  profile       FinancialProfile?
-  avatar        AccountAvatar?
-  locale        String             @default("vi-VN")
-  appearance    String             @default("light")
-  simulations   LoanSimulation[]
-  turns         ChatTurn[]
-  documents     UploadedDocument[]
-  documentAnalyses DocumentAnalysis[]
-  intelligenceTurns IntelligenceTurn[]
-  trackedRepayments TrackedRepayment[]
+  id                     String                  @id
+  name                   String
+  email                  String                  @unique
+  emailVerified          Boolean                 @default(false)
+  twoFactorEnabled       Boolean                 @default(false)
+  twoFactors             TwoFactor[]
+  passkeys               Passkey[]
+  image                  String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  sessions               Session[]
+  accounts               Account[]
+  profile                FinancialProfile?
+  avatar                 AccountAvatar?
+  locale                 String                  @default("vi-VN")
+  appearance             String                  @default("light")
+  simulations            LoanSimulation[]
+  turns                  ChatTurn[]
+  documents              UploadedDocument[]
+  documentAnalyses       DocumentAnalysis[]
+  intelligenceTurns      IntelligenceTurn[]
+  trackedRepayments      TrackedRepayment[]
+  notificationPreference NotificationPreference?
+  repaymentNotifications RepaymentNotification[]
 }
 
 model TwoFactor {
@@ -135,16 +137,16 @@ model LoanProduct {
 }
 
 model LoanSimulation {
-  id              String      @id @default(uuid())
-  userId          String
-  productId       String?
-  requestId       String
-  input           Json
-  result          Json
-  productSnapshot Json
-  createdAt       DateTime    @default(now())
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product         LoanProduct? @relation(fields: [productId], references: [id], onDelete: Restrict)
+  id                String             @id @default(uuid())
+  userId            String
+  productId         String?
+  requestId         String
+  input             Json
+  result            Json
+  productSnapshot   Json
+  createdAt         DateTime           @default(now())
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           LoanProduct?       @relation(fields: [productId], references: [id], onDelete: Restrict)
   trackedRepayments TrackedRepayment[]
 
   @@unique([userId, requestId])
@@ -179,22 +181,23 @@ model UploadedDocument {
   @@index([userId])
 }
 
-
 model IntelligenceTurn {
-  id           String   @id @default(uuid())
-  userId       String
-  requestId    String
-  prompt       String
-  answer       String
-  locale       String
-  provider     String
-  simulationId String?
-  blocks       Json
-  createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(uuid())
+  userId         String
+  requestId      String
+  prompt         String
+  answer         String
+  locale         String
+  provider       String
+  simulationId   String?
+  conversationId String?
+  blocks         Json
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, requestId])
   @@index([userId, createdAt])
+  @@index([userId, conversationId, createdAt])
 }
 
 model DocumentAnalysis {
@@ -213,14 +216,19 @@ model DocumentAnalysis {
 }
 
 model TrackedRepayment {
-  id           String             @id @default(uuid())
-  userId       String
-  simulationId String
-  title        String
-  createdAt    DateTime           @default(now())
-  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  simulation   LoanSimulation     @relation(fields: [simulationId, userId], references: [id, userId], onDelete: Cascade)
-  payments     RepaymentPayment[]
+  id             String                  @id @default(uuid())
+  userId         String
+  simulationId   String
+  title          String
+  createdAt      DateTime                @default(now())
+  state          String                  @default("active")
+  stateChangedAt DateTime                @default(now())
+  preparation    Json?
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  simulation     LoanSimulation          @relation(fields: [simulationId, userId], references: [id, userId], onDelete: Cascade)
+  payments       RepaymentPayment[]
+  paymentAudit   RepaymentPaymentAudit[]
+  notifications  RepaymentNotification[]
 
   @@unique([userId, simulationId])
   @@index([userId, createdAt])
@@ -230,14 +238,69 @@ model RepaymentPayment {
   repaymentId String
   period      Int
   paid        Boolean
+  amount      Decimal?         @db.Decimal(15, 0)
+  paidOn      DateTime?        @db.Date
   updatedAt   DateTime         @updatedAt
   repayment   TrackedRepayment @relation(fields: [repaymentId], references: [id], onDelete: Cascade)
 
   @@id([repaymentId, period])
 }
 
+model RepaymentPaymentAudit {
+  id             String           @id @default(uuid())
+  repaymentId    String
+  period         Int
+  requestId      String
+  previousAmount Decimal          @db.Decimal(15, 0)
+  newAmount      Decimal          @db.Decimal(15, 0)
+  paidOn         DateTime?        @db.Date
+  createdAt      DateTime         @default(now())
+  repayment      TrackedRepayment @relation(fields: [repaymentId], references: [id], onDelete: Cascade)
+
+  @@unique([repaymentId, requestId])
+  @@index([repaymentId, period, createdAt])
+}
+
+model NotificationPreference {
+  userId               String   @id
+  timeZone             String   @default("Asia/Ho_Chi_Minh")
+  quietStart           Int      @default(22)
+  quietEnd             Int      @default(8)
+  remindersEnabled     Boolean  @default(true)
+  shortfallEnabled     Boolean  @default(true)
+  profileReviewEnabled Boolean  @default(false)
+  emailEnabled         Boolean  @default(false)
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RepaymentNotification {
+  id            String            @id @default(uuid())
+  userId        String
+  repaymentId   String?
+  period        Int?
+  kind          String
+  dedupKey      String
+  triggerDate   DateTime          @db.Date
+  scheduledFor  DateTime          @default(now())
+  status        String            @default("queued")
+  createdAt     DateTime          @default(now())
+  readAt        DateTime?
+  emailStatus   String            @default("disabled")
+  emailAttempts Int               @default(0)
+  nextRetryAt   DateTime?
+  emailedAt     DateTime?
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repayment     TrackedRepayment? @relation(fields: [repaymentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupKey])
+  @@index([userId, createdAt])
+  @@index([emailStatus, nextRetryAt])
+  @@index([status, scheduledFor])
+}
+
 model AccountAvatar {
   userId    String @id
   objectKey String
-  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

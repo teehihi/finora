@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import {
   trackRepaymentSchema,
   repaymentPaymentUpdateSchema,
+  repaymentRecordSchema,
+  repaymentStateUpdateSchema,
   type Payment,
 } from '@finora/contracts';
 import { readSchedule, repaymentLedger, trackedRepayment } from '../src/modules/repayment-model';
@@ -28,6 +31,20 @@ describe('repayment tracking model', () => {
     expect(repaymentPaymentUpdateSchema.safeParse({ paid: true, confirmed: false }).success).toBe(
       false,
     );
+    expect(
+      repaymentRecordSchema.safeParse({ amount: 5, requestId: randomUUID(), confirmed: true })
+        .success,
+    ).toBe(true);
+    expect(
+      repaymentRecordSchema.safeParse({ amount: -1, requestId: randomUUID(), confirmed: true })
+        .success,
+    ).toBe(false);
+    expect(
+      repaymentStateUpdateSchema.safeParse({ state: 'active', confirmed: false }).success,
+    ).toBe(false);
+    expect(
+      repaymentStateUpdateSchema.safeParse({ state: 'completed', confirmed: true }).success,
+    ).toBe(false);
   });
 
   it('accepts ordered reproducible snapshots but rejects missing, unsorted or inconsistent rows', () => {
@@ -50,6 +67,15 @@ describe('repayment tracking model', () => {
     expect(ledger.upcomingTotal).toBe(22);
   });
 
+  it('uses the chosen reminder timezone for the due-day boundary', () => {
+    const loan = trackedRepayment({ ...row, payments: [] }, schedule);
+    const instant = new Date('2026-11-25T17:00:00.000Z');
+    const result = repaymentLedger([loan], instant, 'America/New_York');
+    expect(result.today).toBe('2026-11-25');
+    expect(result.overdue).toHaveLength(0);
+    expect(result.upcoming[0].period).toBe(1);
+  });
+
   it('uses only manual confirmations and balances unpaid schedule rows, even out of order', () => {
     const loan = trackedRepayment(
       {
@@ -68,5 +94,33 @@ describe('repayment tracking model', () => {
     const result = repaymentLedger([loan], new Date('2026-11-25T17:00:00.000Z'));
     expect(result.upcoming.map(({ period }) => period)).toEqual([3]);
     expect(result.overdueTotal).toBe(11);
+  });
+
+  it('keeps partial manual amounts separate from a lender payment claim', () => {
+    const loan = trackedRepayment(
+      {
+        ...row,
+        state: 'active',
+        payments: [{ period: 1, paid: false, amount: 5, updatedAt: createdAt }],
+      },
+      schedule,
+    );
+    expect(loan.schedule[0]).toMatchObject({ recordedAmount: 5, remainingAmount: 6, paid: false });
+    expect(loan.remainingRepayment).toBe(39);
+    expect(loan.state).toBe('active');
+    const ledger = repaymentLedger([loan], new Date('2026-11-25T17:00:00.000Z'));
+    expect(ledger.overdue[0].payment).toBe(6);
+  });
+
+  it('excludes planned and archived schedules from due obligations', () => {
+    const planned = trackedRepayment({ ...row, state: 'planned', payments: [] }, schedule);
+    const archived = trackedRepayment(
+      { ...row, id: 'archived', state: 'archived', payments: [] },
+      schedule,
+    );
+    const ledger = repaymentLedger([planned, archived], new Date('2026-11-25T17:00:00.000Z'));
+    expect(ledger.upcoming).toHaveLength(0);
+    expect(ledger.overdue).toHaveLength(0);
+    expect(ledger.loans).toHaveLength(2);
   });
 });
